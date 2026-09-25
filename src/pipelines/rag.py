@@ -6,6 +6,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
+from src.coprocessor import Coprocessor
 from src.graph import GraphClient
 from src.guardrails import sanitize_output
 from src.llm import LockedLLMSession
@@ -28,6 +29,7 @@ Answer:"""
 class RAGPipeline:
     graph: GraphClient
     llm: LockedLLMSession
+    coprocessor: Coprocessor | None = None
 
     async def run(self, qid: str, question: str) -> PipelineResult:
         t_start = time.perf_counter()
@@ -38,24 +40,24 @@ class RAGPipeline:
         dense_results = self.graph.vector_search(query_vector, top_k=5)
 
         # Step 2: Resolve chunk texts and collect doc IDs
-        # Note: RAG pipeline accesses chunk text from TigerGraph result directly
         doc_ids: list[str] = []
         context_parts: list[str] = []
+        context_tokens = 0
+
         for chunk_id, score in dense_results:
             # chunk_id format: "{doc_id}#{index}"
             doc_id = chunk_id.rsplit("#", 1)[0]
             if doc_id not in doc_ids:
                 doc_ids.append(doc_id)
 
-        # Get context text from the chunks returned by vector search
-        # (The graph.vector_search already returns chunk text via the GSQL query)
-        # We access text via the coprocessor chunk map for offline usage
-        # In production, text is returned directly from TigerGraph GSQL result
-        context_tokens = 0
-        context_parts = []
-        for chunk_id, score in dense_results:
-            # This will be resolved via coprocessor in the app startup
-            context_parts.append(f"[Score: {score:.3f}] [DocID: {chunk_id.rsplit('#', 1)[0]}]")
+            if self.coprocessor:
+                chunk = self.coprocessor.get_chunk(chunk_id)
+                if chunk:
+                    context_parts.append(f"[Score: {score:.3f} | Doc: {doc_id}]\n{chunk.text}")
+                    context_tokens += len(chunk.text) // 4
+                    continue
+
+            context_parts.append(f"[Score: {score:.3f} | Doc: {doc_id}]")
             context_tokens += 80  # estimated
 
         context_text = "\n\n".join(context_parts)

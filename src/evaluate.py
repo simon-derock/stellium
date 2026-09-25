@@ -80,6 +80,17 @@ def compute_recall_at_k(
     return len(matched) / len(gold_set)
 
 
+def compute_precision_at_k(
+    retrieved_doc_ids: Sequence[str], gold_doc_ids: Sequence[str], k: int = 5
+) -> float:
+    if not retrieved_doc_ids or k <= 0:
+        return 0.0
+    gold_set = set(gold_doc_ids)
+    retrieved_k = retrieved_doc_ids[:k]
+    matched = set(retrieved_k) & gold_set
+    return len(matched) / len(retrieved_k)
+
+
 # ---------------------------------------------------------------------------
 # Evaluation Runner
 # ---------------------------------------------------------------------------
@@ -198,7 +209,7 @@ class EvaluationHarness:
         session = make_session(self.provider)
         async with session:
             if "rag" in pipelines:
-                rag_pipe = RAGPipeline(graph=self.graph, llm=session)
+                rag_pipe = RAGPipeline(graph=self.graph, llm=session, coprocessor=self.coprocessor)
                 results["rag"] = await rag_pipe.run(q.qid, q.question)
 
             if "graphrag" in pipelines:
@@ -236,14 +247,33 @@ class EvaluationHarness:
 
         all_records: list[dict[str, Any]] = []
         stats: dict[str, dict[str, float]] = {
-            p: {"em": 0.0, "f1": 0.0, "mrr": 0.0, "tokens": 0.0, "latency_ms": 0.0}
+            p: {
+                "em": 0.0,
+                "f1": 0.0,
+                "mrr": 0.0,
+                "rec5": 0.0,
+                "prec5": 0.0,
+                "tokens": 0.0,
+                "zero_tokens": 0.0,
+                "latency_ms": 0.0,
+            }
             for p in pipeline_names
+        }
+
+        # Track metrics by question category
+        qtypes = ["aggregation", "temporal", "superlative", "multi_hop", "lookup"]
+        qtype_counts: dict[str, int] = {qt: 0 for qt in qtypes}
+        qtype_stats: dict[str, dict[str, dict[str, float]]] = {
+            qt: {p: {"em": 0.0, "tokens": 0.0} for p in pipeline_names} for qt in qtypes
         }
 
         for idx, q in enumerate(questions, start=1):
             t0 = time.perf_counter()
             pipe_results = await self.evaluate_question(q, pipeline_names)
             elapsed = (time.perf_counter() - t0) * 1000
+
+            qt_norm = q.qtype if q.qtype in qtypes else "lookup"
+            qtype_counts[qt_norm] += 1
 
             record: dict[str, Any] = {
                 "qid": q.qid,
@@ -260,46 +290,102 @@ class EvaluationHarness:
                 if res.agentic_trace:
                     record["agentic_trace"] = res.agentic_trace
 
+                if res.total_llm_tokens == 0:
+                    stats[p]["zero_tokens"] += 1.0
+
                 # Compute metrics if ground truth is present
                 if q.answer:
                     em = compute_exact_match(res.answer, q.answer)
                     f1 = compute_token_f1(res.answer, q.answer)
                     mrr = compute_mrr(res.retrieved_doc_ids, q.gold_doc_ids or [])
+                    rec5 = compute_recall_at_k(res.retrieved_doc_ids, q.gold_doc_ids or [], k=5)
+                    prec5 = compute_precision_at_k(res.retrieved_doc_ids, q.gold_doc_ids or [], k=5)
+
                     record[f"{p}_em"] = em
                     record[f"{p}_f1"] = f1
                     record[f"{p}_mrr"] = mrr
+                    record[f"{p}_recall@5"] = rec5
+                    record[f"{p}_prec@5"] = prec5
 
                     stats[p]["em"] += em
                     stats[p]["f1"] += f1
                     stats[p]["mrr"] += mrr
+                    stats[p]["rec5"] += rec5
+                    stats[p]["prec5"] += prec5
+
+                    qtype_stats[qt_norm][p]["em"] += em
+                    qtype_stats[qt_norm][p]["tokens"] += res.total_llm_tokens
+
                 stats[p]["tokens"] += res.total_llm_tokens
                 stats[p]["latency_ms"] += res.latency_ms
 
             all_records.append(record)
             print(
-                f"[{idx}/{len(questions)}] {q.qid} ({q.qtype}) completed in {elapsed:.1f}ms",
+                f"[{idx}/{len(questions)}] {q.qid} ({q.qtype}) in {elapsed:.1f}ms",
                 file=sys.stderr,
             )
 
-        # Average statistics
         n = max(1, len(questions))
-        print("\n" + "=" * 65, file=sys.stderr)
+
+        # Overall Matrix Report
+        print("\n" + "=" * 90, file=sys.stderr)
+        print("  STELLIUM: 3-WAY COMPARATIVE BENCHMARK MATRIX", file=sys.stderr)
+        print("=" * 90, file=sys.stderr)
         print(
-            f"{'Pipeline':<15} {'EM':<8} {'F1':<8} {'MRR':<8} {'Avg Tokens':<12} {'Avg Latency'}",
+            f"{'Pipeline':<18} {'EM':<8} {'F1':<8} {'MRR':<8} {'Rec@5':<8} {'Prec@5':<8} {'Avg Tokens':<12} {'0-Tok %':<9} {'Avg Latency'}",
             file=sys.stderr,
         )
-        print("-" * 65, file=sys.stderr)
+        print("-" * 90, file=sys.stderr)
         for p in pipeline_names:
             em_avg = stats[p]["em"] / n
             f1_avg = stats[p]["f1"] / n
             mrr_avg = stats[p]["mrr"] / n
+            rec_avg = stats[p]["rec5"] / n
+            prec_avg = stats[p]["prec5"] / n
             tok_avg = stats[p]["tokens"] / n
+            zero_tok_pct = (stats[p]["zero_tokens"] / n) * 100
             lat_avg = stats[p]["latency_ms"] / n
             print(
-                f"{p:<15} {em_avg:<8.3f} {f1_avg:<8.3f} {mrr_avg:<8.3f} {tok_avg:<12.1f} {lat_avg:.1f}ms",
+                f"{p:<18} {em_avg:<8.3f} {f1_avg:<8.3f} {mrr_avg:<8.3f} {rec_avg:<8.3f} {prec_avg:<8.3f} {tok_avg:<12.1f} {zero_tok_pct:<8.1f}% {lat_avg:.1f}ms",
                 file=sys.stderr,
             )
-        print("=" * 65 + "\n", file=sys.stderr)
+        print("=" * 90, file=sys.stderr)
+
+        # Breakdown by Question Type
+        print("\n" + "-" * 90, file=sys.stderr)
+        print("  EXACT MATCH & TOKEN CONSUMPTION BY QUESTION CATEGORY", file=sys.stderr)
+        print("-" * 90, file=sys.stderr)
+        print(
+            f"{'Category':<15} {'Count':<7} "
+            + " | ".join(f"{p.upper()} (EM / Tok)" for p in pipeline_names),
+            file=sys.stderr,
+        )
+        print("-" * 90, file=sys.stderr)
+        for qt in qtypes:
+            cnt = qtype_counts[qt]
+            if cnt == 0:
+                continue
+            cols = []
+            for p in pipeline_names:
+                em_qt = qtype_stats[qt][p]["em"] / cnt
+                tok_qt = qtype_stats[qt][p]["tokens"] / cnt
+                cols.append(f"{em_qt:.2f} / {tok_qt:4.0f}")
+            print(f"{qt.capitalize():<15} {cnt:<7} " + " | ".join(cols), file=sys.stderr)
+        print("-" * 90, file=sys.stderr)
+
+        # Comparative ROI Summary
+        if "rag" in pipeline_names and "agentic" in pipeline_names:
+            em_rag = stats["rag"]["em"] / n
+            em_agentic = stats["agentic"]["em"] / n
+            delta_acc = (em_agentic - em_rag) * 100
+            tok_rag = stats["rag"]["tokens"] / n
+            tok_agentic = stats["agentic"]["tokens"] / n
+            efficiency = tok_agentic / max(1.0, tok_rag)
+            print(
+                f"ROI Summary: Agentic Accuracy Delta: +{delta_acc:.1f}% | Token Efficiency Ratio: {efficiency:.2f}x",
+                file=sys.stderr,
+            )
+            print("=" * 90 + "\n", file=sys.stderr)
 
         # Write output file if specified
         if output_path:

@@ -5,6 +5,7 @@ from src.evaluate import (
     EvaluationHarness,
     compute_exact_match,
     compute_mrr,
+    compute_precision_at_k,
     compute_recall_at_k,
     compute_token_f1,
 )
@@ -58,6 +59,13 @@ def test_recall_at_k() -> None:
     retrieved = ["Q1", "Q2", "Q99", "Q100", "Q101"]
     # 2 out of 4 retrieved in top-5 -> Recall@5 = 0.5
     assert compute_recall_at_k(retrieved, gold, k=5) == 0.5
+
+
+def test_precision_at_k() -> None:
+    gold = ["Q1", "Q2"]
+    retrieved = ["Q1", "Q2", "Q99", "Q100", "Q101"]
+    # 2 out of 5 retrieved are gold -> Precision@5 = 0.4
+    assert compute_precision_at_k(retrieved, gold, k=5) == 0.4
 
 
 @pytest.mark.asyncio
