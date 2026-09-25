@@ -14,16 +14,16 @@
 
 | Task ID | Task Scope | Assigned Agent | Status | Branch / Worktree | Green Tests | Commit Hash |
 | :--- | :--- | :--- | :---: | :--- | :---: | :---: |
-| **TASK-001** | Python Environment (`uv`), `pyproject.toml`, Quality Tooling (`ruff`, `mypy`, `pytest`) | `master-agent-001` | **IN_PROGRESS** | `main` | - | Pending |
-| **TASK-002** | Ingestion Engine, Table-Aware Chunking & Doubly Linked Pointers | `agent-001` | **QUEUED** | `agent/001/ingest-schema` | - | - |
-| **TASK-003** | TigerGraph Savanna DDL Schema & Offline Mock Adapter | `agent-001` | **QUEUED** | `agent/001/ingest-schema` | - | - |
-| **TASK-004** | High-Speed Coprocessor: Roaring Bitmasks, BM25, RRF & Reranker | `agent-002` | **QUEUED** | `agent/002/hybrid-engine` | - | - |
-| **TASK-005** | Resilient Multi-Provider LLM Router & 3-Layer Guardrails | `agent-003` | **QUEUED** | `agent/003/langgraph-agent` | - | - |
-| **TASK-006** | Pipeline 1 (Vector RAG) & Pipeline 2 (Hybrid GraphRAG) | `agent-003` | **QUEUED** | `agent/003/langgraph-agent` | - | - |
-| **TASK-007** | Pipeline 3: LangGraph Agentic Engine & GSQL Reasoning Tools | `agent-003` | **QUEUED** | `agent/003/langgraph-agent` | - | - |
-| **TASK-008** | Evaluation Suite (100 Public + 50 Hidden), MRR & Ragas | `agent-004` | **QUEUED** | `agent/004/eval-dashboard` | - | - |
-| **TASK-009** | FastAPI Backend & Lunarbit `GraphSurface.tsx` Frontend | `agent-004` | **QUEUED** | `agent/004/eval-dashboard` | - | - |
-| **TASK-010** | GitHub Actions CI, Architecture Diagrams & Submission Pack | `master-agent-001` | **QUEUED** | `main` | - | - |
+| **TASK-001** | Python Environment (`uv`), `pyproject.toml`, Quality Tooling (`ruff`, `mypy`, `pytest`) | `master-agent-001` | **DONE** | `main` | 2 passed | `01cef2a` |
+| **TASK-002** | Ingestion Engine, Table-Aware Chunking & Doubly Linked Pointers | `master-agent-001` | **DONE** | `main` | 3 passed | `afa12b7` |
+| **TASK-003** | TigerGraph Savanna DDL Schema & Stored GSQL Queries | `master-agent-001` | **DONE** | `main` | Type check pass | `074c61f` |
+| **TASK-004** | High-Speed Coprocessor: Roaring Bitmasks, BM25Plus, RRF & Reranker | `master-agent-001` | **DONE** | `main` | 3 passed | `62d5dff` |
+| **TASK-005** | Resilient Multi-Provider LLM Router & 3-Layer Guardrails | `master-agent-001` | **DONE** | `main` | 6 passed | `7534d93` |
+| **TASK-006** | Pipeline 1 (Vector RAG) & Pipeline 2 (Hybrid GraphRAG) | `master-agent-001` | **DONE** | `main` | Type check pass | `1565f8d` |
+| **TASK-007** | Pipeline 3: Autonomous Agentic GraphRAG Engine & GSQL Tools | `master-agent-001` | **DONE** | `main` | 14 passed | `1565f8d` |
+| **TASK-008** | Evaluation Suite (100 Public + 50 Questions), Metrics & Benchmarks | `master-agent-001` | **IN_PROGRESS** | `main` | - | - |
+| **TASK-009** | FastAPI Backend & Lunarbit `GraphSurface.tsx` Frontend | `master-agent-001` | **QUEUED** | `main` | - | - |
+| **TASK-010** | Presentation, Architecture SVG & Final Submission Pack | `master-agent-001` | **QUEUED** | `main` | - | - |
 
 ---
 
@@ -52,6 +52,6 @@
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Step 1 (TASK-001)**: Initialize `pyproject.toml` using `uv`, configure dependencies (`fastapi`, `pydantic`, `langgraph`, `pytigergraph`, `pyroaring`, `rank-bm25`, `sentence-transformers`, `ruff`, `mypy`, `pytest`), and verify `uv sync`.
-2. **Step 2 (TASK-001)**: Setup quality configurations (`ruff.toml` / `pyproject.toml` tool sections), add initial smoke test, and execute the quality gate.
-3. **Step 3 (TASK-001)**: Make the initial atomic micro-commit with signature `[committed by master-agent-001]`.
+1. **Step 1 (TASK-008)**: Build `src/evaluate.py` evaluation harness to benchmark all 3 pipelines across the evaluation questions, computing Tier-1 EM, Token-F1, Recall@k, and Pareto Frontier statistics.
+2. **Step 2 (TASK-009)**: Build the FastAPI async API server (`/api/v1/query/compare`, `/api/v1/evaluate/batch`, `/api/v1/graph/snapshot`) with the Lunarbit `GraphSurface.tsx` payload generator.
+3. **Step 3 (TASK-010)**: Generate architecture diagrams, live evaluation results, and submission package.
