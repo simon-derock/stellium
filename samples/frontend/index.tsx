@@ -1,0 +1,762 @@
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { GraphSurface } from "./GraphSurface";
+import { fetchPublicMerchantNeighborhood, fetchPublicSnapshot, fetchSessionHistory, mapPublicSnapshot, streamPrivateChat, type ChatStreamResult, type SessionHistory } from "./api";
+import {
+  GRAPH_PROFILES,
+  SORTS,
+  THEMES,
+  VIZ_PROFILES,
+  type GraphNode,
+  type LayerId,
+  type SortId,
+  type Snapshot,
+} from "./graph";
+import { useViewportState } from "./viewport";
+
+const EMPTY_SNAPSHOT: Snapshot = {
+  metrics: [],
+  graph_nodes: [],
+  graph_edges: [],
+  findings: [],
+  disclosure: "Waiting for the verified public Neo4j projection.",
+};
+
+const SNAPSHOT_CACHE_KEY = "lunarbit.public.snapshot.v1";
+const LUNARBIT_PRODUCT_URL = "https://github.com/simon-derock/Lunarbit";
+
+/* ---------------------------------------------------------------- *
+ * Minimal flat menu — a rule-bordered plate, no glass, no radius
+ * ---------------------------------------------------------------- */
+function Menu({
+  tag,
+  value,
+  options,
+  onChange,
+  align = "start",
+  width = "16rem",
+  keepOpenOnSelect = false,
+  wheelExplore = false,
+}: {
+  tag: string;
+  value: string;
+  options: { id: string; name: string; hint?: string; swatches?: string[] }[];
+  onChange: (id: string) => void;
+  align?: "start" | "end";
+  width?: string;
+  keepOpenOnSelect?: boolean;
+  wheelExplore?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties | undefined>();
+  const box = useRef<HTMLDivElement>(null);
+  const active = options.find((o) => o.id === value) ?? options[0]!;
+
+  const positionPopover = () => {
+    const anchor = box.current?.querySelector<HTMLButtonElement>(":scope > button");
+    if (!anchor || window.innerWidth > 560) {
+      setPopoverStyle(undefined);
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    const visual = window.visualViewport;
+    const viewportWidth = visual?.width ?? window.innerWidth;
+    const viewportHeight = visual?.height ?? window.innerHeight;
+    const width = Math.min(192, viewportWidth - 24);
+    const margin = 12;
+    const left = Math.max(margin, Math.min(rect.right - width, viewportWidth - width - margin));
+    const estimatedHeight = Math.min(360, Math.max(96, options.length * 52));
+    const below = rect.bottom + 6;
+    const top = below + estimatedHeight <= viewportHeight - margin
+      ? below
+      : Math.max(margin, rect.top - estimatedHeight - 6);
+    setPopoverStyle({
+      left: `${Math.round(left)}px`,
+      right: "auto",
+      top: `${Math.round(top)}px`,
+      width: `${Math.round(width)}px`,
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", onDoc);
+    positionPopover();
+    const visual = window.visualViewport;
+    window.addEventListener("resize", positionPopover, { passive: true });
+    visual?.addEventListener("resize", positionPopover, { passive: true });
+    visual?.addEventListener("scroll", positionPopover, { passive: true });
+    return () => {
+      document.removeEventListener("pointerdown", onDoc);
+      window.removeEventListener("resize", positionPopover);
+      visual?.removeEventListener("resize", positionPopover);
+      visual?.removeEventListener("scroll", positionPopover);
+    };
+  }, [open, options.length]);
+
+  return (
+    <div ref={box} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onWheel={(event) => {
+          if (!wheelExplore || options.length < 2) return;
+          event.preventDefault();
+          const currentIndex = Math.max(0, options.findIndex((option) => option.id === value));
+          const direction = event.deltaY > 0 ? 1 : -1;
+          const nextIndex = (currentIndex + direction + options.length) % options.length;
+          onChange(options[nextIndex]!.id);
+        }}
+        data-wheel-explore={wheelExplore ? "true" : undefined}
+        className="plate flex h-9 min-w-[9.5rem] items-center gap-3 px-3 text-left transition-colors hover:border-foreground/40"
+      >
+        <span className="tag">{tag}</span>
+        <span className="flex-1 truncate text-[11px] text-foreground">{active.name}</span>
+        {active.swatches && (
+          <span className="flex gap-[2px]">
+            {active.swatches.slice(0, 4).map((c, i) => (
+              <span key={i} className="h-2.5 w-[3px]" style={{ background: c }} />
+            ))}
+          </span>
+        )}
+        <span className="tag">{open ? "—" : "+"}</span>
+      </button>
+      {open && (
+        <div
+          className={`menu-popover menu-popover-${align} absolute z-50 mt-[-1px] max-h-[22rem] overflow-y-auto no-scrollbar`}
+          style={popoverStyle ?? { width, [align === "end" ? "right" : "left"]: 0 }}
+        >
+          {options.map((o) => (
+            <button
+              key={o.id}
+              onClick={() => {
+                onChange(o.id);
+                if (!keepOpenOnSelect) setOpen(false);
+              }}
+              role="menuitem"
+              className={`flex w-full items-start gap-2 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-foreground/5 ${
+                o.id === value ? "bg-foreground/[0.07]" : ""
+              }`}
+            >
+              <span className="tag w-3 pt-[2px]">{o.id === value ? "▪" : ""}</span>
+              <span className="flex-1">
+                <span className="block text-[11px] text-foreground">{o.name}</span>
+                {o.hint && <span className="mt-[3px] block text-[10px] text-muted-foreground">{o.hint}</span>}
+              </span>
+              {o.swatches && (
+                <span className="flex gap-[2px] pt-[3px]">
+                  {o.swatches.slice(0, 6).map((c, i) => (
+                    <span key={i} className="h-3 w-[3px]" style={{ background: c }} />
+                  ))}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="border-b border-border px-3 py-2.5 last:border-b-0">
+      <div className="tag">{label}</div>
+      <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+function Chip({
+  on,
+  onClick,
+  children,
+  color,
+}: {
+  on: boolean;
+  onClick: () => void;
+  children: ReactNode;
+  color?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 border px-1.5 py-[3px] text-[9.5px] uppercase tracking-[0.12em] transition-colors ${
+        on ? "border-foreground/45 text-foreground" : "border-border text-muted-foreground"
+      }`}
+    >
+      {color && <span className="h-2 w-[3px]" style={{ background: on ? color : "currentColor" }} />}
+      {children}
+    </button>
+  );
+}
+
+const STATUS: Record<string, string> = {
+  verified: "text-foreground",
+  residual: "text-muted-foreground",
+  conflict: "text-[color:var(--destructive)]",
+  abstained: "text-muted-foreground",
+};
+
+export function Console() {
+  const viewport = useViewportState();
+  const defaultViz = VIZ_PROFILES.find((profile) => profile.id === "cortex") ?? VIZ_PROFILES[0]!;
+  const [profileId, setProfileId] = useState(GRAPH_PROFILES[0]!.id);
+  const [vizId, setVizId] = useState(defaultViz.id);
+  const [themeId, setThemeId] = useState("verdant");
+  const [sort, setSort] = useState<SortId>("weight");
+  const [minConfidence, setMinConfidence] = useState(0.6);
+  const [mutedLayers, setMutedLayers] = useState<LayerId[]>([]);
+  const [mutedRels, setMutedRels] = useState<string[]>([]);
+  const [selected, setSelected] = useState<GraphNode | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<Snapshot["graph_edges"][number] | null>(null);
+  const [panel, setPanel] = useState<"filters" | "findings" | null>("findings");
+  const [ask, setAsk] = useState("");
+  const [liveSnapshot, setLiveSnapshot] = useState<Snapshot | null>(null);
+  const [merchantSnapshot, setMerchantSnapshot] = useState<Snapshot | null>(null);
+  const [merchantLoading, setMerchantLoading] = useState(false);
+  const [merchantError, setMerchantError] = useState<string | null>(null);
+  const [apiState, setApiState] = useState<"loading" | "cached" | "live" | "error">("loading");
+  const [queryState, setQueryState] = useState<string | null>(null);
+  const [chatResult, setChatResult] = useState<ChatStreamResult | null>(null);
+  const [chatBusy, setChatBusy] = useState(false);
+  const [streamCitations, setStreamCitations] = useState<ChatStreamResult["answer"]["citations"]>([]);
+  const [sessionHistory, setSessionHistory] = useState<SessionHistory | null>(null);
+  const [graphFocusIds, setGraphFocusIds] = useState<string[]>([]);
+  const chatAbort = useRef<AbortController | null>(null);
+  const merchantAbort = useRef<AbortController | null>(null);
+  const [chatSessionId, setChatSessionId] = useState<string | undefined>(() => {
+    try { return window.sessionStorage.getItem("lunarbit.session") ?? undefined; } catch { return undefined; }
+  });
+
+  const submitAsk = () => {
+    const question = ask.trim();
+    if (!question) return;
+    setChatBusy(true);
+    chatAbort.current?.abort();
+    const controller = new AbortController();
+    chatAbort.current = controller;
+    setChatResult(null);
+    setStreamCitations([]);
+    setGraphFocusIds([]);
+    setQueryState("thinking");
+    streamPrivateChat(question, (stage) => setQueryState(stage), (citation) => setStreamCitations((current) => [...current, citation]), (nodeIds) => setGraphFocusIds(nodeIds), chatSessionId, controller.signal)
+      .then((result) => {
+        setChatResult(result);
+        setChatSessionId(result.session_id);
+        try { window.sessionStorage.setItem("lunarbit.session", result.session_id); } catch { /* storage is optional */ }
+        setQueryState(result.answer.status);
+      })
+      .catch((error) => setQueryState(error instanceof Error ? error.message : "chat unavailable"))
+      .finally(() => {
+        if (chatAbort.current === controller) chatAbort.current = null;
+        setChatBusy(false);
+      });
+  };
+
+  useEffect(() => () => chatAbort.current?.abort(), []);
+
+  useEffect(() => () => merchantAbort.current?.abort(), []);
+
+  const handleNodeSelect = (node: GraphNode | null) => {
+    setSelected(node);
+    setSelectedEdge(null);
+    if (!node || node.type !== "Merchant") return;
+    if (merchantSnapshot && node.id === merchantSnapshot.graph_nodes.find((candidate) => candidate.type === "Merchant")?.id) return;
+    merchantAbort.current?.abort();
+    const controller = new AbortController();
+    merchantAbort.current = controller;
+    setMerchantLoading(true);
+    setMerchantError(null);
+    fetchPublicMerchantNeighborhood(node.id, controller.signal)
+      .then((payload) => setMerchantSnapshot(mapPublicSnapshot(payload)))
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setMerchantError(error instanceof Error ? error.message : "merchant neighborhood unavailable");
+      })
+      .finally(() => {
+        if (merchantAbort.current === controller) merchantAbort.current = null;
+        setMerchantLoading(false);
+      });
+  };
+
+  const clearMerchantNeighborhood = () => {
+    merchantAbort.current?.abort();
+    merchantAbort.current = null;
+    setMerchantSnapshot(null);
+    setMerchantError(null);
+    setMerchantLoading(false);
+    setSelected(null);
+    setSelectedEdge(null);
+  };
+
+  const theme = THEMES.find((t) => t.id === themeId)!;
+  const profile = GRAPH_PROFILES.find((p) => p.id === profileId)!;
+  const viz = VIZ_PROFILES.find((v) => v.id === vizId)!;
+  useEffect(() => {
+    if (!chatSessionId) return;
+    fetchSessionHistory(chatSessionId).then(setSessionHistory).catch(() => setSessionHistory(null));
+  }, [chatSessionId]);
+  useEffect(() => {
+    if (!graphFocusIds.length || !liveSnapshot) return;
+    const focused = liveSnapshot.graph_nodes.find((node) => graphFocusIds.includes(node.id));
+    if (focused) setSelected(focused);
+  }, [graphFocusIds, liveSnapshot]);
+  useEffect(() => {
+    let active = true;
+    setApiState("loading");
+    // Rehydrate the last verified projection first so a refresh never leaves
+    // the canvas empty while Aura responds. The network result below always
+    // replaces this cache, so it cannot become the source of truth.
+    try {
+      const cached = window.sessionStorage.getItem(SNAPSHOT_CACHE_KEY);
+      if (cached) {
+        const payload = JSON.parse(cached) as Parameters<typeof mapPublicSnapshot>[0];
+        if (payload && Array.isArray(payload.nodes) && Array.isArray(payload.edges) && active) {
+          setLiveSnapshot(mapPublicSnapshot(payload));
+          setApiState("cached");
+        }
+      }
+    } catch {
+      // Browser storage is optional (private mode and hardened browsers).
+    }
+    fetchPublicSnapshot()
+      .then((payload) => {
+        if (active) {
+          setLiveSnapshot(mapPublicSnapshot(payload));
+          try { window.sessionStorage.setItem(SNAPSHOT_CACHE_KEY, JSON.stringify(payload)); } catch { /* optional */ }
+          setApiState("live");
+        }
+      })
+      .catch(() => {
+        if (active) setApiState("error");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const snapshot = merchantSnapshot ?? liveSnapshot ?? EMPTY_SNAPSHOT;
+
+  const activeLayers = profile.layers.filter((l) => !mutedLayers.includes(l));
+  const activeRels = profile.relationships.filter((r) => !mutedRels.includes(r));
+
+  const { nodes, edges } = useMemo(() => {
+    const keep = snapshot.graph_nodes.filter(
+      (n) => activeLayers.includes(n.layer) && n.confidence >= minConfidence,
+    );
+    const ids = new Set(keep.map((n) => n.id));
+    const keepEdges = snapshot.graph_edges.filter(
+      (e) => ids.has(e.source) && ids.has(e.target) && activeRels.includes(e.relationship_type),
+    );
+    const sorted = [...keep].sort((a, b) => {
+      if (sort === "label") return a.label.localeCompare(b.label);
+      if (sort === "confidence") return b.confidence - a.confidence;
+      if (sort === "sources") return b.source_count - a.source_count;
+      return b.weight - a.weight;
+    });
+    return { nodes: sorted, edges: keepEdges };
+  }, [snapshot, activeLayers.join(), activeRels.join(), minConfidence, sort]);
+
+  const byId = useMemo(() => new Map(nodes.map((n) => [n.id, n])), [nodes]);
+  const links = selected
+    ? edges
+        .filter((e) => e.source === selected.id || e.target === selected.id)
+        .slice(0, 12)
+        .map((e) => ({
+          rel: e.relationship_type,
+          other: byId.get(e.source === selected.id ? e.target : e.source)?.label ?? "—",
+          conf: e.confidence,
+        }))
+    : [];
+
+  return (
+    <main
+      style={theme.vars as CSSProperties}
+      data-viewport-profile={viewport.profile}
+      data-orientation={viewport.orientation}
+      data-pointer={viewport.coarsePointer ? "coarse" : "fine"}
+      data-reduced-motion={viewport.reducedMotion ? "true" : "false"}
+      data-segmented={viewport.segmented ? "true" : "false"}
+      className={`app-shell theme-${themeId} relative h-screen w-full overflow-hidden bg-background text-foreground`}
+    >
+      <GraphSurface
+        nodes={nodes}
+        edges={edges}
+        palette={theme.palette}
+        viz={viz}
+        selectedId={selected?.id ?? null}
+        onSelect={handleNodeSelect}
+        onLinkSelect={setSelectedEdge}
+      />
+
+      {apiState === "error" && (
+        <div className="pointer-events-auto absolute inset-x-0 top-1/2 mx-auto w-[min(34rem,calc(100%-2rem))] -translate-y-1/2 border border-[color:var(--destructive)] bg-background p-5 text-center">
+          <div className="tag text-[color:var(--destructive)]">live graph unavailable</div>
+          <p className="serif mt-2 text-[18px]">Start the FastAPI + Neo4j service to load Lunarbit data.</p>
+          <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+            No synthetic nodes are rendered. The console is waiting for the verified public projection.
+          </p>
+        </div>
+      )}
+
+      {(merchantSnapshot || merchantLoading || merchantError) && (
+        <div className="merchant-neighborhood-status pointer-events-auto absolute left-1/2 top-[5.5rem] z-20 -translate-x-1/2">
+          <div className="plate flex max-w-[min(32rem,calc(100vw-2rem))] items-center gap-3 px-3 py-2">
+            <span className="tag">{merchantLoading ? "loading merchant neighborhood" : merchantError ? "neighborhood unavailable" : "merchant neighborhood"}</span>
+            {merchantSnapshot && !merchantLoading && <span className="text-[10px] text-muted-foreground">{nodes.length} nodes · {edges.length} relationships</span>}
+            {merchantError && <span className="max-w-[16rem] truncate text-[10px] text-muted-foreground">{merchantError}</span>}
+            {merchantSnapshot && <button className="tag shrink-0 hover:text-foreground" onClick={clearMerchantNeighborhood}>overview</button>}
+          </div>
+        </div>
+      )}
+
+      {/* HDR pass: luminance lift, vignette, fine grain */}
+      <div className="hdr pointer-events-none absolute inset-0" />
+      <div className="grain pointer-events-none absolute inset-0" />
+
+
+
+      {/* top bar */}
+      <header className="pointer-events-none absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-2 p-4">
+        <div className="pointer-events-auto flex items-baseline gap-2.5 px-1 pt-1">
+          <h1 className="text-foreground">
+            <a
+              href={LUNARBIT_PRODUCT_URL}
+              aria-label="Open Lunarbit project"
+              className='inline-flex items-baseline whitespace-nowrap text-[19px] font-medium leading-none tracking-normal antialiased [font-family:-apple-system,BlinkMacSystemFont,"SF_Pro_Display","Helvetica_Neue",Arial,sans-serif]'
+            >
+              <span className="mr-0 inline-block text-[1.1em] font-semibold leading-none tracking-normal">
+                L
+              </span>
+              <span className="inline-block leading-none tracking-normal">
+                unarbit
+              </span>
+            </a>
+          </h1>
+        </div>
+
+
+        <div className="header-controls pointer-events-auto relative flex flex-wrap justify-end gap-2">
+          <Menu
+            tag="view"
+            value={profileId}
+            onChange={setProfileId}
+            align="start"
+            width="17rem"
+            wheelExplore
+            options={GRAPH_PROFILES.map((p) => ({ id: p.id, name: p.name, hint: p.scope }))}
+          />
+          <Menu
+            tag="style"
+            value={vizId}
+            onChange={(id) => {
+              setVizId(id);
+              const next = VIZ_PROFILES.find((v) => v.id === id);
+              if (next && THEMES.some((t) => t.id === next.preferredTheme)) {
+                setThemeId(next.preferredTheme);
+              }
+            }}
+            align="end"
+            width="17rem"
+            keepOpenOnSelect
+            wheelExplore
+            options={VIZ_PROFILES.map((v) => ({ id: v.id, name: v.name, hint: v.hint }))}
+          />
+
+          <Menu
+            tag="theme"
+            value={themeId}
+            onChange={setThemeId}
+            align="end"
+            width="17rem"
+            keepOpenOnSelect
+            wheelExplore
+            options={THEMES.map((t) => ({
+              id: t.id,
+              name: t.name,
+              hint: t.hint,
+              swatches: Object.values(t.palette.layers),
+            }))}
+          />
+          <a className="github-link" href="https://github.com/simon-derock/Lunarbit" target="_blank" rel="noreferrer" aria-label="Open Lunarbit on GitHub" title="Lunarbit on GitHub">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .7a11.3 11.3 0 0 0-3.57 22c.57.1.78-.25.78-.55v-2.1c-3.18.69-3.85-1.34-3.85-1.34-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.76 1.18 1.76 1.18 1.02 1.75 2.68 1.24 3.34.95.1-.74.4-1.24.73-1.53-2.54-.29-5.21-1.27-5.21-5.66 0-1.25.45-2.27 1.18-3.07-.12-.29-.51-1.45.11-3.03 0 0 .96-.31 3.13 1.17A10.9 10.9 0 0 1 12 6c.97 0 1.95.13 2.86.38 2.17-1.48 3.13-1.17 3.13-1.17.62 1.58.23 2.74.11 3.03.73.8 1.18 1.82 1.18 3.07 0 4.4-2.68 5.36-5.23 5.64.41.36.78 1.07.78 2.16v3.2c0 .3.2.66.79.55A11.3 11.3 0 0 0 12 .7Z" /></svg><span>repo</span>
+          </a>
+          <span className="menu-wheel-hint menu-wheel-hint-shared" aria-hidden="true">
+            scroll to explore · click to open
+          </span>
+        </div>
+      </header>
+
+      {/* left: metrics ledger */}
+      <div className="pointer-events-none absolute left-4 top-1/2 hidden -translate-y-1/2 lg:block">
+        <div className="pointer-events-auto plate w-[12.5rem]">
+          {snapshot.metrics.map((m) => (
+            <div key={m.label} className="border-b border-border px-3 py-2 last:border-b-0">
+              <div className="tag">{m.label}</div>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="serif text-[19px] leading-none">{m.value}</span>
+                <span className="text-[9.5px] text-muted-foreground">{m.unit}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* right: inspector / findings */}
+      <div className="pointer-events-none absolute right-4 top-1/2 hidden w-[19rem] -translate-y-1/2 lg:block">
+        {selected ? (
+          <div className="pointer-events-auto plate">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <span className="tag">node · {selected.type}</span>
+              <button className="tag hover:text-foreground" onClick={() => setSelected(null)}>
+                close
+              </button>
+            </div>
+            <div className="border-b border-border px-3 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-[3px]" style={{ background: theme.palette.layers[selected.layer] }} />
+                <span className="serif text-[17px] leading-none">{selected.label}</span>
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-y-1 text-[10px] text-muted-foreground">
+                <span>layer · {selected.layer}</span>
+                <span>scope · {selected.scope}</span>
+                <span>conf · {selected.confidence.toFixed(2)}</span>
+                <span>sources · {selected.source_count}</span>
+                <span>privacy · {selected.privacy_state}</span>
+                <span>centrality · {selected.weight.toFixed(1)}</span>
+              </div>
+            </div>
+            <div className="tag border-b border-border px-3 py-2">relationships</div>
+            <ul className="max-h-[15rem] overflow-y-auto no-scrollbar">
+              {links.map((l, i) => (
+                <li
+                  key={i}
+                  className="flex items-baseline justify-between gap-2 border-b border-border px-3 py-1.5 last:border-b-0"
+                >
+                  <span className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground">
+                    {l.rel}
+                  </span>
+                  <span className="truncate text-[10.5px]">{l.other}</span>
+                  <span className="text-[9.5px] text-muted-foreground">{l.conf.toFixed(2)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : selectedEdge ? (
+          <div className="pointer-events-auto plate">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <span className="tag">relationship</span>
+              <button className="tag hover:text-foreground" onClick={() => setSelectedEdge(null)}>close</button>
+            </div>
+            <div className="space-y-2 px-3 py-3">
+              <div className="serif text-[17px]">{selectedEdge.relationship_type}</div>
+              <div className="grid grid-cols-2 gap-y-1 text-[10px] text-muted-foreground">
+                <span>source · {byId.get(selectedEdge.source)?.label ?? selectedEdge.source}</span>
+                <span>target · {byId.get(selectedEdge.target)?.label ?? selectedEdge.target}</span>
+                <span>confidence · {selectedEdge.confidence.toFixed(2)}</span>
+                <span>provenance · {selectedEdge.provenance_label}</span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          panel === "findings" && (
+            <div className="pointer-events-auto plate">
+              <div className="flex items-center justify-between border-b border-border px-3 py-2">
+                <span className="tag">findings · citation gated</span>
+                <button className="tag hover:text-foreground" onClick={() => setPanel(null)}>
+                  hide
+                </button>
+              </div>
+              <ul className="max-h-[24rem] overflow-y-auto no-scrollbar">
+                {snapshot.findings.map((f) => (
+                  <li key={f.id} className="border-b border-border px-3 py-2.5 last:border-b-0">
+                    <div className="flex items-baseline justify-between">
+                      <span className={`tag ${STATUS[f.status]}`}>{f.status}</span>
+                      <span className="text-[9.5px] text-muted-foreground">
+                        {f.confidence.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="serif mt-1 text-[14px] leading-tight">{f.title}</p>
+                    <p className="mt-1 text-[9.5px] leading-relaxed text-muted-foreground">
+                      {f.graph_path.join("  ›  ")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        )}
+      </div>
+
+      {selected && (
+        <div className="mobile-selection pointer-events-auto absolute inset-x-3 top-[7.2rem] z-20">
+          <div className="border border-border bg-background/95 px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="tag">selected · {selected.type}</div>
+                <div className="mt-1 truncate text-[13px] text-foreground">{selected.label}</div>
+                <div className="mt-1 text-[9px] text-muted-foreground">
+                  {selected.layer} · conf {selected.confidence.toFixed(2)} · {selected.source_count} sources
+                </div>
+              </div>
+              <button className="tag shrink-0 hover:text-foreground" onClick={() => setSelected(null)}>close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* bottom dock */}
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-2 p-4">
+        <div className="pointer-events-auto flex items-end gap-2">
+          <div className="plate w-[19rem]">
+            <button
+              className="flex w-full items-center justify-between border-b border-border px-3 py-2"
+              onClick={() => setPanel(panel === "filters" ? null : "filters")}
+            >
+              <span className="tag">filter · sort</span>
+              <span className="text-[10px] text-muted-foreground">
+                {nodes.length}n / {edges.length}e
+              </span>
+            </button>
+            {panel === "filters" && (
+              <div className="max-h-[24rem] overflow-y-auto no-scrollbar">
+                <Field label="layers">
+                  <div className="flex flex-wrap gap-1">
+                    {profile.layers.map((l) => (
+                      <Chip
+                        key={l}
+                        on={activeLayers.includes(l)}
+                        color={theme.palette.layers[l]}
+                        onClick={() =>
+                          setMutedLayers((p) => (p.includes(l) ? p.filter((x) => x !== l) : [...p, l]))
+                        }
+                      >
+                        {l}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+                <Field label={`relationships · ${activeRels.length}/${profile.relationships.length}`}>
+                  <div className="flex flex-wrap gap-1">
+                    {profile.relationships.map((r) => (
+                      <Chip
+                        key={r}
+                        on={activeRels.includes(r)}
+                        onClick={() =>
+                          setMutedRels((p) => (p.includes(r) ? p.filter((x) => x !== r) : [...p, r]))
+                        }
+                      >
+                        {r.toLowerCase()}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+                <Field label={`confidence ≥ ${minConfidence.toFixed(2)}`}>
+                  <input
+                    type="range"
+                    min={0.6}
+                    max={0.99}
+                    step={0.01}
+                    value={minConfidence}
+                    onChange={(e) => setMinConfidence(Number(e.target.value))}
+                    className="h-[3px] w-full appearance-none bg-border accent-[color:var(--primary)]"
+                  />
+                </Field>
+                <Field label="sort">
+                  <div className="flex flex-wrap gap-1">
+                    {SORTS.map((s) => (
+                      <Chip key={s.id} on={sort === s.id} onClick={() => setSort(s.id)}>
+                        {s.name}
+                      </Chip>
+                    ))}
+                  </div>
+                </Field>
+                <Field label="reset">
+                  <button
+                    className="tag hover:text-foreground"
+                    onClick={() => {
+                      setMutedLayers([]);
+                      setMutedRels([]);
+                      setMinConfidence(0.6);
+                      setSort("weight");
+                    }}
+                  >
+                    restore defaults
+                  </button>
+                </Field>
+              </div>
+            )}
+          </div>
+          {!panel && (
+            <button className="plate h-9 px-3 tag hover:border-foreground/40" onClick={() => setPanel("findings")}>
+              findings
+            </button>
+          )}
+        </div>
+
+        {chatResult && (
+          <section className="ask-answer pointer-events-auto" aria-live="polite">
+            <div className="tag">
+              {chatResult.answer.review_required
+                ? "human review needed · clarification"
+                : `verified response · ${chatResult.answer.verification_status}`}
+            </div>
+            <p className="ask-answer-text">{chatResult.answer.direct_answer ?? "Lunarbit abstained because the evidence was insufficient."}</p>
+            {chatResult.answer.review_required && (
+              <p className="ask-calculation">
+                {chatResult.answer.review_reason === "clarification_required"
+                  ? "Please narrow the restaurant, platform, item, or time scope before Lunarbit reads the graph."
+                  : "Lunarbit is waiting for a human clarification before continuing."}
+              </p>
+            )}
+            {chatResult.answer.calculation && <p className="ask-calculation">{chatResult.answer.calculation}</p>}
+            <div className="ask-meta">{chatResult.answer.citation_ids.length} citations · {graphFocusIds.length} focus nodes · turn {chatResult.turn_index}{chatResult.context_reused ? " · context reused" : ""}</div>
+            {sessionHistory && sessionHistory.turns.length > 1 && <div className="ask-history">{sessionHistory.turns.slice(0, -1).map((turn) => <span key={turn.turn_index}>↳ {turn.question}{turn.review_required ? ` · review: ${turn.review_reason ?? "required"}` : ""}</span>)}</div>}
+            {(streamCitations.length > 0 || chatResult.answer.citations.length > 0) && (
+              <div className="ask-citations" aria-label="Evidence citations">
+                {(streamCitations.length ? streamCitations : chatResult.answer.citations).slice(0, 6).map((citation) => <span key={citation.citation_id}>{citation.citation_id} · {(citation.authority_score * 100).toFixed(0)}%</span>)}
+              </div>
+            )}
+          </section>
+        )}
+        <div
+          className="pointer-events-auto flex h-11 w-[34rem] max-w-[calc(100vw-2rem)] items-center gap-2 border px-3"
+          style={{
+            background: "color-mix(in oklab, var(--surface) 92%, var(--foreground))",
+            borderColor: "color-mix(in oklab, var(--border) 40%, var(--foreground))",
+          }}
+        >
+          <span className="tag text-foreground/70">ask</span>
+          <span className="h-3.5 w-px bg-border" />
+          <input
+            value={ask}
+            onChange={(e) => setAsk(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              e.preventDefault();
+              submitAsk();
+            }}
+            aria-label="Ask Lunarbit"
+            placeholder="reconcile delivery fees for ORD-4821"
+            className="h-full min-w-0 flex-1 bg-transparent text-[11.5px] text-foreground outline-none placeholder:text-muted-foreground/80"
+          />
+          <span className="text-[9.5px] tracking-[0.12em] text-foreground/60">
+            {queryState ?? (ask ? "enter" : "ask")}
+          </span>
+          <button type="button" onClick={submitAsk} aria-label="Submit question" className="ask-submit" disabled={!ask.trim() || chatBusy}>
+            ↵
+          </button>
+        </div>
+
+      </footer>
+
+      <p className="pointer-events-none absolute inset-x-0 bottom-1 mx-auto hidden max-w-2xl text-center text-[9px] text-muted-foreground/70 2xl:block">
+        {snapshot.disclosure}
+      </p>
+    </main>
+  );
+}

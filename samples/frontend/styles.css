@@ -1,0 +1,548 @@
+@import "tailwindcss" source(none);
+@source "./";
+
+/*
+ * Lunarbit — flat editorial instrument panel.
+ * No glass, no blur, no shadows: solid plates, hairline rules, mono type.
+ * Theme presets swap the whole ink/paper gamut at runtime (lib/lunarbit/graph.ts).
+ */
+
+@theme inline {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--surface);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--surface);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--primary-foreground);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--primary);
+  --font-display: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+  --font-mono: "SF Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+
+}
+
+:root {
+  --background: #08090a;
+  --surface: #0e1011;
+  --foreground: #eceded;
+  --muted-foreground: #84898c;
+  --border: #22262a;
+  --primary: #f5f6f6;
+  --primary-foreground: #08090a;
+  --accent: #9aa2a6;
+  --destructive: #c0503c;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+html {
+  background: var(--background);
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
+}
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --titlebar-top: env(titlebar-area-y, 0px);
+  --titlebar-height: env(titlebar-area-height, 0px);
+}
+
+.app-shell {
+  height: 100dvh;
+  min-height: 100svh;
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
+}
+
+/* Foreground controls stay in the browser/OS-safe region; the graph remains
+   full bleed behind them. This also covers installed desktop PWAs using
+   Window Controls Overlay on notched Mac displays. */
+.app-shell > header {
+  padding-top: max(1rem, calc(var(--safe-top) + var(--titlebar-height) + 1rem));
+  padding-right: max(1rem, calc(var(--safe-right) + 1rem));
+  padding-left: max(1rem, calc(var(--safe-left) + 1rem));
+}
+.app-shell > footer {
+  padding-right: max(1rem, calc(var(--safe-right) + 1rem));
+  padding-bottom: max(1rem, calc(var(--safe-bottom) + 1rem));
+  padding-left: max(1rem, calc(var(--safe-left) + 1rem));
+}
+
+/* Foldable / dual-segment browsers expose the hinge as the gap between two
+   viewport segments. Keep controls and the graph on one segment rather than
+   painting critical UI across the hinge. */
+@media (horizontal-viewport-segments: 2) {
+  .app-shell > header,
+  .app-shell > footer {
+    padding-inline-start: max(var(--safe-left), env(viewport-segment-left 0 0, 0px));
+    padding-inline-end: max(var(--safe-right), env(viewport-segment-right 1 0, 0px));
+  }
+}
+@media (vertical-viewport-segments: 2) {
+  .app-shell > header { padding-block-end: 0.5rem; }
+  .app-shell > footer { padding-block-start: 0.5rem; }
+}
+.mobile-selection { display: none; }
+
+.menu-popover {
+  background: var(--background);
+  border: 1px solid var(--border);
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.menu-popover-start { left: 0; }
+.menu-popover-end { right: 0; }
+.menu-popover::-webkit-scrollbar { display: none; }
+.menu-wheel-hint {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  width: max-content;
+  max-width: 15rem;
+  padding: 3px 5px;
+  background: color-mix(in oklab, var(--background) 94%, var(--foreground));
+  color: color-mix(in oklab, var(--muted-foreground) 86%, var(--foreground));
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  opacity: 0.52;
+  pointer-events: none;
+  text-transform: lowercase;
+  transform: translateY(-2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.menu-wheel-hint-shared {
+  top: calc(100% + 7px);
+  right: 0;
+  padding: 4px 8px;
+  border: 1px solid color-mix(in oklab, var(--border) 85%, var(--foreground));
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--background) 96%, var(--foreground));
+  letter-spacing: 0.1em;
+  transform: translateY(-2px);
+  text-align: center;
+}
+.menu-wheel-hint-shared::before {
+  position: absolute;
+  top: -4px;
+  right: 22px;
+  width: 7px;
+  height: 7px;
+  border-top: 1px solid color-mix(in oklab, var(--border) 85%, var(--foreground));
+  border-left: 1px solid color-mix(in oklab, var(--border) 85%, var(--foreground));
+  background: var(--background);
+  content: "";
+  transform: rotate(45deg);
+}
+.header-controls:hover .menu-wheel-hint-shared,
+.menu-wheel-hint-shared:hover { opacity: 0.92; transform: translateY(0); }
+
+.ask-submit {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  font-size: 15px;
+  line-height: 1;
+  transition: border-color 140ms ease, background-color 140ms ease, opacity 140ms ease;
+}
+.ask-submit:hover:not(:disabled) { border-color: var(--foreground); background: var(--foreground); color: var(--background); }
+.ask-submit:disabled { cursor: not-allowed; opacity: 0.35; }
+.ask-answer {
+  width: min(34rem, calc(100vw - 2rem));
+  border: 1px solid var(--border);
+  background: color-mix(in oklab, var(--surface) 94%, var(--foreground));
+  padding: 14px 16px;
+}
+.ask-answer-text { margin: 8px 0 5px; font-family: var(--font-display); font-size: 18px; line-height: 1.25; }
+.ask-calculation { margin: 0; color: var(--muted-foreground); font-size: 10px; }
+.ask-meta { margin-top: 10px; color: var(--muted-foreground); font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; }
+.ask-citations { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.ask-citations span { border: 1px solid var(--border); padding: 3px 5px; color: var(--muted-foreground); font-size: 9px; }
+.ask-history { display: grid; gap: 3px; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; color: var(--muted-foreground); font-size: 9px; }
+
+@media (max-width: 800px) {
+  body { font-size: 11px; overflow: hidden; }
+  .mobile-selection { display: block; }
+}
+@media (max-width: 560px) {
+  header {
+    padding-top: calc(10px + var(--safe-top)) !important;
+    padding-right: calc(10px + var(--safe-right)) !important;
+    padding-bottom: 10px !important;
+    padding-left: calc(10px + var(--safe-left)) !important;
+  }
+  header > div:first-child { width: 100%; }
+  header > div:last-child {
+    width: 100%;
+    max-width: none;
+    flex-wrap: nowrap;
+    justify-content: stretch;
+    gap: 4px;
+  }
+  header > div:last-child > * { min-width: 0; flex: 1 1 0; }
+  header .plate { min-width: 0; width: 100%; height: 40px; padding-inline: 7px; }
+  header .plate button { min-width: 0; }
+  header .plate .tag { flex: 0 0 auto; }
+  .header-controls .plate.absolute {
+    width: min(16rem, calc(100vw - 28px)) !important;
+    max-width: calc(100vw - 28px);
+  }
+  .menu-popover {
+    position: fixed !important;
+    top: auto;
+    right: auto;
+    left: auto;
+    height: auto !important;
+    width: min(12rem, calc(100vw - 24px)) !important;
+    max-width: calc(100vw - 24px);
+    max-height: min(36dvh, 18rem);
+    display: block !important;
+    overflow-y: auto !important;
+    background: color-mix(in oklab, var(--surface) 97%, var(--foreground));
+  }
+  .menu-popover-start, .menu-popover-end { left: auto; right: auto; }
+  .header-controls { gap: 4px !important; align-items: center; }
+  .header-controls > .relative > button,
+  .header-controls > .github-link { height: 44px !important; min-height: 44px !important; }
+  .menu-wheel-hint { display: none; }
+  .menu-popover > button { display: flex !important; width: 100%; min-height: 44px; height: auto !important; padding: 7px 8px; }
+  header .tag { letter-spacing: 0.12em; }
+  .github-link { width: 40px !important; max-width: 40px !important; flex: 0 0 40px !important; height: 40px; justify-content: center; padding: 0 !important; border: 0 !important; background: transparent !important; box-shadow: none !important; transform: translateY(-1px); }
+  .github-link span { display: none; }
+  header { z-index: 30; }
+  footer { z-index: 30; flex-direction: column; align-items: stretch; padding: 10px !important; padding-bottom: calc(14px + var(--safe-bottom)) !important; gap: 6px !important; }
+  footer > div:first-child { width: 100%; max-width: none; align-items: stretch; }
+  footer > div:first-child > div:first-child { width: 100%; }
+  footer .w-\[19rem\] { width: 100%; }
+  footer .w-\[34rem\] { width: 100%; max-width: none; }
+  footer .ask-submit { width: 44px; height: 44px; }
+  footer > div:last-child { min-width: 0; }
+  footer > div:last-child { width: 100%; max-width: none; }
+  footer input { min-width: 0; }
+}
+
+@media (pointer: coarse) {
+  button, input, [role="menuitem"] { touch-action: manipulation; }
+  .ask-submit { min-width: 44px; min-height: 44px; }
+}
+
+/* On phones the selected-node card is a bottom sheet above the query dock;
+   keeping it near the graph would make it compete with the top command bar. */
+@media (max-width: 560px) {
+  .mobile-selection {
+    position: fixed !important;
+    top: auto !important;
+    bottom: calc(76px + var(--safe-bottom));
+    left: calc(10px + var(--safe-left));
+    right: calc(10px + var(--safe-right));
+  }
+  .mobile-selection > div {
+    max-height: min(9rem, 24dvh);
+    overflow: auto;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Small caps instrument label */
+@utility tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Solid flat panel — the only surface treatment in the app */
+@utility plate {
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+
+@utility serif {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Brandmark — compact title case logotype for the Lunarbit lockup. */
+@utility brandmark {
+  font-family: "Inter", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  font-weight: 650;
+  font-variation-settings: normal;
+  font-synthesis: none;
+  letter-spacing: -0.035em;
+  text-transform: none;
+  line-height: 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: subpixel-antialiased;
+}
+.brandmark a { color: inherit; text-decoration: none; }
+.brandmark a:hover { color: var(--foreground); }
+.brandmark-initial {
+  display: inline-block;
+  vertical-align: -0.025em;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -0.055em;
+}
+.brandmark-tail {
+  display: inline-block;
+  vertical-align: baseline;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.header-controls > .relative > button,
+.header-controls > .github-link {
+  border: 1px solid color-mix(in oklab, var(--foreground) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--surface) 64%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--foreground) 10%, transparent);
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+.header-controls > .relative > button:hover,
+.header-controls > .github-link:hover {
+  border-color: color-mix(in oklab, var(--foreground) 48%, transparent);
+  background: color-mix(in oklab, var(--surface) 82%, transparent);
+  transform: translateY(-1px);
+}
+
+/* Final command-bar treatment: controls are typography, not containers. */
+.header-controls > .relative > button,
+.header-controls > .github-link {
+  height: 30px !important;
+  min-width: 0 !important;
+  padding: 0 5px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: color-mix(in oklab, var(--foreground) 72%, var(--muted-foreground));
+}
+.header-controls > .relative > button:hover,
+.header-controls > .github-link:hover {
+  color: var(--foreground);
+  background: transparent !important;
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--foreground) 58%, transparent) !important;
+}
+
+/* Invisible-at-rest command bar: the controls emerge through typography and
+   a hairline hover cue rather than persistent boxes. */
+.header-controls > .relative > button,
+.header-controls > .github-link {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.header-controls > .relative > button:hover,
+.header-controls > .github-link:hover {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--foreground) 55%, transparent);
+  transform: none;
+}
+
+.github-link { order: -1; display: inline-flex; align-self: center; height: 36px; align-items: center; gap: 7px; border: 1px solid var(--border); padding: 0 10px; color: var(--muted-foreground); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; transition: color 160ms ease, border-color 160ms ease; }
+.github-link svg { width: 14px; height: 14px; fill: currentColor; }
+.github-link:hover { border-color: color-mix(in oklab, var(--border) 35%, var(--foreground)); color: var(--foreground); }
+
+/* Product wordmark — high-contrast display, optical sizing at display grade */
+@utility wordmark {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+  font-variation-settings: "opsz" 144, "SOFT" 0, "WONK" 1;
+  font-weight: 380;
+  letter-spacing: -0.035em;
+  line-height: 0.86;
+}
+
+@utility subwordmark {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 400;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* HDR pass — soft luminance lift, vignette and a fine grain over the canvas */
+@utility hdr {
+  background-image:
+    radial-gradient(120% 90% at 50% 42%, color-mix(in oklab, var(--foreground) 7%, transparent), transparent 62%),
+    radial-gradient(115% 100% at 50% 50%, transparent 52%, color-mix(in oklab, var(--background) 88%, black) 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+}
+
+@utility grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+}
+
+/* Aurum Dust: a restrained, slow particulate field behind the graph. */
+@keyframes aurum-drift {
+  from { background-position: 0 0, 38px 74px, 0 0; }
+  to { background-position: 120px -90px, -80px 140px, 0 0; }
+}
+
+.theme-aurum-dust .grain {
+  background-image:
+    radial-gradient(circle at 12% 22%, rgba(244,213,139,.34) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 72% 66%, rgba(230,189,103,.24) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 42% 82%, rgba(255,239,184,.18) 0 .8px, transparent 1.6px),
+    radial-gradient(ellipse at center, transparent 42%, rgba(18,16,13,.36) 100%);
+  background-size: 180px 220px, 260px 300px, 340px 260px, 100% 100%;
+  opacity: .2;
+  mix-blend-mode: screen;
+  animation: aurum-drift 24s linear infinite;
+}
+
+/* A luminous gold cosmos rather than the flat paper treatment used by the
+   other palettes. The transparent graph canvas lets this depth show through. */
+.theme-aurum-dust {
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 47%, rgba(190,139,39,.48) 0%, rgba(111,73,12,.34) 32%, transparent 70%),
+    radial-gradient(ellipse 42% 36% at 51% 48%, rgba(255,224,132,.14) 0%, transparent 72%),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #342106 0%, #1b1204 48%, #090702 100%) !important;
+}
+
+.theme-abyssal-opal {
+  background:
+    radial-gradient(ellipse 56% 58% at 50% 46%, rgba(95,190,183,.28) 0%, rgba(45,91,108,.2) 34%, transparent 72%),
+    radial-gradient(ellipse 38% 32% at 53% 48%, rgba(187,167,255,.15) 0%, transparent 72%),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #123b3f 0%, #0a2428 48%, #051114 100%) !important;
+}
+
+.theme-nocturne-bloom {
+  background:
+    radial-gradient(ellipse 46% 42% at 51% 46%, rgba(255,143,156,.18) 0%, rgba(189,169,255,.14) 34%, transparent 72%),
+    radial-gradient(circle at 14% 22%, rgba(255,224,191,.28) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 82% 68%, rgba(189,169,255,.2) 0 1px, transparent 1.8px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #17213b 0%, #0c1428 52%, #060912 100%) !important;
+}
+
+/* Premium editorial atmospheres for the three new graph studies. */
+@keyframes observatory-drift {
+  from { background-position: 0 0, 42px 86px, 0 0; }
+  to { background-position: 150px -110px, -90px 150px, 0 0; }
+}
+
+.theme-obsidian-observatory {
+  background:
+    radial-gradient(circle at 50% 46%, rgba(213, 181, 119, .12) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 22% 70%, rgba(237, 240, 242, .16) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #171b22 0%, #0d1016 48%, #07080b 100%) !important;
+}
+
+.theme-obsidian-observatory .grain,
+.theme-black-opal .grain {
+  background-image:
+    radial-gradient(circle at 16% 22%, rgba(255, 244, 215, .3) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 74% 66%, rgba(215, 221, 226, .2) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, .36) 100%);
+  background-size: 190px 220px, 270px 300px, 100% 100%;
+  opacity: .18;
+  mix-blend-mode: screen;
+  animation: observatory-drift 30s linear infinite;
+}
+
+.theme-black-opal {
+  background:
+    radial-gradient(ellipse 58% 58% at 50% 45%, rgba(72, 194, 180, .2) 0%, rgba(74, 79, 173, .16) 34%, transparent 72%),
+    radial-gradient(circle at 18% 28%, rgba(155, 231, 207, .2) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 82% 68%, rgba(184, 164, 255, .18) 0 1px, transparent 1.8px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #102c30 0%, #081a1e 50%, #041012 100%) !important;
+}
+
+.theme-ivory-ledger {
+  background:
+    linear-gradient(rgba(117, 110, 98, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(117, 110, 98, .035) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #faf7ef 0%, #f3efe5 58%, #e6dece 100%) !important;
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+}
+
+.theme-architectural-constellation {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(142, 203, 222, .12) 0 1px, transparent 1.6px),
+    linear-gradient(rgba(142, 203, 222, .035) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #142435 0%, #0c151f 52%, #080d14 100%) !important;
+  background-size: 170px 170px, 42px 42px, 100% 100%;
+}
+
+.theme-neural-cartography {
+  background:
+    radial-gradient(ellipse 54% 52% at 50% 46%, rgba(217, 184, 255, .16), transparent 72%),
+    radial-gradient(circle at 18% 28%, rgba(255, 159, 156, .18) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #241b35 0%, #160f24 52%, #0d0914 100%) !important;
+}
+
+.theme-financial-circuitry {
+  background:
+    linear-gradient(rgba(125, 190, 139, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 190, 139, .035) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #17231b 0%, #0d1410 54%, #080a09 100%) !important;
+  background-size: 32px 32px, 32px 32px, 100% 100%;
+}
+
+.theme-glass-observatory {
+  background:
+    radial-gradient(ellipse 52% 48% at 50% 44%, rgba(183, 221, 255, .16), transparent 70%),
+    radial-gradient(circle at 14% 24%, rgba(233, 244, 255, .22) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #152943 0%, #0b1728 52%, #060b14 100%) !important;
+}
+
+.theme-museum-archive {
+  background:
+    linear-gradient(rgba(119, 111, 99, .05) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #f7f2e8 0%, #eee8dc 58%, #ddd2c1 100%) !important;
+  background-size: 26px 26px, 100% 100%;
+}
