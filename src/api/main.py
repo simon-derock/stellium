@@ -17,6 +17,8 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.coprocessor import Coprocessor
@@ -167,8 +169,20 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Request Models
+# Static Files & Dashboard Mount
 # ---------------------------------------------------------------------------
+
+_static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(_static_dir):
+    app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
+
+@app.get("/", include_in_schema=False)
+async def serve_dashboard() -> FileResponse:
+    index_file = os.path.join(_static_dir, "index.html")
+    if os.path.exists(index_file):
+        return FileResponse(index_file)
+    raise HTTPException(status_code=404, detail="Dashboard UI not found")
 
 
 class QueryRequest(BaseModel):

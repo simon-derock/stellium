@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STELLIUM — Autonomous Agentic GraphRAG Intelligence Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090b10;
+      --card-bg: rgba(18, 22, 34, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-hover: rgba(245, 158, 11, 0.3);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-gold: #f59e0b;
+      --accent-cyan: #06b6d4;
+      --accent-purple: #8b5cf6;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Ambient glow */
+    .glow-bg {
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(245, 158, 11, 0.12), rgba(139, 92, 246, 0.06), transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Navigation */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(9, 11, 16, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--card-border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-logo {
+      font-size: 24px;
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+    .brand-tag {
+      font-size: 11px;
+      font-weight: 600;
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 3px 8px;
+      border-radius: 6px;
+      border: 1px solid var(--card-border);
+    }
+    .creator-badge {
+      font-size: 12px;
+      color: var(--accent-gold);
+      background: rgba(245, 158, 11, 0.1);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-weight: 600;
+    }
+
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    /* Main Container */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* Query Control Center */
+    .control-panel {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    .control-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .preset-select {
+      flex: 1;
+      min-width: 280px;
+      background: #0f1422;
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+    .preset-select:focus { border-color: var(--accent-gold); }
+
+    .query-box {
+      width: 100%;
+      background: #0f1422;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 14px 16px;
+      font-size: 14px;
+      font-family: var(--font-sans);
+      resize: vertical;
+      min-height: 52px;
+      outline: none;
+    }
+    .query-box:focus { border-color: var(--accent-gold); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #000;
+    }
+    .btn-primary:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid var(--card-border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* 3-Way Comparative Cards Grid */
+    .benchmark-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    @media (max-width: 1024px) {
+      .benchmark-grid { grid-template-columns: 1fr; }
+    }
+
+    .pipeline-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s ease;
+    }
+    .pipeline-card:hover { border-color: var(--card-border-hover); }
+
+    .pipeline-card.highlight {
+      border-color: rgba(245, 158, 11, 0.4);
+      box-shadow: 0 0 24px rgba(245, 158, 11, 0.08);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-vanilla { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+    .badge-graph { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
+    .badge-agentic { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+
+    .card-metrics {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .metric-col { display: flex; flex-direction: column; }
+    .metric-label { font-size: 10px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; }
+    .metric-val { font-size: 15px; font-weight: 700; font-family: var(--font-mono); }
+    .metric-val.zero-token { color: var(--accent-green); }
+
+    .answer-block {
+      background: #0d111c;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 14px;
+      min-height: 80px;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .answer-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
+    .answer-text { font-size: 14px; font-weight: 600; color: #fff; }
+
+    /* Graph Surface & Trace Split */
+    .deep-view-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 20px;
+      min-height: 480px;
+    }
+    @media (max-width: 1024px) {
+      .deep-view-grid { grid-template-columns: 1fr; }
+    }
+
+    .graph-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+    }
+    .container-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #graphCanvas {
+      width: 100%;
+      height: 400px;
+      background: #0a0d16;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: grab;
+    }
+
+    .trace-container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 460px;
+      overflow-y: auto;
+    }
+    .trace-step {
+      background: #0d111c;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-left: 3px solid var(--accent-gold);
+      border-radius: 6px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+    }
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--accent-gold);
+    }
+    .step-detail { color: #cbd5e1; }
+    .step-stats {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--card-border);
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-bg"></div>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">🐯 STELLIUM</div>
+      <div class="brand-tag">v0.1.0</div>
+      <div class="creator-badge">Built by Philip Simon Derock</div>
+    </div>
+    <div class="system-status">
+      <div class="status-item"><span class="status-dot"></span> TigerGraph Savanna</div>
+      <div class="status-item"><span class="status-dot"></span> Silicon Coprocessor (<1μs)</div>
+      <div class="status-item"><span class="status-dot"></span> Llama-3.1-8B-Fast</div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Control Panel -->
+    <section class="control-panel">
+      <div class="control-row">
+        <select id="presetSelect" class="preset-select" onchange="loadPresetQuestion()">
+          <option value="">⚡ Select an Evaluation Question (100 Public + 50 Hidden)...</option>
+          <optgroup label="Aggregation (Verified COUNT in GSQL - 0 Tokens)">
+            <option value="pub-001">pub-001: Biathlon events at 2018 Winter Olympics with >73 competitors?</option>
+            <option value="pub-003">pub-003: Shooting events at 2004 Summer Olympics with >37 competitors?</option>
+          </optgroup>
+          <optgroup label="Temporal (PRECEDES Edge Traversal)">
+            <option value="pub-002">pub-002: Gold medalist in men's 20km walk held immediately before 2016?</option>
+            <option value="pub-015">pub-015: Gold medalist in women's 57kg judo held immediately before 2020?</option>
+          </optgroup>
+          <optgroup label="Superlative (ORDER BY in GSQL)">
+            <option value="pub-004">pub-004: Which 2008 athletics event had the highest number of competitors?</option>
+            <option value="pub-021">pub-021: Which 2000 sailing event had the highest number of competitors?</option>
+          </optgroup>
+          <optgroup label="Multi-Hop (Venue + Date Traversal)">
+            <option value="pub-005">pub-005: Gold medal at Olympic Weightlifting Gymnasium on 20 September 1988?</option>
+          </optgroup>
+          <optgroup label="Lookup (Direct Attribute Resolution)">
+            <option value="pub-007">pub-007: How many nations competed in Sailing at 2016 Summer Olympics – Women's RS:X?</option>
+          </optgroup>
+        </select>
+        <button class="btn btn-primary" onclick="runBenchmark()">▶ Run 3-Way Benchmark</button>
+        <button class="btn btn-secondary" onclick="loadGraphSnapshot()">🔄 Refresh Graph</button>
+      </div>
+      <textarea id="queryInput" class="query-box" placeholder="Ask any historical Olympic question across the 2,951 documents..."></textarea>
+    </section>
+
+    <!-- 3-Way Benchmark Cards Grid -->
+    <section class="benchmark-grid">
+      <!-- Pipeline 1: Vanilla Vector RAG -->
+      <div class="pipeline-card">
+        <div class="card-header">
+          <div class="card-title">1. Baseline Vector RAG</div>
+          <span class="badge badge-vanilla">Vanilla HNSW</span>
+        </div>
+        <div class="card-metrics">
+          <div class="metric-col">
+            <span class="metric-label">Latency</span>
+            <span id="ragLatency" class="metric-val">-- ms</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Tokens</span>
+            <span id="ragTokens" class="metric-val">--</span>
+          </div>
+        </div>
+        <div class="answer-block">
+          <span class="answer-label">Retrieved Answer</span>
+          <div id="ragAnswer" class="answer-text">Select or type a question to benchmark...</div>
+        </div>
+      </div>
+
+      <!-- Pipeline 2: Hybrid GraphRAG -->
+      <div class="pipeline-card">
+        <div class="card-header">
+          <div class="card-title">2. Hybrid GraphRAG</div>
+          <span class="badge badge-graph">Fixed 2-Hop</span>
+        </div>
+        <div class="card-metrics">
+          <div class="metric-col">
+            <span class="metric-label">Latency</span>
+            <span id="graphragLatency" class="metric-val">-- ms</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">Tokens</span>
+            <span id="graphragTokens" class="metric-val">--</span>
+          </div>
+        </div>
+        <div class="answer-block">
+          <span class="answer-label">Retrieved Answer</span>
+          <div id="graphragAnswer" class="answer-text">Select or type a question to benchmark...</div>
+        </div>
+      </div>
+
+      <!-- Pipeline 3: Autonomous Agentic GraphRAG -->
+      <div class="pipeline-card highlight">
+        <div class="card-header">
+          <div class="card-title">3. Agentic GraphRAG (Stellium)</div>
+          <span class="badge badge-agentic">Autonomous Agent</span>
+        </div>
+        <div class="card-metrics">
+          <div class="metric-col">
+            <span class="metric-label">Latency</span>
+            <span id="agenticLatency" class="metric-val">-- ms</span>
+          </div>
+          <div class="metric-col">
+            <span class="metric-label">LLM Tokens</span>
+            <span id="agenticTokens" class="metric-val zero-token">0 (Fast Path)</span>
+          </div>
+        </div>
+        <div class="answer-block">
+          <span class="answer-label">Verified Answer</span>
+          <div id="agenticAnswer" class="answer-text">Select or type a question to benchmark...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Deep Visualization Grid -->
+    <section class="deep-view-grid">
+      <!-- Force-Directed Graph Surface -->
+      <div class="graph-container">
+        <div class="container-title">
+          <span>Active Graph Topology (TigerGraph Traversal)</span>
+          <span id="graphMeta" style="font-size: 11px; color: var(--accent-gold);">6 Nodes | 5 Edges</span>
+        </div>
+        <canvas id="graphCanvas"></canvas>
+      </div>
+
+      <!-- Agentic Trace Inspector -->
+      <div class="trace-container">
+        <div class="container-title">
+          <span>Full Agentic Trace Timeline</span>
+          <span id="traceConfidence" style="color: var(--accent-green); font-size: 11px;">Confidence: 100%</span>
+        </div>
+        <div id="traceSteps" style="display: flex; flex-direction: column; gap: 8px;">
+          <div class="trace-step">
+            <div class="step-header"><span>Step 1: Structural Intent Classification</span><span>&lt;1ms</span></div>
+            <div class="step-detail">Classified as aggregation inquiry. Target year: 2018, min_competitors: 73.</div>
+            <div class="step-stats"><span>Tokens: 0</span><span>Engine: Python Coprocessor</span></div>
+          </div>
+          <div class="trace-step">
+            <div class="step-header"><span>Step 2: Compiled GSQL Fast Path</span><span>3.8ms</span></div>
+            <div class="step-detail">Executed get_event_aggregates in TigerGraph C++ engine. Count verified.</div>
+            <div class="step-stats"><span>Tokens: 0</span><span>Engine: TigerGraph Savanna</span></div>
+          </div>
+          <div class="trace-step">
+            <div class="step-header"><span>Step 3: Evidence Critic & Stopping</span><span>&lt;1ms</span></div>
+            <div class="step-detail">Confidence reached 0.99 with verified mathematical reduction. Terminated.</div>
+            <div class="step-stats"><span>Tokens: 0</span><span>Status: Complete</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <b>STELLIUM</b> — Autonomous Agentic GraphRAG System on TigerGraph Savanna.<br>
+    Designed and Engineered by <b>Philip Simon Derock</b> for the TigerGraph Agentic GraphRAG Hackathon 2026.
+  </footer>
+
+  <script>
+    const PRESETS = {
+      "pub-001": "According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",
+      "pub-002": "Who won the gold medal in the men's 20 kilometres walk athletics event at the Summer Olympics held immediately before 2016?",
+      "pub-003": "According to the provided corpus, how many shooting events at the 2004 Summer Olympics had more than 37 competitors?",
+      "pub-004": "According to the provided corpus, which athletics event at the 2008 Summer Olympics had the highest number of competitors?",
+      "pub-005": "Who won the gold medal in the event held at Olympic Weightlifting Gymnasium on 20 September 1988?",
+      "pub-007": "How many nations competed in Sailing at the 2016 Summer Olympics – Women's RS:X?",
+      "pub-015": "Who won the gold medal in the women's 57 kg judo event at the Summer Olympics held immediately before 2020?",
+      "pub-021": "According to the provided corpus, which sailing event at the 2000 Summer Olympics had the highest number of competitors?"
+    };
+
+    function loadPresetQuestion() {
+      const select = document.getElementById("presetSelect");
+      const key = select.value;
+      if (key && PRESETS[key]) {
+        document.getElementById("queryInput").value = PRESETS[key];
+      }
+    }
+
+    async function runBenchmark() {
+      const query = document.getElementById("queryInput").value.trim();
+      if (!query) return;
+
+      const qid = document.getElementById("presetSelect").value || "custom-query";
+
+      // Set loading states
+      document.getElementById("ragAnswer").innerText = "Retrieving TigerVector HNSW...";
+      document.getElementById("graphragAnswer").innerText = "Traversing 2-hop subgraph...";
+      document.getElementById("agenticAnswer").innerText = "Executing autonomous investigation...";
+
+      try {
+        const resp = await fetch("/api/v1/query/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: query, qid: qid })
+        });
+        const data = await resp.json();
+
+        // Populate RAG
+        document.getElementById("ragAnswer").innerText = data.rag.answer;
+        document.getElementById("ragLatency").innerText = Math.round(data.rag.latency_ms) + " ms";
+        document.getElementById("ragTokens").innerText = data.rag.total_llm_tokens;
+
+        // Populate GraphRAG
+        document.getElementById("graphragAnswer").innerText = data.graphrag.answer;
+        document.getElementById("graphragLatency").innerText = Math.round(data.graphrag.latency_ms) + " ms";
+        document.getElementById("graphragTokens").innerText = data.graphrag.total_llm_tokens;
+
+        // Populate Agentic GraphRAG
+        document.getElementById("agenticAnswer").innerText = data.agentic.answer;
+        document.getElementById("agenticLatency").innerText = Math.round(data.agentic.latency_ms) + " ms";
+        document.getElementById("agenticTokens").innerText = data.agentic.total_llm_tokens === 0 
+          ? "0 (GSQL Fast Path)" 
+          : data.agentic.total_llm_tokens;
+
+        // Populate Trace
+        if (data.agentic.agentic_trace) {
+          renderTrace(data.agentic.agentic_trace);
+        }
+
+        // Refresh Graph
+        loadGraphSnapshot();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderTrace(trace) {
+      const container = document.getElementById("traceSteps");
+      container.innerHTML = "";
+      if (trace.tools_called && trace.tools_called.length > 0) {
+        trace.tools_called.forEach((t, i) => {
+          const div = document.createElement("div");
+          div.className = "trace-step";
+          div.innerHTML = `
+            <div class="step-header">
+              <span>Step ${i + 1}: ${t.tool_name}</span>
+              <span>${Math.round(t.latency_ms)}ms</span>
+            </div>
+            <div class="step-detail">${t.output_summary}</div>
+            <div class="step-stats">
+              <span>Tokens: ${t.llm_tokens}</span>
+              <span>Input: ${JSON.stringify(t.input_args)}</span>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      }
+      if (trace.stopping_reason) {
+        document.getElementById("traceConfidence").innerText = trace.stopping_reason;
+      }
+    }
+
+    // Force-Directed Graph Canvas Simulator
+    let nodes = [];
+    let edges = [];
+
+    async function loadGraphSnapshot() {
+      try {
+        const resp = await fetch("/api/v1/graph/snapshot");
+        const data = await resp.json();
+        nodes = data.graph_nodes.map((n, i) => ({
+          ...n,
+          x: 200 + Math.cos(i) * 120,
+          y: 200 + Math.sin(i) * 120,
+          vx: 0,
+          vy: 0
+        }));
+        edges = data.graph_edges;
+        document.getElementById("graphMeta").innerText = `${nodes.length} Nodes | ${edges.length} Edges`;
+        drawGraph();
+      } catch (e) {
+        console.error("Snapshot error:", e);
+      }
+    }
+
+    const canvas = document.getElementById("graphCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function resizeCanvas() {
+      canvas.width = canvas.parentElement.clientWidth - 32;
+      canvas.height = 400;
+      drawGraph();
+    }
+    window.addEventListener("resize", resizeCanvas);
+
+    const COLOR_MAP = {
+      Event: "#f59e0b",
+      Person: "#10b981",
+      Venue: "#06b6d4",
+      Document: "#8b5cf6",
+      Chunk: "#6366f1"
+    };
+
+    function drawGraph() {
+      if (!ctx || !canvas) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Center offset
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      // Draw Edges
+      ctx.lineWidth = 1.5;
+      edges.forEach(e => {
+        const src = nodes.find(n => n.id === e.source) || { x: cx - 60, y: cy };
+        const tgt = nodes.find(n => n.id === e.target) || { x: cx + 60, y: cy };
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
+        ctx.beginPath();
+        ctx.moveTo(src.x, src.y);
+        ctx.lineTo(tgt.x, tgt.y);
+        ctx.stroke();
+
+        // Edge label
+        const mx = (src.x + tgt.x) / 2;
+        const my = (src.y + tgt.y) / 2;
+        ctx.fillStyle = "#64748b";
+        ctx.font = "9px " + getComputedStyle(document.body).fontFamily;
+        ctx.fillText(e.relationship_type, mx - 15, my - 4);
+      });
+
+      // Draw Nodes
+      nodes.forEach(n => {
+        const color = COLOR_MAP[n.type] || "#f59e0b";
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Node Glow
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Node Label
+        ctx.fillStyle = "#f8fafc";
+        ctx.font = "10px " + getComputedStyle(document.body).fontFamily;
+        ctx.fillText(n.label, n.x + 12, n.y + 3);
+      });
+    }
+
+    // Initialize
+    window.addEventListener("DOMContentLoaded", () => {
+      resizeCanvas();
+      loadPresetQuestion();
+      loadGraphSnapshot();
+    });
+  </script>
+</body>
+</html>
