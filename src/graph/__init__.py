@@ -9,7 +9,52 @@ from typing import Any
 
 import pyTigerGraph as tg
 
+from src.graph.bitemporal import (
+    BitemporalFact,
+    BitemporalGraphResolver,
+    ConflictEdge,
+    ConflictResolutionResult,
+    ConflictType,
+    ResolutionStrategy,
+    ResolvedBy,
+    TemporalInterval,
+    VersionReport,
+    apply_conflict_to_agent_state,
+    calculate_confidence_interval,
+    create_strategy_shift_event,
+    event_dict_to_facts,
+    parse_temporal_datetime,
+    resolve_conflicts_for_facts,
+    resolve_fact_conflict,
+)
 from src.models import Chunk, ParsedInbox
+
+__all__ = [
+    "BITEMPORAL_DDL",
+    "BITEMPORAL_SCHEMA_CHANGE_DDL",
+    "BitemporalFact",
+    "BitemporalGraphResolver",
+    "ConflictEdge",
+    "ConflictResolutionResult",
+    "ConflictType",
+    "GraphClient",
+    "ResolutionStrategy",
+    "ResolvedBy",
+    "TemporalInterval",
+    "VersionReport",
+    "_BITEMPORAL_DDL",
+    "_BITEMPORAL_SCHEMA_CHANGE_DDL",
+    "_SCHEMA_DDL",
+    "_VECTOR_DDL",
+    "apply_conflict_to_agent_state",
+    "calculate_confidence_interval",
+    "connect",
+    "create_strategy_shift_event",
+    "event_dict_to_facts",
+    "parse_temporal_datetime",
+    "resolve_conflicts_for_facts",
+    "resolve_fact_conflict",
+]
 
 # ---------------------------------------------------------------------------
 # Connection
@@ -83,7 +128,11 @@ CREATE VERTEX Event (
     bronze_noc STRING,
     prev_event_id STRING,
     next_event_id STRING,
-    filter_mask UINT
+    filter_mask UINT,
+    valid_from DATETIME,
+    valid_to DATETIME,
+    superseded_by STRING,
+    source_authority FLOAT
 ) WITH PRIMARY_ID_AS_ATTRIBUTE="true", STATS="OUTDEGREE"
 
 CREATE VERTEX Venue (
@@ -112,10 +161,12 @@ CREATE DIRECTED EDGE HELD_AT (FROM Event, TO Venue, start_date STRING, end_date 
 CREATE DIRECTED EDGE PRECEDES (FROM Event, TO Event, time_diff INT)
 CREATE DIRECTED EDGE SUCCEEDS (FROM Event, TO Event, time_diff INT)
 CREATE DIRECTED EDGE HAS_MESSAGE (FROM Session, TO ChatMessage, msg_order INT)
+CREATE DIRECTED EDGE CONFLICTS_WITH (FROM Event, TO Event, conflict_type STRING, resolution STRING, resolved_by STRING)
 
 CREATE GRAPH OlympicsGraph (
     Document, Chunk, Event, Venue, Session, ChatMessage,
-    HAS_CHUNK, DOCUMENTED_IN, HELD_AT, PRECEDES, SUCCEEDS, HAS_MESSAGE
+    HAS_CHUNK, DOCUMENTED_IN, HELD_AT, PRECEDES, SUCCEEDS, HAS_MESSAGE,
+    CONFLICTS_WITH
 )
 """
 
@@ -131,6 +182,47 @@ CREATE SCHEMA_CHANGE JOB add_chunk_vector FOR GRAPH OlympicsGraph {
 RUN SCHEMA_CHANGE JOB add_chunk_vector
 DROP JOB add_chunk_vector
 """
+
+_BITEMPORAL_DDL = """
+# Extended Event attributes for Round 2
+ALTER VERTEX Event ADD ATTRIBUTE (
+    valid_from DATETIME,
+    valid_to DATETIME,
+    superseded_by STRING,
+    source_authority FLOAT
+)
+
+# Conflict Detection Edge
+CREATE DIRECTED EDGE CONFLICTS_WITH (
+    FROM Event, TO Event,
+    conflict_type STRING,
+    resolution STRING,
+    resolved_by STRING
+)
+"""
+
+_BITEMPORAL_SCHEMA_CHANGE_DDL = """
+USE GRAPH OlympicsGraph
+CREATE SCHEMA_CHANGE JOB alter_bitemporal_schema FOR GRAPH OlympicsGraph {
+    ALTER VERTEX Event ADD ATTRIBUTE (
+        valid_from DATETIME,
+        valid_to DATETIME,
+        superseded_by STRING,
+        source_authority FLOAT
+    );
+    ADD DIRECTED EDGE CONFLICTS_WITH (
+        FROM Event, TO Event,
+        conflict_type STRING,
+        resolution STRING,
+        resolved_by STRING
+    );
+}
+RUN SCHEMA_CHANGE JOB alter_bitemporal_schema
+DROP JOB alter_bitemporal_schema
+"""
+
+BITEMPORAL_DDL = _BITEMPORAL_DDL
+BITEMPORAL_SCHEMA_CHANGE_DDL = _BITEMPORAL_SCHEMA_CHANGE_DDL
 
 # ---------------------------------------------------------------------------
 # Compiled GSQL Queries
@@ -332,6 +424,10 @@ class GraphClient:
         self.conn.gsql(_SCHEMA_DDL)
         self.conn.gsql(_VECTOR_DDL)
 
+    def setup_bitemporal_schema(self) -> None:
+        # Run schema change job to add bitemporal attributes and CONFLICTS_WITH edge.
+        self.conn.gsql(_BITEMPORAL_SCHEMA_CHANGE_DDL)
+
     def install_queries(self) -> None:
         # Compile and install all GSQL stored queries.
         # Installed queries execute in ~2-4ms (C++ compiled).
@@ -373,33 +469,71 @@ class GraphClient:
         # Update the embedding attribute on an existing Chunk vertex.
         self.conn.upsertVertex("Chunk", chunk_id, {"embedding": embedding})
 
-    def upsert_event(self, doc_id: str, infobox: ParsedInbox, title: str) -> None:
+    def upsert_event(
+        self,
+        doc_id: str,
+        infobox: ParsedInbox,
+        title: str,
+        valid_from: str | None = None,
+        valid_to: str | None = None,
+        superseded_by: str | None = None,
+        source_authority: float = 1.0,
+    ) -> None:
         # Upsert Event vertex from parsed infobox fields.
         event_id = doc_id  # 1-to-1 mapping: one event per document
+        attributes: dict[str, Any] = {
+            "name": title,
+            "year": infobox.year or 0,
+            "season": infobox.season or "",
+            "sport": infobox.sport or "",
+            "venue": infobox.venue or "",
+            "competitor_count": infobox.competitor_count or 0,
+            "nation_count": infobox.nation_count or 0,
+            "gold_athlete": infobox.gold_athlete or "",
+            "silver_athlete": infobox.silver_athlete or "",
+            "bronze_athlete": infobox.bronze_athlete or "",
+            "gold_noc": infobox.gold_noc or "",
+            "silver_noc": infobox.silver_noc or "",
+            "bronze_noc": infobox.bronze_noc or "",
+            "prev_event_id": "",  # linked separately via upsert_temporal_edges
+            "next_event_id": "",
+            "filter_mask": 0,
+            "superseded_by": superseded_by or "",
+            "source_authority": source_authority,
+        }
+        if valid_from:
+            attributes["valid_from"] = valid_from
+        if valid_to:
+            attributes["valid_to"] = valid_to
         self.conn.upsertVertex(
             "Event",
             event_id,
-            {
-                "name": title,
-                "year": infobox.year or 0,
-                "season": infobox.season or "",
-                "sport": infobox.sport or "",
-                "venue": infobox.venue or "",
-                "competitor_count": infobox.competitor_count or 0,
-                "nation_count": infobox.nation_count or 0,
-                "gold_athlete": infobox.gold_athlete or "",
-                "silver_athlete": infobox.silver_athlete or "",
-                "bronze_athlete": infobox.bronze_athlete or "",
-                "gold_noc": infobox.gold_noc or "",
-                "silver_noc": infobox.silver_noc or "",
-                "bronze_noc": infobox.bronze_noc or "",
-                "prev_event_id": "",  # linked separately via upsert_temporal_edges
-                "next_event_id": "",
-                "filter_mask": 0,
-            },
+            attributes,
         )
         # Link event → document
         self.conn.upsertEdge("Event", event_id, "DOCUMENTED_IN", "Document", doc_id)
+
+    def upsert_conflict_edge(
+        self,
+        from_event_id: str,
+        to_event_id: str,
+        conflict_type: str = "contradiction",
+        resolution: str = "unresolved",
+        resolved_by: str = "source_authority",
+    ) -> None:
+        # Upsert a CONFLICTS_WITH directed edge between conflicting Event vertices.
+        self.conn.upsertEdge(
+            "Event",
+            from_event_id,
+            "CONFLICTS_WITH",
+            "Event",
+            to_event_id,
+            {
+                "conflict_type": conflict_type,
+                "resolution": resolution,
+                "resolved_by": resolved_by,
+            },
+        )
 
     def upsert_temporal_edges(
         self, event_id: str, prev_event_id: str | None, next_event_id: str | None
