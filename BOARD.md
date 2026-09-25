@@ -21,20 +21,18 @@
 | **TASK-005** | Resilient Multi-Provider LLM Router & 3-Layer Guardrails | `master-agent-001` | **DONE** | `main` | 6 passed | `7534d93` |
 | **TASK-006** | Pipeline 1 (Vector RAG) & Pipeline 2 (Hybrid GraphRAG) | `master-agent-001` | **DONE** | `main` | Type check pass | `1565f8d` |
 | **TASK-007** | Pipeline 3: Autonomous Agentic GraphRAG Engine & GSQL Tools | `master-agent-001` | **DONE** | `main` | 14 passed | `1565f8d` |
-| **TASK-008** | Evaluation Suite (100 Public + 50 Questions), Metrics & Benchmarks | `master-agent-001` | **IN_PROGRESS** | `main` | - | - |
-| **TASK-009** | FastAPI Backend & Lunarbit `GraphSurface.tsx` Frontend | `master-agent-001` | **QUEUED** | `main` | - | - |
-| **TASK-010** | Presentation, Architecture SVG & Final Submission Pack | `master-agent-001` | **QUEUED** | `main` | - | - |
+| **TASK-008** | Evaluation Suite (100 Public + 50 Questions), Metrics & Benchmarks | `agent-004` | **IN_PROGRESS** | `../wt-agent-004` (`agent/004/eval-dashboard`) | 26 passed | `aa3cfc1` |
+| **TASK-009** | FastAPI Backend & Interactive GraphSurface Frontend UI | `master-agent-001` | **DONE** | `main` | 26 passed | `daec8f6` |
+| **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **IN_PROGRESS** | `../wt-agent-003` (`agent/003/langgraph-agent`) | - | `69ab1e0` |
 
 ---
 
 ## 3. Dynamic Elastic Agent Pool
 
 ```text
-[MASTER] master-agent-001 : Supervising execution, quality gates, integration.
-[WORKER] agent-001        : Assigned to Ingestion, Chunking & Savanna Schema.
-[WORKER] agent-002        : Assigned to Hybrid Coprocessor (Bitmaps, BM25, RRF).
-[WORKER] agent-003        : Assigned to Multi-LLM Router, Guardrails & LangGraph Engine.
-[WORKER] agent-004        : Assigned to Evaluation Benchmark & Dashboard Integration.
+[MASTER] master-agent-001 : Supervising execution, quality gates, integration (main: /media/simon/.../stellium)
+[WORKER] agent-003        : Stream 3 Lead: Round 2 Bitemporal Schema & Graph Extension (Worktree: ../wt-agent-003, branch: agent/003/langgraph-agent)
+[WORKER] agent-004        : Stream 4 Lead: Evaluation Runner & 150-Question Benchmark (Worktree: ../wt-agent-004, branch: agent/004/eval-dashboard)
 ```
 
 ---
