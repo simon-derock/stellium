@@ -172,9 +172,16 @@ class MetricDTO(BaseModel):
     scope: str = "pipeline"
 
 
+class FindingDTO(BaseModel):
+    id: str
+    title: str
+    detail: str
+    severity: str = "info"
+
+
 class SnapshotDTO(BaseModel):
     metrics: list[MetricDTO] = Field(default_factory=list)
     graph_nodes: list[GraphNodeDTO] = Field(default_factory=list)
     graph_edges: list[GraphEdgeDTO] = Field(default_factory=list)
-    findings: list[dict[str, str]] = Field(default_factory=list)
+    findings: list[FindingDTO] = Field(default_factory=list)
     disclosure: str = "Stellium Agentic GraphRAG — TigerGraph Hackathon 2026"
