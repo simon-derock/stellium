@@ -64,8 +64,6 @@ Thumbs.db
 scratch/
 results/*
 !results/.gitkeep
-!results/public_results.jsonl
-!results/hidden_submission.jsonl
 
 # Additional Caches
 .cache/
