@@ -21,9 +21,9 @@
 | **TASK-005** | Resilient Multi-Provider LLM Router & 3-Layer Guardrails | `master-agent-001` | **DONE** | `main` | 6 passed | `7534d93` |
 | **TASK-006** | Pipeline 1 (Vector RAG) & Pipeline 2 (Hybrid GraphRAG) | `master-agent-001` | **DONE** | `main` | Type check pass | `1565f8d` |
 | **TASK-007** | Pipeline 3: Autonomous Agentic GraphRAG Engine & GSQL Tools | `master-agent-001` | **DONE** | `main` | 14 passed | `1565f8d` |
-| **TASK-008** | Evaluation Suite (100 Public + 50 Questions), Metrics & Benchmarks | `agent-004` | **IN_PROGRESS** | `../wt-agent-004` (`agent/004/eval-dashboard`) | 26 passed | `aa3cfc1` |
+| **TASK-008** | Evaluation Suite (100 Public + 50 Questions), Metrics & Benchmarks | `agent-004` | **DONE** | `agent/004/eval-dashboard` (merged) | 26 passed | `28ce75a` |
 | **TASK-009** | FastAPI Backend & Interactive GraphSurface Frontend UI | `master-agent-001` | **DONE** | `main` | 26 passed | `daec8f6` |
-| **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **IN_PROGRESS** | `../wt-agent-003` (`agent/003/langgraph-agent`) | - | `69ab1e0` |
+| **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **DONE** | `agent/003/langgraph-agent` (merged) | 41 passed | `c2e232b` |
 
 ---
 
@@ -31,8 +31,8 @@
 
 ```text
 [MASTER] master-agent-001 : Supervising execution, quality gates, integration (main: /media/simon/.../stellium)
-[WORKER] agent-003        : Stream 3 Lead: Round 2 Bitemporal Schema & Graph Extension (Worktree: ../wt-agent-003, branch: agent/003/langgraph-agent)
-[WORKER] agent-004        : Stream 4 Lead: Evaluation Runner & 150-Question Benchmark (Worktree: ../wt-agent-004, branch: agent/004/eval-dashboard)
+[WORKER] agent-003        : Stream 3 Complete: Round 2 Bitemporal Schema & Conflict Resolution merged into main
+[WORKER] agent-004        : Stream 4 Complete: 150-Question Benchmark Execution & Submission Pack merged into main
 ```
 
 ---
@@ -45,11 +45,12 @@
 4. **Pragmatic 3-Layer Guardrails**: Medium/simple regex scanning for database commands and prompt injections, parameterized GSQL calls, and output API key leak redaction without over-restricting evaluation test sets.
 5. **No Docstrings in Python Code**: Use `#` comments exclusively across all Python files per project specification.
 6. **Lunarbit Visualizer Integration**: Direct backend serialization from TigerGraph traversed subgraphs to `Snapshot`, `GraphNode`, and `GraphEdge` DTOs rendered via `GraphSurface.tsx`.
+7. **Round 2 Bitemporal Schema & Conflict Resolution**: 4-step conflict resolution engine comparing source authority and timestamps, with dual reporting of bounded confidence intervals on ties and agentic trace logging.
 
 ---
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Step 1 (TASK-008)**: Build `src/evaluate.py` evaluation harness to benchmark all 3 pipelines across the evaluation questions, computing Tier-1 EM, Token-F1, Recall@k, and Pareto Frontier statistics.
-2. **Step 2 (TASK-009)**: Build the FastAPI async API server (`/api/v1/query/compare`, `/api/v1/evaluate/batch`, `/api/v1/graph/snapshot`) with the Lunarbit `GraphSurface.tsx` payload generator.
-3. **Step 3 (TASK-010)**: Generate architecture diagrams, live evaluation results, and submission package.
+1. **Step 1 (TigerGraph Savanna Deployment)**: Connect live cluster with database secret / credentials, run `setup_schema()`, and compile 5 GSQL stored queries.
+2. **Step 2 (Corpus Ingestion)**: Batch upsert 22,016 chunks and graph edges into TigerGraph Savanna cloud instance.
+3. **Step 3 (Final Hackathon Submission)**: Verify live cloud queries, generate visual artifacts, and finalize Devpost/GitHub submission pack.
