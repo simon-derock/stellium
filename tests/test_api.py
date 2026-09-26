@@ -1,4 +1,8 @@
 # Integration tests for FastAPI endpoints: compare, batch, snapshot, health.
+import os
+
+os.environ["TG_USE_MOCK"] = "1"
+
 from fastapi.testclient import TestClient
 
 from src.api.main import app

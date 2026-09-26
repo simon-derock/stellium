@@ -70,7 +70,7 @@ def test_precision_at_k() -> None:
 
 @pytest.mark.asyncio
 async def test_evaluation_harness_offline_mock() -> None:
-    harness = EvaluationHarness(corpus_path="nonexistent.jsonl")
+    harness = EvaluationHarness(corpus_path="nonexistent.jsonl", use_mock=True)
     q = EvalQuestion(
         qid="test-001",
         question="According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",

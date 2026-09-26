@@ -101,6 +101,7 @@ class EvaluationHarness:
         self,
         corpus_path: str = "hackathon-resources/corpus/corpus.jsonl",
         provider: str = "cloudflare",
+        use_mock: bool = False,
     ) -> None:
         self.corpus_path = corpus_path
         self.provider = provider
@@ -119,7 +120,11 @@ class EvaluationHarness:
             )
 
         # Graph client setup (offline mock or live TigerGraph cluster)
-        has_tg = bool(os.environ.get("TG_HOST"))
+        has_tg = (
+            bool(os.environ.get("TG_HOST"))
+            and not bool(os.environ.get("TG_USE_MOCK"))
+            and not use_mock
+        )
         if has_tg:
             try:
                 self.graph = GraphClient(conn=connect())

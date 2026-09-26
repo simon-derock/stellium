@@ -54,6 +54,8 @@ def _get_mock_graph() -> GraphClient:
 
 def get_graph() -> GraphClient:
     global _graph
+    if os.environ.get("TG_USE_MOCK"):
+        return _get_mock_graph()
     if _graph is None:
         if os.environ.get("TG_HOST"):
             try:

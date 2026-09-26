@@ -25,7 +25,7 @@ _DATE_ONLY_FORMAT = "%Y-%m-%d"
 
 
 def parse_temporal_datetime(val: str | datetime | int | float | None) -> datetime | None:
-    """Parse various temporal formats into a normalized UTC naive datetime."""
+    # Parse various temporal formats into a normalized UTC naive datetime.
     if val is None:
         return None
     if isinstance(val, datetime):
@@ -94,7 +94,7 @@ class ResolvedBy(StrEnum):
 
 @dataclass(frozen=True)
 class TemporalInterval:
-    """Represents the temporal validity window of a fact."""
+    # Represents the temporal validity window of a fact.
 
     valid_from: datetime | None = None
     valid_to: datetime | None = None
@@ -133,7 +133,7 @@ class TemporalInterval:
 
 @dataclass
 class BitemporalFact:
-    """A granular predicate fact carrying temporal validity and source authority."""
+    # A granular predicate fact carrying temporal validity and source authority.
 
     fact_id: str
     subject: str
@@ -184,7 +184,7 @@ class BitemporalFact:
 
 @dataclass(frozen=True)
 class ConflictEdge:
-    """Represents a CONFLICTS_WITH directed edge between two Event vertices in TigerGraph."""
+    # Represents a CONFLICTS_WITH directed edge between two Event vertices in TigerGraph.
 
     from_event_id: str
     to_event_id: str
@@ -204,7 +204,7 @@ class ConflictEdge:
 
 @dataclass(frozen=True)
 class VersionReport:
-    """Reported version of an event attribute, used when reporting candidates or ties."""
+    # Reported version of an event attribute, used when reporting candidates or ties.
 
     fact_id: str
     value: Any
@@ -239,10 +239,9 @@ def calculate_confidence_interval(
     sample_size: int = 1,
     z: float = 1.96,
 ) -> tuple[float, float]:
-    """Calculate confidence interval for a fact version based on authority and confidence.
-
-    Combines point estimate, sample support, and authority uncertainty into a bounded [0.0, 1.0] interval.
-    """
+    # Calculate confidence interval for a fact version based on authority and confidence.
+    #
+    # Combines point estimate, sample support, and authority uncertainty into a bounded [0.0, 1.0] interval.
     auth = min(1.0, max(0.05, float(authority)))
     conf = min(1.0, max(0.05, float(confidence)))
     p = min(0.99, max(0.05, conf * auth))
@@ -264,7 +263,7 @@ def calculate_confidence_interval(
 
 @dataclass
 class ConflictResolutionResult:
-    """Structured outcome of bitemporal conflict resolution."""
+    # Structured outcome of bitemporal conflict resolution.
 
     status: Literal["resolved", "unresolved_tie", "no_conflict"]
     predicate: str
@@ -299,7 +298,7 @@ class ConflictResolutionResult:
 
 
 def create_strategy_shift_event(result: ConflictResolutionResult) -> dict[str, Any]:
-    """Create a strategy shift event for logging in the agentic trace (Step 4)."""
+    # Create a strategy shift event for logging in the agentic trace (Step 4).
     winner_id = result.winner.fact_id if result.winner else None
     superseded_ids = [f.fact_id for f in result.superseded_facts]
     if result.loser and result.loser.fact_id not in superseded_ids:
@@ -324,7 +323,7 @@ def create_strategy_shift_event(result: ConflictResolutionResult) -> dict[str, A
 
 
 def apply_conflict_to_agent_state(state: Any, result: ConflictResolutionResult) -> None:
-    """Apply a conflict resolution outcome directly into an AgentState instance."""
+    # Apply a conflict resolution outcome directly into an AgentState instance.
     if result.status == "no_conflict":
         return
     if hasattr(state, "strategy_changed"):
@@ -365,13 +364,12 @@ def resolve_fact_conflict(
     fact_b: BitemporalFact,
     authority_tolerance: float = 1e-4,
 ) -> ConflictResolutionResult:
-    """Resolve a conflict between two facts per PLAN_SPEC.md [ORCHESTRA:ROUND2_PREP]:
-
-    1. Compare source_authority scores (higher = more authoritative).
-    2. Compare valid_from / valid_to timestamps (newer = supersedes older).
-    3. If unresolvable: report both versions with confidence intervals.
-    4. Log the conflict in the agentic trace as a strategy shift event.
-    """
+    # Resolve a conflict between two facts per PLAN_SPEC.md [ORCHESTRA:ROUND2_PREP]:
+    #
+    # 1. Compare source_authority scores (higher = more authoritative).
+    # 2. Compare valid_from / valid_to timestamps (newer = supersedes older).
+    # 3. If unresolvable: report both versions with confidence intervals.
+    # 4. Log the conflict in the agentic trace as a strategy shift event.
     # Identical values => concordant, no conflict
     if fact_a.value == fact_b.value:
         return ConflictResolutionResult(
@@ -601,7 +599,7 @@ def resolve_conflicts_for_facts(
     facts: Sequence[BitemporalFact],
     authority_tolerance: float = 1e-4,
 ) -> list[ConflictResolutionResult]:
-    """Resolve conflicts across a collection of facts grouped by (subject, predicate)."""
+    # Resolve conflicts across a collection of facts grouped by (subject, predicate).
     # Group by (subject, predicate)
     grouped: dict[tuple[str, str], list[BitemporalFact]] = {}
     for fact in facts:
@@ -733,7 +731,7 @@ def event_dict_to_facts(
     event: dict[str, Any],
     predicates: Sequence[str] | None = None,
 ) -> list[BitemporalFact]:
-    """Extract individual BitemporalFact objects from an Event dictionary."""
+    # Extract individual BitemporalFact objects from an Event dictionary.
     event_id = str(event.get("event_id") or event.get("doc_id") or "unknown_event")
     subject = str(event.get("name") or event_id)
     authority = float(event.get("source_authority", 1.0))
@@ -762,7 +760,7 @@ def event_dict_to_facts(
 
 
 class BitemporalGraphResolver:
-    """Manages conflict resolution and edge synchronization for graph entities."""
+    # Manages conflict resolution and edge synchronization for graph entities.
 
     def __init__(self, authority_tolerance: float = 1e-4) -> None:
         self.authority_tolerance = authority_tolerance
@@ -773,7 +771,7 @@ class BitemporalGraphResolver:
         event_b: dict[str, Any],
         predicates: Sequence[str] | None = None,
     ) -> list[ConflictResolutionResult]:
-        """Detect and resolve attribute conflicts between two versions of an event."""
+        # Detect and resolve attribute conflicts between two versions of an event.
         facts_a = {f.predicate: f for f in event_dict_to_facts(event_a, predicates)}
         facts_b = {f.predicate: f for f in event_dict_to_facts(event_b, predicates)}
 
@@ -795,7 +793,7 @@ class BitemporalGraphResolver:
         events: Sequence[dict[str, Any]],
         predicates: Sequence[str] | None = None,
     ) -> list[ConflictResolutionResult]:
-        """Resolve conflicts across a collection of event dictionaries."""
+        # Resolve conflicts across a collection of event dictionaries.
         all_facts: list[BitemporalFact] = []
         for ev in events:
             all_facts.extend(event_dict_to_facts(ev, predicates))
@@ -807,7 +805,7 @@ class BitemporalGraphResolver:
         client: Any,
         results: Sequence[ConflictResolutionResult],
     ) -> int:
-        """Apply resolved conflict edges and superseded_by flags to TigerGraph via GraphClient."""
+        # Apply resolved conflict edges and superseded_by flags to TigerGraph via GraphClient.
         edges_applied = 0
         for r in results:
             if r.conflict_edge is not None and hasattr(client, "upsert_conflict_edge"):

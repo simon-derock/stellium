@@ -2,9 +2,10 @@
 # Strictly zero triple-quote docstrings per project coding standards.
 from __future__ import annotations
 
-import os
 import time
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from src.embeddings import JinaEmbeddingClient, RateLimiter
 
@@ -20,17 +21,18 @@ def test_rate_limiter_throttling() -> None:
 
 
 # Test client creation from environment with various naming variants
-def test_client_from_env(monkeypatch: object) -> None:
+def test_client_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test lowercase user variant
-    os.environ["jina_embedding_api_key"] = "test-jina-key-123"
+    monkeypatch.setenv("jina_embedding_api_key", "test-jina-key-123")
     client = JinaEmbeddingClient.from_env()
     assert client.api_key == "test-jina-key-123"
     assert client.is_configured is True
     assert client.dimension == 1024
 
     # Test unconfigured fallback
-    os.environ.pop("jina_embedding_api_key", None)
-    os.environ.pop("JINA_API_KEY", None)
+    monkeypatch.delenv("jina_embedding_api_key", raising=False)
+    monkeypatch.delenv("JINA_API_KEY", raising=False)
+    monkeypatch.delenv("JINA_EMBEDDING_API_KEY", raising=False)
     unconf_client = JinaEmbeddingClient.from_env()
     assert unconf_client.is_configured is False
 
@@ -91,7 +93,7 @@ def test_embed_retry_on_429() -> None:
 
 
 # Test arbitrary new Jina embedding models can be configured dynamically
-def test_custom_jina_models() -> None:
+def test_custom_jina_models(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test instantiating with any new Jina model (v5, v4, v3, etc.)
     client_v5 = JinaEmbeddingClient(
         api_key="mock-key",
@@ -102,10 +104,8 @@ def test_custom_jina_models() -> None:
     assert client_v5.dimension == 1024
 
     # Test environment override
-    os.environ["EMBEDDING_MODEL"] = "jina-embeddings-v4"
-    os.environ["EMBEDDING_DIMENSION"] = "1024"
+    monkeypatch.setenv("EMBEDDING_MODEL", "jina-embeddings-v4")
+    monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
     client_env = JinaEmbeddingClient.from_env()
     assert client_env.model == "jina-embeddings-v4"
     assert client_env.dimension == 1024
-    os.environ.pop("EMBEDDING_MODEL", None)
-    os.environ.pop("EMBEDDING_DIMENSION", None)

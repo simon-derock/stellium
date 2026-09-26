@@ -31,6 +31,8 @@
 
 ```text
 [MASTER] master-agent-001 : Supervising execution, quality gates, integration (main: /media/simon/.../stellium)
+[WORKER] agent-001        : Stream 1 Complete: Chunk Ingestion & Partitioner with Jina v5 embeddings (agent/001/ingest-schema)
+[WORKER] agent-002        : Stream 2 Complete: Live Savanna Schema Deployed & GSQL Queries Compiled (agent/002/hybrid-engine)
 [WORKER] agent-003        : Stream 3 Complete: Round 2 Bitemporal Schema & Conflict Resolution merged into main
 [WORKER] agent-004        : Stream 4 Complete: 150-Question Benchmark Execution & Submission Pack merged into main
 ```
@@ -51,6 +53,6 @@
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Step 1 (TigerGraph Savanna Deployment)**: Connect live cluster with database secret / credentials, run `setup_schema()`, and compile 5 GSQL stored queries.
-2. **Step 2 (Corpus Ingestion)**: Batch upsert 22,016 chunks and graph edges into TigerGraph Savanna cloud instance.
+1. **Step 1 (TigerGraph Savanna Deployment)**: COMPLETED by agent-002: Live schema deployed, 1024-dim HNSW vector space active, 6 GSQL stored queries compiled and verified.
+2. **Step 2 (Corpus Ingestion)**: Batch upsert 22,016 chunks and graph edges into TigerGraph Savanna cloud instance (agent-001).
 3. **Step 3 (Final Hackathon Submission)**: Verify live cloud queries, generate visual artifacts, and finalize Devpost/GitHub submission pack.
