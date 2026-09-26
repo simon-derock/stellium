@@ -27,6 +27,7 @@ from src.graph.bitemporal import (
     resolve_conflicts_for_facts,
     resolve_fact_conflict,
 )
+from src.graph.mock import MockTigerGraphConnection, create_mock_graph_client
 from src.models import Chunk, ParsedInbox
 
 __all__ = [
@@ -38,6 +39,7 @@ __all__ = [
     "ConflictResolutionResult",
     "ConflictType",
     "GraphClient",
+    "MockTigerGraphConnection",
     "ResolutionStrategy",
     "ResolvedBy",
     "TemporalInterval",
@@ -49,6 +51,7 @@ __all__ = [
     "apply_conflict_to_agent_state",
     "calculate_confidence_interval",
     "connect",
+    "create_mock_graph_client",
     "create_strategy_shift_event",
     "event_dict_to_facts",
     "parse_temporal_datetime",
