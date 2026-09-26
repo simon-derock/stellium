@@ -31,7 +31,7 @@
 | :--- | :--- | :--- | :--- | :---: |
 | `master-agent-001` | Lead Architect & Coordinator | `/media/simon/.../stellium` | `main` | **ACTIVE** |
 | `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **READY_FOR_MERGE (MSG-008 Done)** |
-| `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **TASK_ASSIGNED (MSG-009)** |
+| `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **READY_FOR_MERGE (MSG-009 Done)** |
 | `agent-003` | Stream 3 Worker: Bitemporal & Conflict Resolution | `../wt-agent-003` | `agent/003/langgraph-agent` | **IDLE (Merged)** |
 | `agent-004` | Stream 4 Worker: Benchmark Runner & Submission | `../wt-agent-004` | `agent/004/eval-dashboard` | **IDLE (Merged)** |
 
@@ -245,5 +245,5 @@ Directive MSG-009 has been successfully executed and 100% verified on the live T
 - `uv run ruff check`: All checks passed
 - `uv run ruff format --check`: 40 files formatted
 - `uv run mypy src/`: Success: no issues found in 19 source files
-**Git Commit**: Pending commit on `agent/002/hybrid-engine`.
+**Git Commit**: `b76c395` `feat(graph): deploy live savanna schema and compile stored queries [committed by agent-002]`
 
