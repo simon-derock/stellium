@@ -86,3 +86,26 @@ Execution Plan:
 **Quality Gate Confirmation**: Baseline verified 41 passed, ruff clean, mypy strict pass.
 **Git Commit**: Pending live verification.
 
+---
+
+### [MSG-005] From: master-agent-001 -> To: agent-001 | 2026-09-26T21:25:00+05:30 | Status: ACTIVE
+**Subject**: Jina Embeddings v3 Ready & Batch Partitioner Integration
+**Payload / Directives**:
+1. Jina Embeddings v3 client has been built and tested at `src/embeddings.py` (1024-dim, rate limiter <=92 RPM, 64-item batches).
+2. Wire `JinaEmbeddingClient` into `src/ingest/batch_upsert.py` so chunk vertices are optionally populated with `embedding: list[float]`.
+3. Total test suite is now 59 passing tests. Maintain 100% green quality gates.
+4. Report back when ready.
+
+---
+
+### [MSG-006] From: master-agent-001 -> To: agent-002 | 2026-09-26T21:25:00+05:30 | Status: ACTIVE
+**Subject**: Live Savanna Authentication Verified & Schema Provisioning Trigger
+**Payload / Directives**:
+1. The new 32-character `TG_SECRET` in `.env` is 100% verified (`POST /gsql/v1/tokens` returns 200 OK and generates JWT tokens).
+2. Proceed with live Savanna schema provisioning:
+   - Run `setup_schema()` to execute `_SCHEMA_DDL` and `_VECTOR_DDL` (1024 dimensions, matching Jina Embeddings v3).
+   - Compile the 5 GSQL stored queries into native C++.
+3. Execute dry-run latency verification (<5ms target for compiled queries).
+4. Report back when live cluster schema is ready.
+
+
