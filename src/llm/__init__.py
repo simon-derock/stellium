@@ -303,8 +303,22 @@ class LockedLLMSession:
         ) from last_exc
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        # Embedding calls also locked to cloudflare bge-m3.
-        # Embedding has no model rule constraint (it's not an LLM generation call).
+        # Uniform embedding model across all pipelines & agents using JinaEmbeddingClient.
+        # Matches the 1024-dim HNSW vector index space in TigerGraph Savanna.
+        from src.embeddings import JinaEmbeddingClient
+
+        jina = JinaEmbeddingClient.from_env()
+        if jina.is_configured:
+            # Generate query embeddings with retrieval.query LoRA adapter
+            return [jina.embed_query(t) for t in texts]
+
+        # Secondary fallback if Cloudflare is explicitly configured
+        account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+        api_token = os.environ.get("CLOUDFLARE_API_TOKEN")
+        if account_id and api_token:
+            return await _embed_cloudflare(texts, self._client)
+
+        # Deterministic offline fallback
         return await _embed_cloudflare(texts, self._client)
 
 
