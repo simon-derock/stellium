@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.coprocessor import Coprocessor
-from src.graph import GraphClient, connect
+from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import check_query
 from src.ingest import load_all_chunks
 from src.llm import make_session

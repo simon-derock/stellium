@@ -134,71 +134,7 @@ class EvaluationHarness:
 
     def _make_mock_graph(self) -> GraphClient:
         # High-fidelity offline mock graph client for deterministic offline testing
-        class MockConnection:
-            def runInstalledQuery(
-                self, query_name: str, params: dict[str, Any] | None = None, **_: Any
-            ) -> list[dict[str, Any]]:
-                params = params or {}
-                if query_name == "get_event_aggregates":
-                    return [
-                        {"count": 5, "events": ["Biathlon 10km"], "gold_doc_ids": ["Q47091419"]}
-                    ]
-                elif query_name == "get_preceding_event":
-                    return [
-                        {
-                            "prev_events": ["Athletics 20km walk 2012"],
-                            "gold_athletes": ["Chen Ding"],
-                            "gold_doc_ids": ["Q1050909"],
-                        }
-                    ]
-                elif query_name == "get_superlative_event":
-                    return [
-                        {
-                            "events": ["Athletics at the 2008 Summer Olympics – Men's marathon"],
-                            "competitor_counts": [98],
-                            "gold_doc_ids": ["Q1005784"],
-                        }
-                    ]
-                elif query_name == "get_event_by_venue_date":
-                    return [
-                        {
-                            "events": ["Weightlifting 60kg"],
-                            "gold_athletes": ["Naim Süleymanoğlu"],
-                            "gold_doc_ids": ["Q25239316"],
-                        }
-                    ]
-                elif query_name == "get_event_attribute":
-                    return [
-                        {
-                            "events": ["Men's foil"],
-                            "competitor_counts": [68],
-                            "nation_counts": [26],
-                            "gold_athletes": ["Stefano Cerioni"],
-                            "venues": ["Fencing Gymnasium"],
-                            "gold_doc_ids": ["Q12345"],
-                        }
-                    ]
-                elif query_name == "vector_search_chunks":
-                    return [
-                        {
-                            "TopChunks": [
-                                {
-                                    "chunk_id": "c1",
-                                    "doc_id": "d1",
-                                    "text": "sample",
-                                    "raw_text": "sample",
-                                    "prev_chunk_id": "",
-                                    "next_chunk_id": "",
-                                }
-                            ]
-                        },
-                        {"@@distances": {"c1": 0.1}},
-                    ]
-                return [{}]
-
-        client = GraphClient.__new__(GraphClient)
-        client.conn = MockConnection()
-        return client
+        return create_mock_graph_client()
 
     async def evaluate_question(
         self,
