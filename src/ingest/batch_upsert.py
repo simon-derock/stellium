@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from src.coprocessor import build_filter_mask
+from src.embeddings import JinaEmbeddingClient
 from src.graph import GraphClient, connect
 from src.graph.mock import create_mock_graph_client
 from src.ingest import (
@@ -20,6 +21,7 @@ from src.ingest import (
     iter_corpus,
     parse_infobox,
 )
+from src.models import Chunk
 
 
 def partition_items[T](items: list[T], batch_size: int) -> list[list[T]]:
@@ -76,6 +78,7 @@ class IngestionStats:
 def prepare_ingestion_plan(
     corpus_path: str | Path,
     batch_size: int = 500,
+    embedding_client: JinaEmbeddingClient | None = None,
 ) -> IngestionPlan:
     # Reads corpus.jsonl, builds all vertices and relational edges, and partitions them.
     docs = list(iter_corpus(corpus_path))
@@ -83,6 +86,7 @@ def prepare_ingestion_plan(
 
     doc_records: list[tuple[str, dict[str, Any]]] = []
     chunk_records: list[tuple[str, dict[str, Any]]] = []
+    all_chunks: list[Chunk] = []
     event_records: list[tuple[str, dict[str, Any]]] = []
     venue_dict: dict[str, str] = {}  # venue_id -> name
 
@@ -113,22 +117,8 @@ def prepare_ingestion_plan(
 
         # 2. Chunk Vertices & HAS_CHUNK Edges
         chunks = chunk_document(doc)
+        all_chunks.extend(chunks)
         for c in chunks:
-            chunk_records.append(
-                (
-                    c.chunk_id,
-                    {
-                        "doc_id": c.doc_id,
-                        "chunk_index": c.chunk_index,
-                        "section_title": c.section_title,
-                        "text": c.text[:8000],
-                        "raw_text": c.raw_text[:4000],
-                        "prev_chunk_id": c.prev_chunk_id or "",
-                        "next_chunk_id": c.next_chunk_id or "",
-                        "filter_mask": c.filter_mask,
-                    },
-                )
-            )
             has_chunk_edges.append((doc.doc_id, c.chunk_id, {}))
 
         # 3. Event Vertex & Edges (Only for Olympic event articles)
@@ -188,6 +178,27 @@ def prepare_ingestion_plan(
                 succeeds_edges.append((event_id, next_event_id, {"time_diff": time_diff}))
 
     venue_records = [(v_id, {"name": name}) for v_id, name in venue_dict.items()]
+
+    # Generate embeddings for chunk vertices if embedding client provided
+    embeddings: list[list[float]] = []
+    if embedding_client is not None:
+        chunk_texts = [c.text for c in all_chunks]
+        embeddings = embedding_client.embed_passages(chunk_texts, late_chunking=False)
+
+    for i, c in enumerate(all_chunks):
+        attrs: dict[str, Any] = {
+            "doc_id": c.doc_id,
+            "chunk_index": c.chunk_index,
+            "section_title": c.section_title,
+            "text": c.text[:8000],
+            "raw_text": c.raw_text[:4000],
+            "prev_chunk_id": c.prev_chunk_id or "",
+            "next_chunk_id": c.next_chunk_id or "",
+            "filter_mask": c.filter_mask,
+        }
+        if embeddings and i < len(embeddings):
+            attrs["embedding"] = embeddings[i]
+        chunk_records.append((c.chunk_id, attrs))
 
     # Partition each record group into bounded batches
     doc_batches = [VertexBatch("Document", b) for b in partition_items(doc_records, batch_size)]
@@ -340,10 +351,24 @@ def main() -> None:
         default=False,
         help="Execute batches into in-memory MockTigerGraphConnection",
     )
+    parser.add_argument(
+        "--embed",
+        action="store_true",
+        default=False,
+        help="Generate Jina v5 embeddings for chunk vertices",
+    )
     args = parser.parse_args()
 
+    embedding_client = JinaEmbeddingClient.from_env() if args.embed else None
+    if embedding_client:
+        print(
+            f"[Stream 1] Jina Embeddings enabled: model={embedding_client.model}, dim={embedding_client.dimension}"
+        )
+
     print(f"[Stream 1] Partitioning corpus: {args.corpus_path} (batch_size={args.batch_size})")
-    plan = prepare_ingestion_plan(args.corpus_path, batch_size=args.batch_size)
+    plan = prepare_ingestion_plan(
+        args.corpus_path, batch_size=args.batch_size, embedding_client=embedding_client
+    )
 
     print(f"  Total Documents: {plan.total_documents}")
     print(f"  Total Chunks:    {plan.total_chunks}")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from src.embeddings import JinaEmbeddingClient
 from src.graph.mock import MockTigerGraphConnection, create_mock_graph_client
 from src.ingest import (
     build_event_chronology,
@@ -203,3 +204,57 @@ def test_prepare_ingestion_plan(tmp_path: Path) -> None:
     assert len(plan.has_chunk_batches) >= 1
     assert len(plan.documented_in_batches) == 1
     assert len(plan.held_at_batches) == 1
+
+    # Verify that without embedding_client, "embedding" is not added
+    first_chunk_record = plan.chunk_batches[0].records[0]
+    assert "embedding" not in first_chunk_record[1]
+
+
+# Test prepare_ingestion_plan with unconfigured embedding client (zero-vector fallback)
+def test_prepare_ingestion_plan_unconfigured_embeddings(tmp_path: Path) -> None:
+    p = tmp_path / "corpus_unconfigured.jsonl"
+    sample_line = (
+        '{"doc_id": "Q200", "wikidata_qid": "Q200", "wikipedia_pageid": 200, '
+        '"title": "Boxing at the 2012 Summer Olympics – Men\'s flyweight", '
+        '"url": "https://en.wikipedia.org/wiki/boxing", '
+        '"text": "[Infobox Olympic event]\\n  games: 2012 Summer\\n  venue: ExCeL London\\n  event: Men\'s flyweight\\n\\nRobeisy Ramirez won gold.", '
+        '"approx_tokens": 50}\n'
+    )
+    p.write_text(sample_line, encoding="utf-8")
+
+    # Unconfigured client (empty api_key)
+    unconfigured_client = JinaEmbeddingClient(api_key="", dimension=1024)
+    plan = prepare_ingestion_plan(p, batch_size=5, embedding_client=unconfigured_client)
+
+    assert len(plan.chunk_batches) >= 1
+    for batch in plan.chunk_batches:
+        for chunk_id, attrs in batch.records:
+            assert "embedding" in attrs
+            assert len(attrs["embedding"]) == 1024
+            # Unconfigured client produces 0.0 fallback vector
+            assert all(v == 0.0 for v in attrs["embedding"])
+
+
+# Test prepare_ingestion_plan with configured mock embeddings
+def test_prepare_ingestion_plan_mock_embeddings(tmp_path: Path) -> None:
+    p = tmp_path / "corpus_mock_emb.jsonl"
+    sample_line = (
+        '{"doc_id": "Q300", "wikidata_qid": "Q300", "wikipedia_pageid": 300, '
+        '"title": "Archery at the 2016 Summer Olympics – Men\'s individual", '
+        '"url": "https://en.wikipedia.org/wiki/archery", '
+        '"text": "[Infobox Olympic event]\\n  games: 2016 Summer\\n  venue: Sambadrome\\n  event: Men\'s individual\\n\\nKu Bon-chan won gold.", '
+        '"approx_tokens": 50}\n'
+    )
+    p.write_text(sample_line, encoding="utf-8")
+
+    mock_client = JinaEmbeddingClient(api_key="mock_key", dimension=1024)
+    # Monkey-patch embed_passages to return deterministic synthetic vectors
+    expected_vector = [0.42] * 1024
+    mock_client.embed_passages = lambda texts, late_chunking=False: [expected_vector for _ in texts]  # type: ignore[assignment]
+
+    plan = prepare_ingestion_plan(p, batch_size=5, embedding_client=mock_client)
+
+    assert len(plan.chunk_batches) >= 1
+    first_chunk = plan.chunk_batches[0].records[0]
+    assert "embedding" in first_chunk[1]
+    assert first_chunk[1]["embedding"] == expected_vector
