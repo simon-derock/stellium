@@ -1,5 +1,4 @@
 # CLI verification script for live TigerGraph Savanna cluster schema and queries.
-# Zero docstrings in Python code per project standard.
 from __future__ import annotations
 
 import argparse

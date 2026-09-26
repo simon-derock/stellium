@@ -70,6 +70,10 @@ def test_precision_at_k() -> None:
 
 @pytest.mark.asyncio
 async def test_evaluation_harness_offline_mock() -> None:
+    from unittest.mock import patch
+
+    from src.llm import LLMCallResult, LockedLLMSession
+
     harness = EvaluationHarness(corpus_path="nonexistent.jsonl", use_mock=True)
     q = EvalQuestion(
         qid="test-001",
@@ -78,10 +82,18 @@ async def test_evaluation_harness_offline_mock() -> None:
         answer=["5"],
         gold_doc_ids=["Q47091419"],
     )
-    # Evaluate agentic pipeline in offline mock mode
-    results = await harness.evaluate_question(q, ["agentic"])
-    assert "agentic" in results
-    assert results["agentic"].answer == "5"
-    assert results["agentic"].total_llm_tokens == 0  # Deterministic GSQL path = 0 tokens
-    assert results["agentic"].agentic_trace is not None
-    assert results["agentic"].agentic_trace["stopping_reason"] != ""
+    mock_res = LLMCallResult(
+        content='Thought: Count biathlon events in 2018 with >73 competitors.\nAction: gsql_aggregate\nAction Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, "max_competitors": 0}',
+        input_tokens=50,
+        output_tokens=30,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=12.0,
+    )
+    with patch.object(LockedLLMSession, "chat", return_value=mock_res):
+        results = await harness.evaluate_question(q, ["agentic"])
+        assert "agentic" in results
+        assert results["agentic"].answer == "5"
+        assert results["agentic"].total_llm_tokens > 0
+        assert results["agentic"].agentic_trace is not None
+        assert results["agentic"].agentic_trace["stopping_reason"] != ""

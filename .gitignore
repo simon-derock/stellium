@@ -65,8 +65,7 @@ scratch/
 results/*
 !results/.gitkeep
 
-# Additional Caches
-.cache/
-.uv-cache/
-*.tmp
+# Data & embedding caches
+data/*
+!data/.gitkeep
 

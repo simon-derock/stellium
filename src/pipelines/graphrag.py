@@ -1,22 +1,30 @@
-# Pipeline 2: Hybrid GraphRAG (fixed pipeline, NON-agentic).
-# Fixed sequence: entity link → 1-2 hop graph expand → fuse → LLM answer.
-# No backtracking, no strategy adaptation, no dynamic tool selection.
-# Weakness exposed: entity linking failure cascades, no aggregation, fixed depth.
+# Pipeline 2: Hybrid GraphRAG (fixed pipeline, non-agentic baseline).
+# Fixed sequence: entity extraction -> 1-2 hop graph expansion -> dense vector fusion -> LLM synthesis.
 from __future__ import annotations
 
-import re
+import json
+import logging
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from src.graph import GraphClient
 from src.guardrails import sanitize_output
 from src.llm import LockedLLMSession
 from src.models import PipelineResult
 
+logger = logging.getLogger(__name__)
+
+_ENTITY_LINKING_SYSTEM_PROMPT = """You are an entity extraction engine for Olympic sports questions.
+Extract the target year, sport, and venue mentioned in the user question.
+Return ONLY a valid JSON object matching this schema:
+{"year": 2012, "sport": "Athletics", "venue": "National Stadium"}
+Use null for any field not explicitly mentioned or inferred from the question. Do not include markdown formatting or commentary."""
+
 _GRAPHRAG_SYSTEM_PROMPT = """You are a precise sports historian with access to Olympic event data.
 Answer the question using ONLY the provided graph context (entities, relationships, and passages).
 If the answer is not in the context, respond with "Not found in corpus".
-Be concise."""
+Be concise: give the direct answer, not a full sentence when a name or number suffices."""
 
 _GRAPHRAG_USER_TEMPLATE = """Graph context:
 {graph_context}
@@ -25,56 +33,35 @@ Question: {question}
 
 Answer:"""
 
-# Simple year extractor for entity linking
-_YEAR_RE = re.compile(r"\b(19[5-9]\d|20[0-3]\d)\b")
-_SPORT_KEYWORDS = [
-    "athletics",
-    "swimming",
-    "gymnastics",
-    "cycling",
-    "rowing",
-    "shooting",
-    "weightlifting",
-    "wrestling",
-    "boxing",
-    "judo",
-    "sailing",
-    "fencing",
-    "canoeing",
-    "archery",
-    "biathlon",
-    "skiing",
-    "skating",
-    "curling",
-    "hockey",
-    "football",
-    "basketball",
-    "volleyball",
-    "tennis",
-    "badminton",
-]
+
+@dataclass
+class ExtractedEntities:
+    year: int = 0
+    sport: str = ""
+    venue: str = ""
 
 
-def _extract_year(query: str) -> int:
-    m = _YEAR_RE.search(query)
-    return int(m.group(1)) if m else 0
+async def _extract_entities_via_llm(llm: LockedLLMSession, question: str) -> ExtractedEntities:
+    # Uses a single-turn LLM call to extract structured entities from query text.
+    messages = [
+        {"role": "system", "content": _ENTITY_LINKING_SYSTEM_PROMPT},
+        {"role": "user", "content": f"Question: {question}"},
+    ]
+    try:
+        res = await llm.chat(messages, max_tokens=128, temperature=0.0)
+        cleaned = res.content.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        data: dict[str, Any] = json.loads(cleaned)
 
-
-def _extract_sport(query: str) -> str:
-    q_lower = query.lower()
-    for sport in _SPORT_KEYWORDS:
-        if sport in q_lower:
-            return sport.capitalize()
-    return ""
-
-
-def _extract_venue(query: str) -> str:
-    # Look for "at [Proper Noun] [Venue]" patterns
-    m = re.search(
-        r"\bat\s+([A-Z][A-Za-z\s]+(?:Stadium|Arena|Hall|Centre|Center|Oval|Park|Pool|Gymnasium|Velodrome|Rink))",
-        query,
-    )
-    return m.group(1).strip() if m else ""
+        raw_year = data.get("year")
+        year = int(raw_year) if raw_year is not None and str(raw_year).isdigit() else 0
+        sport = str(data.get("sport") or "").strip()
+        venue = str(data.get("venue") or "").strip()
+        return ExtractedEntities(year=year, sport=sport, venue=venue)
+    except Exception:
+        # Graceful fallback when running in offline mode or on unparseable JSON
+        return ExtractedEntities()
 
 
 @dataclass
@@ -85,37 +72,37 @@ class GraphRAGPipeline:
     async def run(self, qid: str, question: str) -> PipelineResult:
         t_start = time.perf_counter()
 
-        # Step 1: Entity linking — extract structured parameters from query text
-        year = _extract_year(question)
-        sport = _extract_sport(question)
-        venue = _extract_venue(question)
+        # Step 1: Entity linking — dynamic LLM entity extraction
+        entities = await _extract_entities_via_llm(self.llm, question)
 
-        # Step 2: Graph traversal — fixed 1-2 hop expansion
+        # Step 2: Fixed 1-2 hop graph traversal based on extracted entities
         graph_facts: list[str] = []
         doc_ids: list[str] = []
 
-        if venue:
-            # Multi-hop: venue → events at that venue
-            result = self.graph.run_multihop(venue_fragment=venue)
-            for event, athlete in zip(result["events"], result["gold_athletes"]):
+        if entities.venue:
+            result = self.graph.run_multihop(venue_fragment=entities.venue)
+            for event, athlete in zip(result.get("events", []), result.get("gold_athletes", [])):
                 graph_facts.append(f"Event: {event} | Gold: {athlete}")
-            doc_ids.extend(result["gold_doc_ids"])
+            doc_ids.extend(result.get("gold_doc_ids", []))
 
-        if year and sport:
-            # Lookup: events by year+sport
-            result = self.graph.run_lookup(year=year, sport=sport)
+        if entities.year and entities.sport:
+            result = self.graph.run_lookup(year=entities.year, sport=entities.sport)
             for event, gold, nations in zip(
-                result["events"], result["gold_athletes"], result["nation_counts"]
+                result.get("events", []),
+                result.get("gold_athletes", []),
+                result.get("nation_counts", []),
             ):
                 graph_facts.append(f"Event: {event} | Gold: {gold} | Nations: {nations}")
-            doc_ids.extend(result["gold_doc_ids"])
-        elif year:
-            result = self.graph.run_lookup(year=year)
-            for event, gold in zip(result["events"][:10], result["gold_athletes"][:10]):
+            doc_ids.extend(result.get("gold_doc_ids", []))
+        elif entities.year:
+            result = self.graph.run_lookup(year=entities.year)
+            for event, gold in zip(
+                result.get("events", [])[:10], result.get("gold_athletes", [])[:10]
+            ):
                 graph_facts.append(f"Event: {event} | Gold: {gold}")
-            doc_ids.extend(result["gold_doc_ids"][:10])
+            doc_ids.extend(result.get("gold_doc_ids", [])[:10])
 
-        # Step 3: Vector search for supporting text (fixed top-3)
+        # Step 3: Fixed dense vector search for supporting passages (fixed top-3)
         embeddings = await self.llm.embed([question])
         dense_results = self.graph.vector_search(embeddings[0], top_k=3)
         for chunk_id, score in dense_results:
@@ -124,7 +111,7 @@ class GraphRAGPipeline:
                 doc_ids.append(doc_id)
             graph_facts.append(f"[Semantic match score {score:.3f} | doc: {doc_id}]")
 
-        # Step 4: Single-turn LLM synthesis
+        # Step 4: Single-turn LLM synthesis over assembled graph context
         context_text = "\n".join(graph_facts) if graph_facts else "No relevant graph data found."
         context_tokens = len(context_text) // 4
 

@@ -91,7 +91,7 @@ class ToolAuditCall(BaseModel):
 
 class AgentState(BaseModel):
     query: str
-    qtype: Literal["aggregation", "lookup", "multi_hop", "superlative", "temporal"]
+    qtype: Literal["aggregation", "lookup", "multi_hop", "superlative", "temporal", "agentic_react"]
     model_name: str = ""  # Locked model for this run
     sub_questions: list[str] = Field(default_factory=list)
     evidence: list[EvidenceItem] = Field(default_factory=list)

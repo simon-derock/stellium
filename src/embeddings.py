@@ -1,7 +1,6 @@
-# Production Jina Embeddings client supporting any modern Jina model (v3, v2, colbert, clip).
-# Supports Matryoshka Representation Learning (MRL), task adapters, late chunking, and L2 normalization.
-# Features adaptive token-bucket rate limiting tracking Jina API response headers.
-# Zero triple-quote docstrings — use single or multi-line # comments exclusively.
+# Production Jina Embeddings client supporting modern Jina models.
+# Supports Matryoshka Representation Learning (MRL), task adapters, and L2 normalization.
+# Features adaptive token-bucket rate limiting with HTTP response header feedback.
 from __future__ import annotations
 
 import logging
@@ -107,7 +106,7 @@ class JinaEmbeddingClient:
 
     @classmethod
     def from_env(cls) -> JinaEmbeddingClient:
-        # Reads configuration from environment without hardcoded secrets.
+        # Reads configuration from environment variables.
         # Checks standard Jina key variants + model overrides.
         key = (
             os.environ.get("JINA_API_KEY")

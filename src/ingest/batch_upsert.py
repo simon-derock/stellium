@@ -1,10 +1,11 @@
 # Batch upsert engine and partitioner for TigerGraph Savanna.
 # Partitions 2,951 documents, 22,016 chunks, and Olympic graph topology into bounded batches.
-# Supports dry-run validation, retry backoff, and live cluster upsert.
-# Strictly zero docstrings per project coding standards.
+# Features persistent disk checkpoint caching for embeddings to prevent duplicate API calls.
 from __future__ import annotations
 
 import argparse
+import json
+import logging
 import sys
 import time
 from dataclasses import dataclass, field
@@ -23,12 +24,51 @@ from src.ingest import (
 )
 from src.models import Chunk
 
+logger = logging.getLogger(__name__)
+
+DEFAULT_CACHE_PATH = Path("data/chunk_embeddings_cache.jsonl")
+
 
 def partition_items[T](items: list[T], batch_size: int) -> list[list[T]]:
     # Splits an arbitrary list of items into contiguous slices of maximum size batch_size.
     if batch_size <= 0:
         return [items] if items else []
     return [items[i : i + batch_size] for i in range(0, len(items), batch_size)]
+
+
+def load_chunk_embeddings_cache(cache_path: Path = DEFAULT_CACHE_PATH) -> dict[str, list[float]]:
+    # Loads persistent disk cache mapping chunk_id to its 1024-dim embedding vector.
+    cache: dict[str, list[float]] = {}
+    if not cache_path.exists():
+        return cache
+    try:
+        with open(cache_path, encoding="utf-8") as f:
+            for line in f:
+                line_str = line.strip()
+                if line_str:
+                    try:
+                        item = json.loads(line_str)
+                        cid = item.get("chunk_id")
+                        emb = item.get("embedding")
+                        if cid and isinstance(emb, list):
+                            cache[cid] = emb
+                    except Exception:
+                        continue
+    except Exception as exc:
+        logger.warning(f"Error reading embeddings cache from {cache_path}: {exc}")
+    return cache
+
+
+def save_chunk_embeddings_batch(
+    records: list[tuple[str, list[float]]],
+    cache_path: Path = DEFAULT_CACHE_PATH,
+) -> None:
+    # Appends and flushes a batch of chunk_id and embedding pairs to disk cache.
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(cache_path, "a", encoding="utf-8") as f:
+        for cid, emb in records:
+            f.write(json.dumps({"chunk_id": cid, "embedding": emb}) + "\n")
+        f.flush()
 
 
 @dataclass
@@ -79,6 +119,7 @@ def prepare_ingestion_plan(
     corpus_path: str | Path,
     batch_size: int = 500,
     embedding_client: JinaEmbeddingClient | None = None,
+    cache_path: Path = DEFAULT_CACHE_PATH,
 ) -> IngestionPlan:
     # Reads corpus.jsonl, builds all vertices and relational edges, and partitions them.
     docs = list(iter_corpus(corpus_path))
@@ -179,13 +220,34 @@ def prepare_ingestion_plan(
 
     venue_records = [(v_id, {"name": name}) for v_id, name in venue_dict.items()]
 
-    # Generate embeddings for chunk vertices if embedding client provided
-    embeddings: list[list[float]] = []
+    # Generate or load embeddings for chunk vertices with persistent disk checkpoint caching
+    cached_embeddings = load_chunk_embeddings_cache(cache_path)
     if embedding_client is not None:
-        chunk_texts = [c.text for c in all_chunks]
-        embeddings = embedding_client.embed_passages(chunk_texts, late_chunking=False)
+        missing_chunks = [c for c in all_chunks if c.chunk_id not in cached_embeddings]
+        if missing_chunks:
+            b_size = embedding_client.batch_size
+            total_missing = len(missing_chunks)
+            total_batches = (total_missing + b_size - 1) // b_size
+            print(
+                f"[Embeddings] Generating embeddings for {total_missing} chunks "
+                f"({len(cached_embeddings)} loaded from disk cache)..."
+            )
+            for idx in range(0, total_missing, b_size):
+                sub_batch = missing_chunks[idx : idx + b_size]
+                sub_texts = [c.text for c in sub_batch]
+                sub_embs = embedding_client.embed_passages(sub_texts, late_chunking=False)
+                new_pairs = [(c.chunk_id, emb) for c, emb in zip(sub_batch, sub_embs)]
+                save_chunk_embeddings_batch(new_pairs, cache_path)
+                for cid, emb in new_pairs:
+                    cached_embeddings[cid] = emb
+                current_batch = idx // b_size + 1
+                completed = min(idx + b_size, total_missing)
+                pct = (completed / total_missing) * 100
+                print(
+                    f"  Batch {current_batch}/{total_batches} ({completed}/{total_missing} chunks, {pct:.1f}%) cached to disk"
+                )
 
-    for i, c in enumerate(all_chunks):
+    for c in all_chunks:
         attrs: dict[str, Any] = {
             "doc_id": c.doc_id,
             "chunk_index": c.chunk_index,
@@ -196,8 +258,8 @@ def prepare_ingestion_plan(
             "next_chunk_id": c.next_chunk_id or "",
             "filter_mask": c.filter_mask,
         }
-        if embeddings and i < len(embeddings):
-            attrs["embedding"] = embeddings[i]
+        if c.chunk_id in cached_embeddings:
+            attrs["embedding"] = cached_embeddings[c.chunk_id]
         chunk_records.append((c.chunk_id, attrs))
 
     # Partition each record group into bounded batches
@@ -355,7 +417,18 @@ def main() -> None:
         "--embed",
         action="store_true",
         default=False,
-        help="Generate Jina v5 embeddings for chunk vertices",
+        help="Generate Jina v5 embeddings for chunk vertices with persistent disk caching",
+    )
+    parser.add_argument(
+        "--embed-only",
+        action="store_true",
+        default=False,
+        help="Upsert only Chunk vertices with embeddings into TigerGraph Savanna",
+    )
+    parser.add_argument(
+        "--cache-path",
+        default="data/chunk_embeddings_cache.jsonl",
+        help="Path to persistent disk cache for embeddings",
     )
     args = parser.parse_args()
 
@@ -366,7 +439,8 @@ def main() -> None:
     except ImportError:
         pass
 
-    embedding_client = JinaEmbeddingClient.from_env() if args.embed else None
+    cache_file = Path(args.cache_path)
+    embedding_client = JinaEmbeddingClient.from_env() if (args.embed or args.embed_only) else None
     if embedding_client:
         print(
             f"[Stream 1] Jina Embeddings enabled: model={embedding_client.model}, dim={embedding_client.dimension}"
@@ -374,7 +448,10 @@ def main() -> None:
 
     print(f"[Stream 1] Partitioning corpus: {args.corpus_path} (batch_size={args.batch_size})")
     plan = prepare_ingestion_plan(
-        args.corpus_path, batch_size=args.batch_size, embedding_client=embedding_client
+        args.corpus_path,
+        batch_size=args.batch_size,
+        embedding_client=embedding_client,
+        cache_path=cache_file,
     )
 
     print(f"  Total Documents: {plan.total_documents}")
@@ -386,6 +463,27 @@ def main() -> None:
     print(f"  Chunk Batches:    {len(plan.chunk_batches)}")
     print(f"  Event Batches:    {len(plan.event_batches)}")
     print(f"  Precedes Batches: {len(plan.precedes_batches)}")
+
+    if args.embed_only:
+        print("[Stream 1] Executing Chunk embedding upsert into live cluster...")
+        client = (
+            create_mock_graph_client()
+            if (args.mock or args.dry_run)
+            else GraphClient(conn=connect())
+        )
+        t0 = time.perf_counter()
+        stats = IngestionStats(dry_run=args.dry_run)
+        if not args.dry_run:
+            for b in plan.chunk_batches:
+                client.conn.upsertVertices(b.vertex_type, b.records)
+                stats.total_vertices_upserted += len(b.records)
+                stats.batches_processed += 1
+        stats.elapsed_seconds = time.perf_counter() - t0
+        print(
+            f"[Stream 1] Chunk embedding upsert complete in {stats.elapsed_seconds:.2f}s "
+            f"(Chunk vertices: {stats.total_vertices_upserted}, Batches: {stats.batches_processed})"
+        )
+        return
 
     if args.mock:
         print("[Stream 1] Executing batches into high-fidelity mock graph...")
