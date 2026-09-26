@@ -24,6 +24,7 @@
 | **TASK-008** | Evaluation Suite (100 Public + 50 Questions), Metrics & Benchmarks | `agent-004` | **DONE** | `agent/004/eval-dashboard` (merged) | 26 passed | `28ce75a` |
 | **TASK-009** | FastAPI Backend & Interactive GraphSurface Frontend UI | `master-agent-001` | **DONE** | `main` | 26 passed | `daec8f6` |
 | **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **DONE** | `agent/003/langgraph-agent` (merged) | 41 passed | `c2e232b` |
+| **TASK-011** | Pure ReAct Agent Harness, Dynamic LLM Linking, Disk Cache & 100-Test Suite | `master-agent-001` | **DONE** | `main` | 100 passed | `51b189a` |
 
 ---
 
