@@ -3,7 +3,10 @@
 # Zero network calls — deterministic for offline unit testing, evaluation, and CI.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.graph import GraphClient
 
 
 class MockTigerGraphConnection:
@@ -133,7 +136,7 @@ class MockTigerGraphConnection:
 
     def _query_get_event_aggregates(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         sport = str(params.get("sport", "")).strip().lower()
-        target_year = int(params.get("target_year", 0))
+        target_year = int(params.get("target_year", params.get("year", 0)))
         min_comp = int(params.get("min_competitors", 0))
         max_comp = int(params.get("max_competitors", 0))
 
@@ -188,7 +191,7 @@ class MockTigerGraphConnection:
     def _query_get_preceding_event(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         sport = str(params.get("sport", "")).strip().lower()
         frag = str(params.get("event_name_fragment", "")).strip().lower()
-        cur_year = int(params.get("current_year", 0))
+        cur_year = int(params.get("current_year", params.get("year", 0)))
 
         events_store = self.vertices.get("Event", {})
         prev_events: list[str] = []
@@ -245,10 +248,11 @@ class MockTigerGraphConnection:
 
     def _query_get_superlative_event(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         sport = str(params.get("sport", "")).strip().lower()
-        target_year = int(params.get("target_year", 0))
+        target_year = int(params.get("target_year", params.get("year", 0)))
         season = str(params.get("season", "")).strip().lower()
-        order_by = str(params.get("order_by", "desc")).strip().lower()
-        limit = int(params.get("result_limit", 1))
+        order_raw = str(params.get("order_by", params.get("direction", "desc"))).strip().lower()
+        order_by = "desc" if order_raw in ("desc", "max") else "asc"
+        limit = int(params.get("result_limit", params.get("limit", 1)))
 
         events_store = self.vertices.get("Event", {})
         candidates: list[tuple[str, int, str]] = []
@@ -454,7 +458,7 @@ class MockTigerGraphConnection:
 
 def create_mock_graph_client(
     conn: MockTigerGraphConnection | None = None,
-) -> Any:
+) -> GraphClient:
     # Factory to create a GraphClient initialized with MockTigerGraphConnection.
     # Avoids network connection and environment variable lookup.
     from src.graph import GraphClient

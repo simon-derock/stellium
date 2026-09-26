@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from src.coprocessor import Coprocessor
-from src.graph import GraphClient, connect
+from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import normalize
 from src.ingest import load_all_chunks
 from src.llm import make_session
