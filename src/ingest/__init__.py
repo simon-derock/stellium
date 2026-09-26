@@ -5,14 +5,29 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
+from src.coprocessor import build_filter_mask
 from src.models import Chunk, CorpusDoc, ParsedInbox
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
+
+_SPORT_TITLE_RE = re.compile(r"^([^–—\n]+?)\s+at the\s+\d{4}", re.I)
+_OLYMPIC_TITLE_RE = re.compile(
+    r"^([^–—\n]+?)\s+at the\s+(\d{4})\s+(Summer|Winter)\s+Olympics\s*[–—]\s*(.+)$",
+    re.I,
+)
+
+
+def extract_sport_from_title(title: str) -> str | None:
+    # Extracts the sport name from an Olympic Wikipedia article title.
+    # e.g. "Canoeing at the 2012 Summer Olympics..." -> "Canoeing"
+    m = _SPORT_TITLE_RE.match(title.strip())
+    return m.group(1).strip() if m else None
+
 
 # Optimal chunk size for Olympic articles (they are 1000-3000 chars each).
 # Most articles fit in 1-2 chunks. Avoid splitting mid-infobox.
@@ -82,7 +97,7 @@ def _split_athlete_names(raw: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def parse_infobox(text: str) -> ParsedInbox:
+def parse_infobox(text: str, title: str = "") -> ParsedInbox:
     # Extract structured fields from the [Infobox Olympic event] header block.
     # Returns ParsedInbox with None values for missing fields.
     fields: dict[str, str] = {}
@@ -117,6 +132,11 @@ def parse_infobox(text: str) -> ParsedInbox:
         season = "Summer"
     elif "winter" in games_str.lower():
         season = "Winter"
+
+    # Extract sport from infobox or fallback to document title
+    sport = fields.get("sport")
+    if not sport and title:
+        sport = extract_sport_from_title(title)
 
     # Extract competitor and nation counts
     def _parse_int(raw: str | None) -> int | None:
@@ -155,7 +175,7 @@ def parse_infobox(text: str) -> ParsedInbox:
     return ParsedInbox(
         year=year,
         season=season,
-        sport=fields.get("sport"),
+        sport=sport,
         event_name=fields.get("event"),
         venue=fields.get("venue"),
         start_date=fields.get("dates"),
@@ -218,7 +238,8 @@ def chunk_document(doc: CorpusDoc) -> list[Chunk]:
     # Splits a document into chunks.
     # Chunk 0 always includes the full infobox text + injected metadata header.
     # Subsequent chunks are sliding window splits of the body text.
-    infobox = parse_infobox(doc.text)
+    infobox = parse_infobox(doc.text, title=doc.title)
+    mask = build_filter_mask(infobox.year, infobox.season, infobox.sport)
     header = _build_metadata_header(doc, infobox)
 
     # Split text into sections at double-newlines (Wikipedia paragraph structure).
@@ -240,6 +261,7 @@ def chunk_document(doc: CorpusDoc) -> list[Chunk]:
                     current_paras,
                     header if not chunks else None,
                     infobox if not chunks else None,
+                    filter_mask=mask,
                 )
             )
             # Overlap: keep last paragraph for context continuity
@@ -258,12 +280,13 @@ def chunk_document(doc: CorpusDoc) -> list[Chunk]:
                 current_paras,
                 header if not chunks else None,
                 infobox if not chunks else None,
+                filter_mask=mask,
             )
         )
 
     # If document is tiny (fits in zero paragraphs somehow), create one chunk.
     if not chunks:
-        chunks.append(_make_chunk(doc, 0, [doc.text], header, infobox))
+        chunks.append(_make_chunk(doc, 0, [doc.text], header, infobox, filter_mask=mask))
 
     # Set doubly-linked chunk pointers
     n = len(chunks)
@@ -280,6 +303,7 @@ def _make_chunk(
     paras: list[str],
     header: str | None,
     infobox: ParsedInbox | None,
+    filter_mask: int = 0,
 ) -> Chunk:
     raw_text = "\n\n".join(paras)
     # Prepend metadata header to first chunk only for richer embedding signal.
@@ -293,8 +317,69 @@ def _make_chunk(
         text=text,
         raw_text=raw_text,
         infobox=infobox if index == 0 else None,
-        filter_mask=0,  # Filled in by build_filter_mask() after infobox parse
+        filter_mask=filter_mask,
     )
+
+
+# ---------------------------------------------------------------------------
+# Event Chronology & Predecessor Linking
+# ---------------------------------------------------------------------------
+
+
+def _normalize_event_subname(name: str) -> str:
+    # Normalizes event subnames to match across Olympic editions.
+    # Removes punctuation, hyphens, dashes, commas, and collapses whitespace.
+    cleaned = re.sub(r"[,–—\-\'\"]", " ", name.lower())
+    return " ".join(cleaned.split())
+
+
+def build_event_chronology(
+    docs: Iterable[CorpusDoc],
+) -> dict[str, tuple[str | None, str | None, int]]:
+    # Analyzes corpus documents, groups matching Olympic event series across editions,
+    # and computes temporal predecessor and successor event links.
+    # Returns mapping: doc_id -> (prev_event_id, next_event_id, time_diff)
+    series_map: dict[tuple[str, str], list[tuple[int, str]]] = {}
+    doc_events: list[tuple[str, str, int, str]] = []
+
+    for doc in docs:
+        m = _OLYMPIC_TITLE_RE.match(doc.title.strip())
+        if not m:
+            continue
+        sport = m.group(1).strip().lower()
+        year = int(m.group(2))
+        event_subname = _normalize_event_subname(m.group(4).strip())
+        series_key = (sport, event_subname)
+        series_map.setdefault(series_key, []).append((year, doc.doc_id))
+        doc_events.append((doc.doc_id, sport, year, event_subname))
+
+    # Sort each series chronologically by year
+    for key in series_map:
+        series_map[key].sort(key=lambda item: item[0])
+
+    # Build predecessor and successor lookup
+    chronology: dict[str, tuple[str | None, str | None, int]] = {}
+    for doc_id, sport, year, event_subname in doc_events:
+        series = series_map.get((sport, event_subname), [])
+        prev_id: str | None = None
+        next_id: str | None = None
+        time_diff: int = 0
+
+        # Find current doc in series
+        for idx, (s_year, s_id) in enumerate(series):
+            if s_id == doc_id:
+                if idx > 0:
+                    prev_id = series[idx - 1][1]
+                    time_diff = s_year - series[idx - 1][0]
+                if idx < len(series) - 1:
+                    next_id = series[idx + 1][1]
+                    if not time_diff:
+                        time_diff = series[idx + 1][0] - s_year
+                break
+
+        chronology[doc_id] = (prev_id, next_id, time_diff)
+
+    return chronology
 
 
 # ---------------------------------------------------------------------------
