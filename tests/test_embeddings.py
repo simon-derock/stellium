@@ -88,3 +88,24 @@ def test_embed_retry_on_429() -> None:
         res = client.embed_query("Test query")
         assert len(res) == 1024
         assert res[0] == 0.1
+
+
+# Test arbitrary new Jina embedding models can be configured dynamically
+def test_custom_jina_models() -> None:
+    # Test instantiating with any new Jina model (v5, v4, v3, etc.)
+    client_v5 = JinaEmbeddingClient(
+        api_key="mock-key",
+        model="jina-embeddings-v5-text-small",
+        dimension=1024,
+    )
+    assert client_v5.model == "jina-embeddings-v5-text-small"
+    assert client_v5.dimension == 1024
+
+    # Test environment override
+    os.environ["EMBEDDING_MODEL"] = "jina-embeddings-v4"
+    os.environ["EMBEDDING_DIMENSION"] = "1024"
+    client_env = JinaEmbeddingClient.from_env()
+    assert client_env.model == "jina-embeddings-v4"
+    assert client_env.dimension == 1024
+    os.environ.pop("EMBEDDING_MODEL", None)
+    os.environ.pop("EMBEDDING_DIMENSION", None)
