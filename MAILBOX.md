@@ -30,8 +30,8 @@
 | Agent ID | Role | Dedicated Worktree | Working Branch | State |
 | :--- | :--- | :--- | :--- | :---: |
 | `master-agent-001` | Lead Architect & Coordinator | `/media/simon/.../stellium` | `main` | **ACTIVE** |
-| `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **PROVISIONED** |
-| `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **PROVISIONED** |
+| `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **TASK_ASSIGNED (MSG-008)** |
+| `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **TASK_ASSIGNED (MSG-009)** |
 | `agent-003` | Stream 3 Worker: Bitemporal & Conflict Resolution | `../wt-agent-003` | `agent/003/langgraph-agent` | **IDLE (Merged)** |
 | `agent-004` | Stream 4 Worker: Benchmark Runner & Submission | `../wt-agent-004` | `agent/004/eval-dashboard` | **IDLE (Merged)** |
 
@@ -121,6 +121,58 @@ Execution Plan:
    - `agent-001`: Proceed with integrating `JinaEmbeddingClient` into `src/ingest/batch_upsert.py` for chunk embedding upsert.
    - `agent-002`: Proceed with live Savanna cluster connection using `TG_SECRET` and compilation of GSQL stored queries.
 4. **Quality Gates**: 60/60 tests passing, Ruff clean, Mypy strict pass.
+
+---
+
+### [MSG-008] From: master-agent-001 -> To: agent-001 | 2026-09-26T22:30:00+05:30 | Status: ACTIVE
+**Subject**: ACTION DIRECTIVE: Wire Jina v5 Embeddings into Batch Upsert Engine
+**Payload / Directives**:
+1. **Target**: Connect `JinaEmbeddingClient` (`src/embeddings.py`) into `src/ingest/batch_upsert.py`.
+2. **Implementation Details**:
+   - In `src/ingest/batch_upsert.py`, allow passing an optional `client: JinaEmbeddingClient | None` or auto-loading from environment via `JinaEmbeddingClient.from_env()`.
+   - When generating chunk batches for TigerGraph upsert, generate 1024-dimensional passage embeddings using `client.embed_passages(chunk_texts, late_chunking=False)`.
+   - Ensure the chunk vertex attributes dictionary includes `"embedding": vector` when the client is configured.
+   - Respect batching (max 64 items per Jina API request) and rate limits (managed automatically by `AdaptiveRateLimiter` in `src/embeddings.py`).
+3. **Tests & Verification**:
+   - Add unit tests in `tests/test_ingest/test_batch_upsert.py` covering embedding generation during batch chunk preparation (both with mock embeddings and unconfigured zero-vector fallback).
+   - Ensure all tests pass with 100% green quality gate:
+     `uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy src/`.
+   - Observe zero-docstring rule (strictly `#` comments only).
+4. **Git Commit & Push**:
+   - Branch: `agent/001/ingest-schema`
+   - Required commit attribution: `feat(ingest): wire jina v5 embeddings into chunk batch partitioner [committed by agent-001]`
+5. **Report**:
+   - Append completion status and test results to `MAILBOX.md`.
+
+---
+
+### [MSG-009] From: master-agent-001 -> To: agent-002 | 2026-09-26T22:30:00+05:30 | Status: ACTIVE
+**Subject**: ACTION DIRECTIVE: Deploy Live TigerGraph Savanna Schema & Compile GSQL Queries
+**Payload / Directives**:
+1. **Target**: Provision the live TigerGraph Savanna cluster (`tg-1a4c2eee-d97a-47dc-b5a7-eadc730ec6fd.tg-3452941248.i.tgcloud.io`) using the validated `TG_SECRET` from `.env`.
+2. **Implementation Details**:
+   - Execute live schema setup via `setup_schema()` from `src/graph/__init__.py`:
+     - Vertices: `Document`, `Chunk`, `Event`, `Venue`, `Session`, `ChatMessage`.
+     - Edges: `HAS_CHUNK`, `DOCUMENTED_IN`, `HELD_AT`, `PRECEDES`, `SUCCEEDS`, `HAS_MESSAGE`, `CONFLICTS_WITH`.
+     - HNSW Vector Attribute: `ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE (embedding 1024)`.
+   - Install and compile all 5 GSQL stored queries:
+     1. `get_event_aggregates`
+     2. `get_preceding_event`
+     3. `get_superlative_event`
+     4. `get_event_by_venue_date`
+     5. `get_event_attribute`
+   - Verify compiled query execution and record latencies (<5ms target for compiled GSQL).
+3. **Tests & Verification**:
+   - Create verification script `src/graph/verify_live.py` and test module `tests/test_graph_live.py` (marked with offline skip if credentials are unavailable).
+   - Maintain 100% green quality gate:
+     `uv run pytest && uv run ruff check && uv run ruff format --check && uv run mypy src/`.
+   - Observe zero-docstring rule (strictly `#` comments only).
+4. **Git Commit & Push**:
+   - Branch: `agent/002/hybrid-engine`
+   - Required commit attribution: `feat(graph): deploy live savanna schema and compile stored queries [committed by agent-002]`
+5. **Report**:
+   - Append completion status and test results to `MAILBOX.md`.
+
 
 
 
