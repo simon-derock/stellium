@@ -18,9 +18,14 @@ import httpx
 # Primary model: Cloudflare Workers AI llama-3.1-8b-instruct-fast
 # ~9 neurons per call, native tool calling, 60k-128k context.
 # 450 eval runs = ~4,000 neurons = 40% of 10k/day free tier.
-CLOUDFLARE_PRIMARY_MODEL = "@cf/meta/llama-3.1-8b-instruct-fast"
+CLOUDFLARE_PRIMARY_MODEL = (
+    os.environ.get("CLOUDFLARE_MODEL") or "@cf/meta/llama-3.1-8b-instruct-fast"
+)
 CLOUDFLARE_EMBEDDING_MODEL = "@cf/baai/bge-m3"  # 1024-dim, 8k context
 CLOUDFLARE_BASE_URL = "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run"
+CLOUDFLARE_OPENAI_URL = (
+    "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions"
+)
 
 # Fallback providers (run-level selection, never mid-run mixing)
 GEMINI_MODEL = "gemini-2.0-flash"
@@ -56,6 +61,7 @@ async def _call_cloudflare(
     model: str,
     messages: list[dict[str, str]],
     max_tokens: int = 512,
+    temperature: float = 0.0,
     client: httpx.AsyncClient | None = None,
 ) -> LLMCallResult:
     account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
@@ -79,26 +85,55 @@ async def _call_cloudflare(
             latency_ms=1.0,
         )
 
-    url = CLOUDFLARE_BASE_URL.format(account_id=account_id) + f"/{model}"
-
-    payload: dict[str, Any] = {
-        "messages": messages,
-        "max_tokens": max_tokens,
-        "stream": False,
+    headers = {
+        "Authorization": f"Bearer {api_token}",
+        "Content-Type": "application/json",
     }
-    headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
-
     t0 = time.perf_counter()
-    active_client = client or httpx.AsyncClient(timeout=30.0)
+    active_client = client or httpx.AsyncClient(timeout=45.0)
     own_client = client is None
+
+    result_text: str = ""
+    input_tokens: int = 0
+    output_tokens: int = 0
+
     try:
-        resp = await active_client.post(url, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        result_text: str = data["result"]["response"]
-        prompt_text = " ".join(m["content"] for m in messages)
-        input_tokens = max(1, len(prompt_text) // 4)
-        output_tokens = max(1, len(result_text) // 4)
+        # 1. Prefer OpenAI-compatible endpoint with exact ground-truth usage metadata
+        openai_url = CLOUDFLARE_OPENAI_URL.format(account_id=account_id)
+        openai_payload: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+        }
+        resp = await active_client.post(openai_url, json=openai_payload, headers=headers)
+        if resp.status_code == 200:
+            data = resp.json()
+            result_text = str(data["choices"][0]["message"]["content"])
+            usage = data.get("usage", {})
+            input_tokens = int(
+                usage.get("prompt_tokens") or max(1, sum(len(m["content"]) // 4 for m in messages))
+            )
+            output_tokens = int(usage.get("completion_tokens") or max(1, len(result_text) // 4))
+        else:
+            # 2. Resilient fallback to Cloudflare native REST model endpoint
+            native_url = CLOUDFLARE_BASE_URL.format(account_id=account_id) + f"/{model}"
+            native_payload: dict[str, Any] = {
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "stream": False,
+                "temperature": temperature,
+            }
+            resp_native = await active_client.post(native_url, json=native_payload, headers=headers)
+            resp_native.raise_for_status()
+            native_data = resp_native.json()
+            if not native_data.get("success", True) and "errors" in native_data:
+                err_msg = native_data["errors"][0].get("message", "Cloudflare Workers AI Error")
+                raise RuntimeError(f"Cloudflare Workers AI Error: {err_msg}")
+            result_text = str(native_data["result"]["response"])
+            prompt_text = " ".join(m["content"] for m in messages)
+            input_tokens = max(1, len(prompt_text) // 4)
+            output_tokens = max(1, len(result_text) // 4)
     finally:
         if own_client:
             await active_client.aclose()
@@ -275,15 +310,22 @@ class LockedLLMSession:
         self,
         messages: list[dict[str, str]],
         max_tokens: int = 512,
+        temperature: float = 0.0,
         max_retries: int = 5,
     ) -> LLMCallResult:
         # All LLM calls within this session use the SAME locked model.
-        # Retries with exponential backoff on rate-limit errors.
+        # Retries with exponential backoff on transient errors (429, 500, 502, 503, 504, 524).
         last_exc: Exception | None = None
         for attempt in range(max_retries):
             try:
                 if self.provider == "cloudflare":
-                    return await _call_cloudflare(self.model, messages, max_tokens, self._client)
+                    return await _call_cloudflare(
+                        self.model,
+                        messages,
+                        max_tokens,
+                        temperature=temperature,
+                        client=self._client,
+                    )
                 elif self.provider == "gemini":
                     return await _call_gemini(messages, max_tokens, self._client)
                 elif self.provider == "mistral":
@@ -291,10 +333,15 @@ class LockedLLMSession:
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
             except httpx.HTTPStatusError as e:
-                if e.response.status_code == 429:
-                    # Rate limit: backoff and retry on SAME model (not switch provider)
-                    wait = 2**attempt
-                    await asyncio.sleep(wait)
+                # Rate limit or edge gateway saturation: backoff and retry on SAME model
+                if e.response.status_code in (429, 500, 502, 503, 504, 524):
+                    retry_header = e.response.headers.get("retry-after")
+                    wait = (
+                        float(retry_header)
+                        if retry_header and retry_header.isdigit()
+                        else float(2**attempt)
+                    )
+                    await asyncio.sleep(min(wait, 30.0))
                     last_exc = e
                     continue
                 raise
