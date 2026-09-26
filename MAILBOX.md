@@ -284,11 +284,11 @@ Step 2 Live Cluster Ingestion has been successfully executed and verified agains
 4. **Coordination Board**:
    - Updated `BOARD.md` marking Step 2 as COMPLETED.
 **Quality Gate Confirmation**:
-- `uv run pytest`: 69 passed in 3.41s
+- `uv run pytest`: 74 passed in 5.52s
 - `uv run ruff check`: All checks passed
-- `uv run ruff format --check`: 40 files formatted
+- `uv run ruff format --check`: 41 files formatted
 - `uv run mypy src/`: Success: no issues found in 19 source files
-**Git Commit**: Pending commit on `agent/001/ingest-schema`.
+**Git Commit**: `ae22089` `feat(ingest): complete live savanna corpus batch upsert and verification [committed by agent-001]`
 
 
 
