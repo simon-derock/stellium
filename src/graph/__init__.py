@@ -68,19 +68,50 @@ _GRAPH_NAME = "OlympicsGraph"
 
 def connect() -> tg.TigerGraphConnection:
     # Initialize connection to TigerGraph Savanna cluster from environment vars.
-    conn = tg.TigerGraphConnection(
-        host=os.environ["TG_HOST"],
-        graphname=_GRAPH_NAME,
-        username=os.environ.get("TG_USERNAME", "tigergraph"),
-        password=os.environ.get("TG_PASSWORD", ""),
-        useCert=True,
-    )
-    # Authenticate with secret token if provided
+    try:
+        import dotenv
+
+        dotenv.load_dotenv()
+    except ImportError:
+        pass
+
+    host = os.environ.get("TG_HOST", "")
+    graphname = os.environ.get("TG_GRAPH_NAME", _GRAPH_NAME)
+    username = os.environ.get("TG_USERNAME", "tigergraph")
+    password = os.environ.get("TG_PASSWORD", "")
     secret = os.environ.get("TG_SECRET", "")
-    if secret:
-        token = conn.getToken(secret=secret, setToken=True, lifetime=86400)
-        if isinstance(token, tuple):
-            conn.apiToken = token[0]
+    token = os.environ.get("TG_TOKEN", "")
+
+    # If explicit JWT token not supplied, mint one via REST endpoint using TG_SECRET
+    if not token and secret and host:
+        try:
+            import requests
+
+            res = requests.post(f"{host}/gsql/v1/tokens", json={"secret": secret}, timeout=10)
+            if res.status_code == 200:
+                data = res.json()
+                if not data.get("error") and "token" in data:
+                    token = data["token"]
+        except Exception:
+            pass
+
+    conn = tg.TigerGraphConnection(
+        host=host,
+        graphname=graphname,
+        username=username,
+        password=password,
+        apiToken=token or None,
+    )
+
+    # Fallback to pyTigerGraph getToken if direct REST call was not used
+    if not token and secret and host:
+        try:
+            t = conn.getToken(secret=secret, setToken=True, lifetime=86400)
+            if isinstance(t, tuple):
+                conn.apiToken = t[0]
+        except Exception:
+            pass
+
     return conn
 
 
@@ -99,7 +130,7 @@ CREATE VERTEX Document (
     wikipedia_pageid INT,
     approx_tokens INT,
     filter_mask UINT
-) WITH PRIMARY_ID_AS_ATTRIBUTE="true", STATS="OUTDEGREE"
+) WITH PRIMARY_ID_AS_ATTRIBUTE="true"
 
 CREATE VERTEX Chunk (
     PRIMARY_ID chunk_id STRING,
@@ -111,7 +142,7 @@ CREATE VERTEX Chunk (
     prev_chunk_id STRING,
     next_chunk_id STRING,
     filter_mask UINT
-) WITH PRIMARY_ID_AS_ATTRIBUTE="true", STATS="OUTDEGREE"
+) WITH PRIMARY_ID_AS_ATTRIBUTE="true"
 
 CREATE VERTEX Event (
     PRIMARY_ID event_id STRING,
@@ -136,7 +167,7 @@ CREATE VERTEX Event (
     valid_to DATETIME,
     superseded_by STRING,
     source_authority FLOAT
-) WITH PRIMARY_ID_AS_ATTRIBUTE="true", STATS="OUTDEGREE"
+) WITH PRIMARY_ID_AS_ATTRIBUTE="true"
 
 CREATE VERTEX Venue (
     PRIMARY_ID venue_id STRING,
@@ -174,15 +205,14 @@ CREATE GRAPH OlympicsGraph (
 """
 
 _VECTOR_DDL = """
-USE GRAPH OlympicsGraph
-CREATE SCHEMA_CHANGE JOB add_chunk_vector FOR GRAPH OlympicsGraph {
+CREATE GLOBAL SCHEMA_CHANGE JOB add_chunk_vector {
     ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (
         DIMENSION = 1024,
         METRIC = "COSINE",
         INDEXTYPE = "HNSW"
     );
 }
-RUN SCHEMA_CHANGE JOB add_chunk_vector
+RUN GLOBAL SCHEMA_CHANGE JOB add_chunk_vector
 DROP JOB add_chunk_vector
 """
 
@@ -234,12 +264,13 @@ BITEMPORAL_SCHEMA_CHANGE_DDL = _BITEMPORAL_SCHEMA_CHANGE_DDL
 # Query 1: Deterministic aggregation — COUNT events matching sport/year/threshold.
 # Zero LLM tokens. Returns exact count from graph.
 _QUERY_AGGREGATION = """
+USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_event_aggregates (
     STRING sport,
     INT target_year,
     INT min_competitors,
     INT max_competitors
-) FOR GRAPH OlympicsGraph SYNTAX v3 {
+) FOR GRAPH OlympicsGraph {
     SumAccum<INT> @@match_count = 0;
     ListAccum<STRING> @@event_names;
     ListAccum<STRING> @@gold_doc_ids;
@@ -252,21 +283,21 @@ CREATE OR REPLACE QUERY get_event_aggregates (
                 AND (max_competitors == 0 OR e.competitor_count <= max_competitors)
               ACCUM @@match_count += 1, @@event_names += e.name;
 
-    Docs = SELECT doc FROM Matched:e -(DOCUMENTED_IN)-> Document:doc
+    Docs = SELECT doc FROM Matched:e -(DOCUMENTED_IN:d)- Document:doc
            ACCUM @@gold_doc_ids += doc.wikidata_qid;
 
-    PRINT @@match_count AS count, @@event_names AS events, @@gold_doc_ids AS gold_doc_ids;
+    PRINT @@match_count AS match_count, @@event_names AS events, @@gold_doc_ids AS gold_doc_ids;
 }
-INSTALL QUERY get_event_aggregates
 """
 
 # Query 2: Temporal predecessor — get the winner of the preceding edition.
 _QUERY_TEMPORAL = """
+USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_preceding_event (
     STRING sport,
     STRING event_name_fragment,
     INT current_year
-) FOR GRAPH OlympicsGraph SYNTAX v3 {
+) FOR GRAPH OlympicsGraph {
     ListAccum<STRING> @@prev_event_names;
     ListAccum<STRING> @@gold_doc_ids;
     ListAccum<STRING> @@gold_athletes;
@@ -277,88 +308,93 @@ CREATE OR REPLACE QUERY get_preceding_event (
                 AND (event_name_fragment == "" OR e.name LIKE "%" + event_name_fragment + "%")
                 AND e.year == current_year;
 
-    PriorEvents = SELECT prior FROM Current:curr -(PRECEDES)-> Event:prior
+    PriorEvents = SELECT prior FROM Current:curr -(PRECEDES:p)- Event:prior
                   ACCUM @@prev_event_names += prior.name,
                         @@gold_athletes += prior.gold_athlete;
 
-    Docs = SELECT doc FROM PriorEvents:prior -(DOCUMENTED_IN)-> Document:doc
+    Docs = SELECT doc FROM PriorEvents:prior -(DOCUMENTED_IN:d)- Document:doc
            ACCUM @@gold_doc_ids += doc.wikidata_qid;
 
     PRINT @@prev_event_names AS prev_events, @@gold_athletes AS gold_athletes,
           @@gold_doc_ids AS gold_doc_ids;
 }
-INSTALL QUERY get_preceding_event
 """
 
 # Query 3: Superlative — find event with max/min competitor count.
 _QUERY_SUPERLATIVE = """
+USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_superlative_event (
     STRING sport,
     INT target_year,
     STRING season,
     STRING order_by,
     INT result_limit
-) FOR GRAPH OlympicsGraph SYNTAX v3 {
+) FOR GRAPH OlympicsGraph {
     ListAccum<STRING> @@event_names;
     ListAccum<INT> @@competitor_counts;
     ListAccum<STRING> @@gold_doc_ids;
 
     Events = {Event.*};
-    Filtered = SELECT e FROM Events:e
-               WHERE (sport == "" OR e.sport == sport)
-                 AND (target_year == 0 OR e.year == target_year)
-                 AND (season == "" OR e.season == season)
-               ORDER BY (order_by == "desc" ? e.competitor_count : -e.competitor_count) DESC
-               LIMIT result_limit;
+    IF order_by == "desc" THEN
+        Filtered = SELECT e FROM Events:e
+                   WHERE (sport == "" OR e.sport == sport)
+                     AND (target_year == 0 OR e.year == target_year)
+                     AND (season == "" OR e.season == season)
+                   ORDER BY e.competitor_count DESC
+                   LIMIT result_limit;
+    ELSE
+        Filtered = SELECT e FROM Events:e
+                   WHERE (sport == "" OR e.sport == sport)
+                     AND (target_year == 0 OR e.year == target_year)
+                     AND (season == "" OR e.season == season)
+                   ORDER BY e.competitor_count ASC
+                   LIMIT result_limit;
+    END;
 
     x = SELECT e FROM Filtered:e
         ACCUM @@event_names += e.name, @@competitor_counts += e.competitor_count;
 
-    Docs = SELECT doc FROM Filtered:e -(DOCUMENTED_IN)-> Document:doc
+    Docs = SELECT doc FROM Filtered:e -(DOCUMENTED_IN:d)- Document:doc
            ACCUM @@gold_doc_ids += doc.wikidata_qid;
 
     PRINT @@event_names AS events, @@competitor_counts AS competitor_counts,
           @@gold_doc_ids AS gold_doc_ids;
 }
-INSTALL QUERY get_superlative_event
 """
 
 # Query 4: Multi-hop — find event by venue + date, return gold medalist.
 _QUERY_MULTIHOP = """
+USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_event_by_venue_date (
     STRING venue_name_fragment,
     STRING target_date_fragment
-) FOR GRAPH OlympicsGraph SYNTAX v3 {
+) FOR GRAPH OlympicsGraph {
     ListAccum<STRING> @@event_names;
     ListAccum<STRING> @@gold_athletes;
     ListAccum<STRING> @@gold_doc_ids;
 
-    Venues = {Venue.*};
-    MatchedVenues = SELECT v FROM Venues:v
-                    WHERE v.name LIKE "%" + venue_name_fragment + "%";
+    Events = {Event.*};
+    Matched = SELECT e FROM Events:e -(HELD_AT:h)- Venue:v
+              WHERE (venue_name_fragment == "" OR v.name LIKE "%" + venue_name_fragment + "%")
+                AND (target_date_fragment == "" OR h.start_date LIKE "%" + target_date_fragment + "%")
+              ACCUM @@event_names += e.name, @@gold_athletes += e.gold_athlete;
 
-    Events = SELECT e FROM MatchedVenues:v -(HELD_AT)- Event:e
-             WHERE (target_date_fragment == "" OR e.start_date LIKE "%" + target_date_fragment + "%");
-
-    x = SELECT e FROM Events:e
-        ACCUM @@event_names += e.name, @@gold_athletes += e.gold_athlete;
-
-    Docs = SELECT doc FROM Events:e -(DOCUMENTED_IN)-> Document:doc
+    Docs = SELECT doc FROM Matched:e -(DOCUMENTED_IN:d)- Document:doc
            ACCUM @@gold_doc_ids += doc.wikidata_qid;
 
     PRINT @@event_names AS events, @@gold_athletes AS gold_athletes,
           @@gold_doc_ids AS gold_doc_ids;
 }
-INSTALL QUERY get_event_by_venue_date
 """
 
 # Query 5: Lookup — get specific attribute of an event by name.
 _QUERY_LOOKUP = """
+USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_event_attribute (
     STRING event_name_fragment,
     INT target_year,
     STRING sport
-) FOR GRAPH OlympicsGraph SYNTAX v3 {
+) FOR GRAPH OlympicsGraph {
     ListAccum<STRING> @@event_names;
     ListAccum<INT> @@competitor_counts;
     ListAccum<INT> @@nation_counts;
@@ -379,7 +415,7 @@ CREATE OR REPLACE QUERY get_event_attribute (
               @@gold_athletes += e.gold_athlete,
               @@venues += e.venue;
 
-    Docs = SELECT doc FROM Matched:e -(DOCUMENTED_IN)-> Document:doc
+    Docs = SELECT doc FROM Matched:e -(DOCUMENTED_IN:d)- Document:doc
            ACCUM @@gold_doc_ids += doc.wikidata_qid;
 
     PRINT @@event_names AS events,
@@ -389,22 +425,21 @@ CREATE OR REPLACE QUERY get_event_attribute (
           @@venues AS venues,
           @@gold_doc_ids AS gold_doc_ids;
 }
-INSTALL QUERY get_event_attribute
 """
 
 # Vector search query using TigerVector HNSW
 _QUERY_VECTOR_SEARCH = """
+USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY vector_search_chunks (
     LIST<FLOAT> query_vector,
     INT top_k
-) FOR GRAPH OlympicsGraph SYNTAX v3 {
+) FOR GRAPH OlympicsGraph {
     MapAccum<VERTEX, FLOAT> @@distances;
     TopChunks = vectorSearch({Chunk.embedding}, query_vector, top_k, {distance_map: @@distances, ef: 64});
     PRINT TopChunks[TopChunks.chunk_id, TopChunks.doc_id, TopChunks.text, TopChunks.raw_text,
                     TopChunks.prev_chunk_id, TopChunks.next_chunk_id];
     PRINT @@distances;
 }
-INSTALL QUERY vector_search_chunks
 """
 
 
@@ -432,8 +467,16 @@ class GraphClient:
         self.conn.gsql(_BITEMPORAL_SCHEMA_CHANGE_DDL)
 
     def install_queries(self) -> None:
-        # Compile and install all GSQL stored queries.
-        # Installed queries execute in ~2-4ms (C++ compiled).
+        # Compile and install all GSQL stored queries into native C++.
+        # Installed queries execute in ~2-4ms.
+        query_names = [
+            "get_event_aggregates",
+            "get_preceding_event",
+            "get_superlative_event",
+            "get_event_by_venue_date",
+            "get_event_attribute",
+            "vector_search_chunks",
+        ]
         for query_ddl in [
             _QUERY_AGGREGATION,
             _QUERY_TEMPORAL,
@@ -443,6 +486,7 @@ class GraphClient:
             _QUERY_VECTOR_SEARCH,
         ]:
             self.conn.gsql(f"USE GRAPH {_GRAPH_NAME}\n{query_ddl}")
+        self.conn.gsql(f"USE GRAPH {_GRAPH_NAME}\nINSTALL QUERY {', '.join(query_names)}")
 
     # ------------------------------------------------------------------
     # Ingestion (batch upserts)
@@ -597,7 +641,7 @@ class GraphClient:
         latency_ms = (time.perf_counter() - t0) * 1000
         r = results[0] if results else {}
         return {
-            "count": r.get("count", 0),
+            "count": r.get("match_count", r.get("count", 0)),
             "events": r.get("events", []),
             "gold_doc_ids": r.get("gold_doc_ids", []),
             "latency_ms": latency_ms,
