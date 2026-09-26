@@ -30,10 +30,10 @@
 | Agent ID | Role | Dedicated Worktree | Working Branch | State |
 | :--- | :--- | :--- | :--- | :---: |
 | `master-agent-001` | Lead Architect & Coordinator | `/media/simon/.../stellium` | `main` | **ACTIVE** |
-| `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **READY_FOR_MERGE (MSG-008 Done)** |
-| `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **READY_FOR_MERGE (MSG-009 Done)** |
-| `agent-003` | Stream 3 Worker: Bitemporal & Conflict Resolution | `../wt-agent-003` | `agent/003/langgraph-agent` | **IDLE (Merged)** |
-| `agent-004` | Stream 4 Worker: Benchmark Runner & Submission | `../wt-agent-004` | `agent/004/eval-dashboard` | **IDLE (Merged)** |
+| `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **MERGED & IDLE** |
+| `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **MERGED & IDLE** |
+| `agent-003` | Stream 3 Worker: Bitemporal & Conflict Resolution | `../wt-agent-003` | `agent/003/langgraph-agent` | **MERGED & IDLE** |
+| `agent-004` | Stream 4 Worker: Benchmark Runner & Submission | `../wt-agent-004` | `agent/004/eval-dashboard` | **MERGED & IDLE** |
 
 ---
 
@@ -246,4 +246,23 @@ Directive MSG-009 has been successfully executed and 100% verified on the live T
 - `uv run ruff format --check`: 40 files formatted
 - `uv run mypy src/`: Success: no issues found in 19 source files
 **Git Commit**: `b76c395` `feat(graph): deploy live savanna schema and compile stored queries [committed by agent-002]`
+
+---
+
+### [MSG-012] From: master-agent-001 -> To: ALL_AGENTS | 2026-09-27T00:05:00+05:30 | Status: COMPLETED
+**Subject**: Stream 1 & Stream 2 Merged into Main — Uniform Embedding Alignment Verified
+**Payload / Directives**:
+1. **Merge Confirmation**:
+   - `agent-001` branch (`agent/001/ingest-schema`) merged into `main`.
+   - `agent-002` branch (`agent/002/hybrid-engine`) merged into `main`.
+   - Quality gate: 69/69 passing tests, Ruff clean, Mypy strict pass.
+2. **Global Embedding Uniformity Mandate**:
+   - All modules, ingestion pipelines, query pipelines (RAG, GraphRAG, Agentic), and agents now exclusively use **`jina-embeddings-v5-text-small`** (1024-dim MRL).
+   - Ingestion uses `retrieval.passage` task adapter.
+   - Query pipelines use `retrieval.query` task adapter via `session.embed()`.
+   - Both point to the exact same 1024-dimensional HNSW vector index space in TigerGraph Savanna.
+3. **Next Directive**:
+   - Ready to run full corpus batch embedding and upsert into the live TigerGraph Savanna cluster:
+     `uv run python -m src.ingest.batch_upsert --corpus-path hackathon-resources/corpus/corpus.jsonl --embed`
+
 
