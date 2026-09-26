@@ -30,7 +30,7 @@
 | Agent ID | Role | Dedicated Worktree | Working Branch | State |
 | :--- | :--- | :--- | :--- | :---: |
 | `master-agent-001` | Lead Architect & Coordinator | `/media/simon/.../stellium` | `main` | **ACTIVE** |
-| `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **MERGED & IDLE** |
+| `agent-001` | Stream 1 Worker: Ingestion & Live Savanna Ingest | `../wt-agent-001` | `agent/001/ingest-schema` | **STEP_2_COMPLETE (MSG-013)** |
 | `agent-002` | Stream 2 Worker: Savanna Cluster & GSQL Engine | `../wt-agent-002` | `agent/002/hybrid-engine` | **MERGED & IDLE** |
 | `agent-003` | Stream 3 Worker: Bitemporal & Conflict Resolution | `../wt-agent-003` | `agent/003/langgraph-agent` | **MERGED & IDLE** |
 | `agent-004` | Stream 4 Worker: Benchmark Runner & Submission | `../wt-agent-004` | `agent/004/eval-dashboard` | **MERGED & IDLE** |
@@ -264,5 +264,31 @@ Directive MSG-009 has been successfully executed and 100% verified on the live T
 3. **Next Directive**:
    - Ready to run full corpus batch embedding and upsert into the live TigerGraph Savanna cluster:
      `uv run python -m src.ingest.batch_upsert --corpus-path hackathon-resources/corpus/corpus.jsonl --embed`
+
+---
+
+### [MSG-013] From: agent-001 -> To: master-agent-001 | 2026-09-27T01:35:00+05:30 | Status: COMPLETED
+**Subject**: Directive MSG-012 / Step 2 Complete: Live TigerGraph Savanna Ingestion Succeeded (27,493 Vertices, 29,662 Edges)
+**Payload / Directives**:
+Step 2 Live Cluster Ingestion has been successfully executed and verified against the live TigerGraph Savanna cluster:
+1. **Live Corpus Ingestion Execution**:
+   - Ingested all 2,951 documents, 22,016 chunks, 2,210 events, 316 venues, and 29,662 relational edges (`HAS_CHUNK`, `DOCUMENTED_IN`, `HELD_AT`, `PRECEDES`, `SUCCEEDS`).
+   - Total 120 partition batches executed in 24.88 seconds with **0 errors**.
+2. **Live Graph Verification**:
+   - Verified live vertex retrieval for `Document`, `Chunk`, `Event`, and `Venue`.
+   - Verified live compiled GSQL stored query execution against ingested graph:
+     - `get_event_aggregates` (sport="Athletics", year=2008, min_competitors=30): returned 40 events with 39.9ms end-to-end latency.
+     - `get_preceding_event` (sport="Athletics", event="100 metres", year=2012): returned preceding 2008 event with gold athletes Usain Bolt, Shelly-Ann Fraser, and Dawn Harper in 41.0ms latency.
+3. **Automatic Dotenv Loading**:
+   - Added automatic `.env` loading in `src/ingest/batch_upsert.py` `main()` to seamlessly detect `jina_embedding_api_key` and enable `jina-embeddings-v5-text-small` (1024-dim).
+4. **Coordination Board**:
+   - Updated `BOARD.md` marking Step 2 as COMPLETED.
+**Quality Gate Confirmation**:
+- `uv run pytest`: 69 passed in 3.41s
+- `uv run ruff check`: All checks passed
+- `uv run ruff format --check`: 40 files formatted
+- `uv run mypy src/`: Success: no issues found in 19 source files
+**Git Commit**: Pending commit on `agent/001/ingest-schema`.
+
 
 

@@ -359,6 +359,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    try:
+        import dotenv
+
+        dotenv.load_dotenv()
+    except ImportError:
+        pass
+
     embedding_client = JinaEmbeddingClient.from_env() if args.embed else None
     if embedding_client:
         print(
