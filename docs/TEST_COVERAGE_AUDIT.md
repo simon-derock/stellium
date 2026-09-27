@@ -4,12 +4,12 @@ This inventory maps the requested software-testing checklist to evidence in this
 
 ## Verified Local Baseline
 
-- Latest measured suite: 138 collected, 135 passed, 3 live TigerGraph checks skipped by default.
-- Local source statement coverage: 78.95% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
+- Latest measured suite: 141 collected, 138 passed, 3 live TigerGraph checks skipped by default.
+- Local source statement coverage: 79.46% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
 - Highest coverage: models and guardrails (100%), ingestion (93%), embeddings and bitemporal logic (87–88%).
 - RAG and GraphRAG retrieval paths are now directly tested at 95% and 86%, respectively.
 - Evaluation runner coverage is 88%, API coverage 74%, LLM router coverage 78%, and graph client coverage 76% after focused contract tests.
-- Lowest remaining core areas: live graph verifier (55%), ingestion batch upsert (63%), and graph mock (67%).
+- Lowest remaining core areas: live graph verifier (55%), graph mock (67%), and ingestion batch upsert (68%). Cache validation now rejects wrong-dimension, boolean, and non-finite vectors, and ingestion rejects embedding response cardinality mismatches.
 - Live checks in `tests/test_graph_live.py` require `TG_RUN_LIVE_TESTS=1`; the default suite does not prove live cluster readiness.
 
 ## Checklist Mapping
