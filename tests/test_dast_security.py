@@ -43,12 +43,16 @@ def test_dast_jailbreak_and_prompt_injection_payloads() -> None:
 
 def test_dast_secret_token_redaction() -> None:
     # Verifies that sensitive API keys and cluster credentials cannot be leaked in responses.
+    google_key = "AIzaSy" + "A" * 35
+    openai_key = "sk-" + "a" * 40
+    bearer_token = "Bearer " + "e30.eyJ0ZXN0IjoidG9rZW4ifQ.signature"
+    jina_key = "jina_" + "a" * 40
     sensitive_outputs = [
-        ("Google AI key: AIzaSyA1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6Q", "AIzaSy"),
-        ("OpenAI key: sk-1234567890abcdef1234567890abcdef123456", "sk-"),
-        ("Bearer token: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.xyz.abc", "Bearer"),
+        (f"Google AI key: {google_key}", "AIzaSy"),
+        (f"OpenAI key: {openai_key}", "sk-"),
+        (f"Bearer token: {bearer_token}", "Bearer"),
         ("Tigergraph password: TG_PASSWORD=supersecret_pass_123", "TG_PASSWORD="),
-        ("Jina key: jina_f6e4a9081234567890abcdef1234567890abcdef", "jina_"),
+        (f"Jina key: {jina_key}", "jina_"),
     ]
     for raw_text, secret_prefix in sensitive_outputs:
         sanitized = sanitize_output(raw_text)

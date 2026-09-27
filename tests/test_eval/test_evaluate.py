@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 from typing import Literal, cast
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -81,12 +82,9 @@ def test_precision_at_k() -> None:
 
 
 @pytest.mark.asyncio
-async def test_evaluation_harness_offline_mock() -> None:
-    from unittest.mock import patch
-
+async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.llm import LLMCallResult, LockedLLMSession
 
-    harness = EvaluationHarness(corpus_path="nonexistent.jsonl", use_mock=True)
     q = EvalQuestion(
         qid="test-001",
         question="According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",
@@ -102,13 +100,23 @@ async def test_evaluation_harness_offline_mock() -> None:
         provider="mock",
         latency_ms=12.0,
     )
-    with patch.object(LockedLLMSession, "chat", return_value=mock_res):
-        results = await harness.evaluate_question(q, ["agentic"])
-        assert "agentic" in results
-        assert results["agentic"].answer == "5"
-        assert results["agentic"].total_llm_tokens > 0
-        assert results["agentic"].agentic_trace is not None
-        assert results["agentic"].agentic_trace["stopping_reason"] != ""
+    session = LockedLLMSession(provider="cloudflare", model="mock-model")
+    chat = AsyncMock(return_value=mock_res)
+    monkeypatch.setattr(session, "chat", chat)
+
+    harness = EvaluationHarness(
+        corpus_path="nonexistent.jsonl",
+        use_mock=True,
+        session_factory=lambda provider: session,
+    )
+
+    results = await harness.evaluate_question(q, ["agentic"])
+    assert "agentic" in results
+    assert results["agentic"].answer == "5"
+    assert results["agentic"].total_llm_tokens > 0
+    assert results["agentic"].agentic_trace is not None
+    assert results["agentic"].agentic_trace["stopping_reason"] != ""
+    assert chat.await_count == 1
 
 
 @pytest.mark.asyncio

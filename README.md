@@ -58,8 +58,7 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 ### 1. Local Retrieval Coprocessor
 - **Integer category masks**: Packed year, season, and selected sport flags support bitwise filtering alongside BM25 scoring.
 - **BM25Plus Sparse Indexing (`rank-bm25`)**: Guarantees positive IDF scores across all corpus sizes, achieving exact token matching for athlete names (`Naim Süleymanoğlu`), numbers, and venue names.
-- **Reciprocal Rank Fusion (RRF)**: Merges dense TigerVector semantic similarity ranks with sparse BM25 scores:
-  $$RRF(d) = \sum_{m \in \{\text{dense}, \text{sparse}\}} \frac{1}{60 + \text{rank}_m(d)}$$
+- **Reciprocal Rank Fusion (RRF)**: Merges dense TigerVector semantic similarity ranks with sparse BM25 scores using $RRF(d)=\sum_{m\in\{dense,sparse\}}\frac{1}{60+r_m(d)}$.
 - **Cross-Encoder Precision Reranker**: MiniLM-L6 cross-encoder scoring top-30 fused candidates down to high-precision top-1 and top-2 passages.
 
 ### 2. Native TigerGraph Savanna Integration
@@ -226,40 +225,40 @@ stellium/
 
 ### Retrieval and Reasoning Formulations
 
-Dense and sparse rankings are fused by Reciprocal Rank Fusion. Here the two rankers are TigerVector HNSW and BM25Plus, and (k=60):
+Dense and sparse rankings are fused by Reciprocal Rank Fusion. The rankers are TigerVector HNSW and BM25Plus, with $k=60$:
 
 $$
-\operatorname{RRF}(d)=\sum_{m\in\mathcal{M}}\frac{1}{k+r_m(d)},\qquad
-\mathcal{M}=\{\text{Dense HNSW},\text{Sparse BM25Plus}\},\quad k=60.
+RRF(d)=\sum_{m\in\mathcal{M}}\frac{1}{k+r_m(d)},\qquad
+\mathcal{M}=\{Dense\ HNSW,Sparse\ BM25Plus\},\quad k=60.
 $$
 
-The sparse ranker uses BM25Plus. The score below gives the document length normalization and additive \(\delta\) term; these are the `rank-bm25` convention and parameters used by the library defaults/configuration:
+The sparse ranker uses BM25Plus with document-length normalization and an additive $\delta$ term. Here $avgdl$ is average document length:
 
 $$
-\operatorname{Score}_{\mathrm{BM25+}}(D,Q)=\sum_{q_i\in Q}\operatorname{IDF}(q_i)
-\left[\frac{f(q_i,D)(k_1+1)}{f(q_i,D)+k_1\left(1-b+b\frac{|D|}{\operatorname{avgdl}}\right)}+\delta\right],
-\quad k_1=1.5,\ b=0.75,\ \delta=1.0.
+Score_{BM25+}(D,Q)=\sum_{q_i\in Q}IDF(q_i)
+\left[\frac{f(q_i,D)(k_1+1)}{f(q_i,D)+k_1\left(1-b+b\frac{|D|}{avgdl}\right)}+\delta\right],
+\quad k_1=1.5,\quad b=0.75,\quad \delta=1.0.
 $$
 
-Evaluation normalizes answer strings before exact match and computes token overlap for F1. With token multisets \(T_{\hat y}\) and \(T_{y^*}\):
+Evaluation normalizes answer strings before exact match and computes token overlap for F1. Let $T_{\hat{y}}$ and $T_{y^*}$ be token multisets:
 
 $$
-\operatorname{EM}=\mathbb{I}[\operatorname{normalize}(\hat y)=\operatorname{normalize}(y^*)],\quad
-P=\frac{|T_{\hat y}\cap T_{y^*}|}{|T_{\hat y}|},\quad
-R=\frac{|T_{\hat y}\cap T_{y^*}|}{|T_{y^*}|},\quad
+EM=\mathbf{1}[norm(\hat{y})=norm(y^*)],\quad
+P=\frac{|T_{\hat{y}}\cap T_{y^*}|}{|T_{\hat{y}}|},\quad
+R=\frac{|T_{\hat{y}}\cap T_{y^*}|}{|T_{y^*}|},\quad
 F_1=\frac{2PR}{P+R}.
 $$
 
-The bitemporal module resolves fact conflicts by source authority, then validity timestamps, and reports competing versions when unresolved. A conceptual authority-and-recency score is:
+The bitemporal module resolves conflicts by source authority, then validity timestamps, and reports competing versions when unresolved. This conceptual score describes authority and recency:
 
 $$
-S(f)=\alpha\,\operatorname{Auth}(s)+\beta\,e^{-\lambda(t_{\mathrm{now}}-t_{\mathrm{valid\_from}})}\,\mathbb{I}[\operatorname{superseded\_by}(f)=\varnothing].
+S(f)=\alpha\,Auth(s)+\beta\,e^{-\lambda(t_{now}-t_{valid\_from})}\,\mathbf{1}[superseded\_by(f)=\varnothing].
 $$
 
-This score is explanatory notation; the implementation's conflict resolution uses ordered authority and timestamp comparisons rather than evaluating this equation. The category mask uses integer bitwise operations; intersections of requested year, season, and sport masks can be written:
+The category mask uses integer bitwise operations. The intersection of requested year, season, and sport masks is:
 
 $$
-M(q)=M_{\mathrm{year}}(y)\;\mathbf{AND}\;M_{\mathrm{season}}(s)\;\mathbf{AND}\;M_{\mathrm{sport}}(p).
+M(q)=M_{year}(y)\mathbin{\&}M_{season}(s)\mathbin{\&}M_{sport}(p).
 $$
 
 In code, a chunk is retained when its stored mask intersects the combined query mask; masks are packed integer fields, not a separate Roaring bitmap allocation.
@@ -268,10 +267,10 @@ In code, a chunk is retained when its stored mask intersects the combined query 
 
 | Operation | Cost / profile | Scope and qualification |
 | :--- | :--- | :--- |
-| Neighbor chunk expansion | Expected (O(1)) map lookup per pointer | Uses `prev_chunk_id` / `next_chunk_id` in the in-memory coprocessor map |
-| TigerVector retrieval | Expected (O(\log N)) graph traversal | HNSW is an approximate-nearest-neighbor index; this is an expected scaling description, not a worst-case guarantee |
-| RRF fusion | (O(K\log K)) | Sorts at most the union of the input lists; current hybrid path takes up to 30 dense and 30 sparse candidates, so (K\le60) |
-| ReAct stream parsing | (O(N)) | Balanced-brace scan and line lexer over response length (N) |
+| Neighbor chunk expansion | Expected `O(1)` map lookup per pointer | Uses `prev_chunk_id` / `next_chunk_id` in the in-memory coprocessor map |
+| TigerVector retrieval | Expected `O(log N)` graph traversal | HNSW is approximate nearest neighbor; this is expected scaling, not a worst-case guarantee |
+| RRF fusion | `O(K log K)` | Sorts at most the union of the input lists; current hybrid path takes up to 30 dense and 30 sparse candidates, so `K <= 60` |
+| ReAct stream parsing | `O(N)` | Balanced-brace scan and line lexer over response length `N` |
 | Local coprocessor memory | Under 150 MB RSS in the reported full-corpus run | 22,016 chunks; host/runtime and measurement method affect RSS |
 | Category filtering | Integer bitwise operations | Avoids allocating candidate bit arrays; implementation scans BM25 scores when filtering |
 

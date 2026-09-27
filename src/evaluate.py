@@ -10,7 +10,7 @@ import os
 import sys
 import time
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +18,7 @@ from src.coprocessor import Coprocessor
 from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import normalize
 from src.ingest import load_all_chunks
-from src.llm import make_session
+from src.llm import LockedLLMSession, make_session
 from src.models import EvalQuestion, PipelineResult
 from src.pipelines.agentic import AgenticPipeline
 from src.pipelines.graphrag import GraphRAGPipeline
@@ -105,9 +105,11 @@ class EvaluationHarness:
         corpus_path: str = "hackathon-resources/corpus/corpus.jsonl",
         provider: str = "cloudflare",
         use_mock: bool = False,
+        session_factory: Callable[[str], LockedLLMSession] | None = None,
     ) -> None:
         self.corpus_path = corpus_path
         self.provider = provider
+        self.session_factory = session_factory or make_session
         self.coprocessor = Coprocessor()
 
         # Initialize offline coprocessor by parsing corpus
@@ -150,7 +152,7 @@ class EvaluationHarness:
         pipelines: list[str],
     ) -> dict[str, PipelineResult]:
         results: dict[str, PipelineResult] = {}
-        session = make_session(self.provider)
+        session = self.session_factory(self.provider)
         async with session:
             if "rag" in pipelines:
                 rag_pipe = RAGPipeline(graph=self.graph, llm=session, coprocessor=self.coprocessor)
