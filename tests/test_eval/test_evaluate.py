@@ -1,4 +1,8 @@
 # Unit tests for evaluation metrics: Exact Match, Token F1, MRR, Recall@k.
+import json
+from pathlib import Path
+from typing import Literal, cast
+
 import pytest
 
 from src.evaluate import (
@@ -9,7 +13,7 @@ from src.evaluate import (
     compute_recall_at_k,
     compute_token_f1,
 )
-from src.models import EvalQuestion
+from src.models import EvalQuestion, PipelineResult
 
 
 def test_exact_match() -> None:
@@ -105,3 +109,61 @@ async def test_evaluation_harness_offline_mock() -> None:
         assert results["agentic"].total_llm_tokens > 0
         assert results["agentic"].agentic_trace is not None
         assert results["agentic"].agentic_trace["stopping_reason"] != ""
+
+
+@pytest.mark.asyncio
+async def test_benchmark_runner_writes_public_and_hidden_records(tmp_path: Path) -> None:
+    # Exercises dataset loading, per-pipeline result fields, public metrics, and JSONL output.
+    class DeterministicHarness(EvaluationHarness):
+        async def evaluate_question(
+            self, question: EvalQuestion, pipelines: list[str]
+        ) -> dict[str, PipelineResult]:
+            expected = question.answer[0] if question.answer else "Not found in corpus"
+            return {
+                pipeline: PipelineResult(
+                    qid=question.qid,
+                    pipeline=cast(Literal["rag", "graphrag", "agentic"], pipeline),
+                    question=question.question,
+                    answer=expected,
+                    llm_input_tokens=12,
+                    llm_output_tokens=3,
+                    total_llm_tokens=15,
+                    latency_ms=7.5,
+                    retrieved_doc_ids=["Q1"],
+                    agentic_trace={"step_count": 1} if pipeline == "agentic" else None,
+                )
+                for pipeline in pipelines
+            }
+
+    public_question = EvalQuestion(
+        qid="public-001",
+        question="How many events?",
+        qtype="aggregation",
+        answer=["5"],
+        gold_doc_ids=["Q1"],
+    )
+    hidden_question = EvalQuestion(
+        qid="hidden-001",
+        question="Who won?",
+        qtype="lookup",
+    )
+    dataset_path = tmp_path / "questions.jsonl"
+    dataset_path.write_text(
+        "\n".join([public_question.model_dump_json(), hidden_question.model_dump_json()]) + "\n",
+        encoding="utf-8",
+    )
+    output_path = tmp_path / "results" / "benchmark.jsonl"
+    harness = DeterministicHarness(corpus_path="missing-corpus.jsonl", use_mock=True)
+
+    records = await harness.run_benchmark(
+        str(dataset_path), ["rag", "graphrag", "agentic"], str(output_path)
+    )
+
+    assert len(records) == 2
+    assert records[0]["rag_em"] == 1.0
+    assert records[0]["agentic_recall@5"] == 1.0
+    assert records[0]["agentic_trace"] == {"step_count": 1}
+    assert "rag_em" not in records[1]
+    assert records[1]["graphrag_answer"] == "Not found in corpus"
+    written_records = [json.loads(line) for line in output_path.read_text().splitlines()]
+    assert written_records == records

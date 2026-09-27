@@ -1,13 +1,51 @@
 # Integration tests for FastAPI endpoints: compare, batch, snapshot, health.
 import os
+from unittest.mock import AsyncMock, MagicMock
 
 os.environ["TG_USE_MOCK"] = "1"
 
+import pytest
 from fastapi.testclient import TestClient
 
+import src.api.main as api_main
 from src.api.main import app
+from src.coprocessor import Coprocessor
+from src.llm import LLMCallResult, LockedLLMSession
+from src.models import Chunk
 
 client = TestClient(app)
+
+
+def _wire_retrieval_api(
+    monkeypatch: pytest.MonkeyPatch, chat_results: list[LLMCallResult]
+) -> tuple[MagicMock, AsyncMock]:
+    # Provides a local graph and source-text index to exercise complete API retrieval wiring.
+    chunk = Chunk(
+        chunk_id="Q123#0",
+        doc_id="Q123",
+        chunk_index=0,
+        section_title="Results",
+        text="The 2008 Olympic men's marathon was won by Samuel Wanjiru.",
+        raw_text="The 2008 Olympic men's marathon was won by Samuel Wanjiru.",
+    )
+    coprocessor = Coprocessor()
+    coprocessor.build([chunk])
+    graph = MagicMock()
+    graph.vector_search.return_value = [("Q123#0", 0.91)]
+    graph.run_multihop.return_value = {
+        "events": ["Men's marathon"],
+        "gold_athletes": ["Samuel Wanjiru"],
+        "gold_doc_ids": ["Q123"],
+    }
+    graph.run_lookup.return_value = {"events": [], "gold_athletes": [], "gold_doc_ids": []}
+    session = LockedLLMSession(provider="cloudflare", model="test-model")
+    chat = AsyncMock(side_effect=chat_results)
+    monkeypatch.setattr(api_main, "get_graph", lambda: graph)
+    monkeypatch.setattr(api_main, "get_coprocessor", lambda: coprocessor)
+    monkeypatch.setattr(api_main, "make_session", lambda provider: session)
+    monkeypatch.setattr(session, "embed", AsyncMock(return_value=[[0.0] * 1024]))
+    monkeypatch.setattr(session, "chat", chat)
+    return graph, chat
 
 
 def test_health_endpoint() -> None:
@@ -73,6 +111,68 @@ def test_agentic_query_mock_execution() -> None:
         assert data["answer"] == "5"
         assert data["total_llm_tokens"] > 0
         assert "agentic_trace" in data
+
+
+def test_rag_api_sends_retrieved_text_to_synthesis(monkeypatch: pytest.MonkeyPatch) -> None:
+    _, chat = _wire_retrieval_api(
+        monkeypatch,
+        [
+            LLMCallResult(
+                content="Samuel Wanjiru",
+                input_tokens=20,
+                output_tokens=5,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            )
+        ],
+    )
+
+    response = client.post("/api/v1/query/rag", json={"query": "Who won the marathon in 2008?"})
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "Samuel Wanjiru"
+    call = chat.await_args
+    assert call is not None
+    assert "Samuel Wanjiru" in call.args[0][1]["content"]
+
+
+def test_graphrag_api_sends_retrieved_text_to_synthesis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, chat = _wire_retrieval_api(
+        monkeypatch,
+        [
+            LLMCallResult(
+                content='{"year": 2008, "sport": "Athletics", "venue": "Olympic Stadium"}',
+                input_tokens=20,
+                output_tokens=10,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
+            LLMCallResult(
+                content="Samuel Wanjiru",
+                input_tokens=20,
+                output_tokens=5,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
+        ],
+    )
+
+    response = client.post(
+        "/api/v1/query/graphrag", json={"query": "Who won the marathon in 2008?"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["answer"] == "Samuel Wanjiru"
+    call = chat.await_args
+    assert call is not None
+    assert (
+        "The 2008 Olympic men's marathon was won by Samuel Wanjiru." in call.args[0][1]["content"]
+    )
 
 
 def test_batch_eval_bypasses_input_guards() -> None:
