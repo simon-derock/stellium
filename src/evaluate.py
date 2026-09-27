@@ -157,7 +157,9 @@ class EvaluationHarness:
                 results["rag"] = await rag_pipe.run(q.qid, q.question)
 
             if "graphrag" in pipelines:
-                graphrag_pipe = GraphRAGPipeline(graph=self.graph, llm=session)
+                graphrag_pipe = GraphRAGPipeline(
+                    graph=self.graph, llm=session, coprocessor=self.coprocessor
+                )
                 results["graphrag"] = await graphrag_pipe.run(q.qid, q.question)
 
             if "agentic" in pipelines:

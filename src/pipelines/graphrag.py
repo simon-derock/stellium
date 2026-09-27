@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from src.coprocessor import Coprocessor
 from src.graph import GraphClient
 from src.guardrails import sanitize_output
 from src.llm import LockedLLMSession
@@ -68,6 +69,7 @@ async def _extract_entities_via_llm(llm: LockedLLMSession, question: str) -> Ext
 class GraphRAGPipeline:
     graph: GraphClient
     llm: LockedLLMSession
+    coprocessor: Coprocessor | None = None
 
     async def run(self, qid: str, question: str) -> PipelineResult:
         t_start = time.perf_counter()
@@ -109,7 +111,13 @@ class GraphRAGPipeline:
             doc_id = chunk_id.rsplit("#", 1)[0]
             if doc_id not in doc_ids:
                 doc_ids.append(doc_id)
-            graph_facts.append(f"[Semantic match score {score:.3f} | doc: {doc_id}]")
+            chunk = self.coprocessor.get_chunk(chunk_id) if self.coprocessor else None
+            if chunk:
+                graph_facts.append(
+                    f"[Semantic match score {score:.3f} | doc: {doc_id}]\n{chunk.text}"
+                )
+            else:
+                graph_facts.append(f"[Semantic match score {score:.3f} | doc: {doc_id}]")
 
         # Step 4: Single-turn LLM synthesis over assembled graph context
         context_text = "\n".join(graph_facts) if graph_facts else "No relevant graph data found."

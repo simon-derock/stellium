@@ -150,7 +150,7 @@ async def query_rag(req: QueryRequest) -> PipelineResult:
     graph = get_graph()
     session = make_session(req.provider)
     async with session:
-        pipe = RAGPipeline(graph=graph, llm=session)
+        pipe = RAGPipeline(graph=graph, llm=session, coprocessor=get_coprocessor())
         return await pipe.run(req.qid, req.query)
 
 
@@ -163,7 +163,7 @@ async def query_graphrag(req: QueryRequest) -> PipelineResult:
     graph = get_graph()
     session = make_session(req.provider)
     async with session:
-        pipe = GraphRAGPipeline(graph=graph, llm=session)
+        pipe = GraphRAGPipeline(graph=graph, llm=session, coprocessor=get_coprocessor())
         return await pipe.run(req.qid, req.query)
 
 
@@ -192,8 +192,8 @@ async def query_compare(req: QueryRequest) -> CompareResult:
     coproc = get_coprocessor()
     session = make_session(req.provider)
     async with session:
-        rag_pipe = RAGPipeline(graph=graph, llm=session)
-        graphrag_pipe = GraphRAGPipeline(graph=graph, llm=session)
+        rag_pipe = RAGPipeline(graph=graph, llm=session, coprocessor=coproc)
+        graphrag_pipe = GraphRAGPipeline(graph=graph, llm=session, coprocessor=coproc)
         agentic_pipe = AgenticPipeline(graph=graph, coprocessor=coproc, llm=session)
 
         rag_res = await rag_pipe.run(req.qid, req.query)
@@ -221,8 +221,8 @@ async def evaluate_batch(req: BatchEvalRequest) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
 
     async with session:
-        rag_pipe = RAGPipeline(graph=graph, llm=session)
-        graphrag_pipe = GraphRAGPipeline(graph=graph, llm=session)
+        rag_pipe = RAGPipeline(graph=graph, llm=session, coprocessor=coproc)
+        graphrag_pipe = GraphRAGPipeline(graph=graph, llm=session, coprocessor=coproc)
         agentic_pipe = AgenticPipeline(graph=graph, coprocessor=coproc, llm=session)
 
         for q in req.questions:
