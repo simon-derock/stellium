@@ -41,6 +41,14 @@ def test_token_f1() -> None:
     # Zero overlap
     assert compute_token_f1("Archery", ["Swimming"]) == 0.0
 
+    # Repeated terms count with multiplicity in the token intersection.
+    assert compute_token_f1("Alice Alice", ["Alice Bob"]) == pytest.approx(0.5)
+    assert compute_token_f1("Alice Alice", ["Alice"]) == pytest.approx(2 / 3)
+
+    # Empty predictions and references have no token overlap score.
+    assert compute_token_f1("", ["Alice"]) == 0.0
+    assert compute_token_f1("Alice", [""]) == 0.0
+
 
 def test_mrr() -> None:
     gold = ["Q100", "Q200"]

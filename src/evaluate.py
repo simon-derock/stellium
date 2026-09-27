@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -39,21 +40,23 @@ def compute_exact_match(prediction: str, ground_truths: Sequence[str]) -> float:
 
 
 def compute_token_f1(prediction: str, ground_truths: Sequence[str]) -> float:
-    # Token-level F1: handles team events and rephrased names.
-    pred_tokens = set(normalize(prediction).lower().replace(",", " ").split())
-    if not pred_tokens:
+    # Multiset token F1: repeated terms count once per occurrence, not as a set.
+    pred_tokens = Counter(normalize(prediction).lower().replace(",", " ").split())
+    pred_count = sum(pred_tokens.values())
+    if pred_count == 0:
         return 0.0
 
     best_f1 = 0.0
     for gt in ground_truths:
-        gt_tokens = set(normalize(gt).lower().replace(",", " ").split())
-        if not gt_tokens:
+        gt_tokens = Counter(normalize(gt).lower().replace(",", " ").split())
+        gt_count = sum(gt_tokens.values())
+        if gt_count == 0:
             continue
-        common = pred_tokens & gt_tokens
-        if not common:
+        overlap = sum((pred_tokens & gt_tokens).values())
+        if overlap == 0:
             continue
-        precision = len(common) / len(pred_tokens)
-        recall = len(common) / len(gt_tokens)
+        precision = overlap / pred_count
+        recall = overlap / gt_count
         f1 = (2 * precision * recall) / (precision + recall)
         if f1 > best_f1:
             best_f1 = f1
