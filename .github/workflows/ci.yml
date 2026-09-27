@@ -52,6 +52,18 @@ jobs:
       - name: Dependency Vulnerability Audit
         run: uv run pip-audit
 
+      - name: Generate Dependency License Inventory
+        run: uv run pip-licenses --format=json --output-file dependency-licenses.json
+
+      - name: Upload Dependency License Inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stellium-dependency-licenses
+          path: dependency-licenses.json
+          if-no-files-found: warn
+          retention-days: 90
+
   test-suite:
     name: Test Suite & Coverage (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
