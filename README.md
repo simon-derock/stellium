@@ -7,7 +7,7 @@
 
 [![CI](https://github.com/simon-derock/stellium/actions/workflows/ci.yml/badge.svg)](https://github.com/simon-derock/stellium/actions)
 [![Python 3.12 | 3.13](https://img.shields.io/badge/python-3.12%20%7C%203.13-blue.svg)](https://www.python.org/)
-[![TigerGraph Savanna](https://img.shields.io/badge/TigerGraph-Savanna%20v3-orange.svg)](https://tgcloud.io/)
+[![TigerGraph Savanna](https://img.shields.io/badge/TigerGraph-Savanna-orange.svg)](https://tgcloud.io/)
 [![TigerVector HNSW](https://img.shields.io/badge/TigerVector-HNSW%20Native-yellow.svg)](https://www.tigergraph.com/)
 [![Managed by uv](https://img.shields.io/badge/managed%20by-uv-purple.svg)](https://github.com/astral-sh/uv)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
@@ -33,10 +33,10 @@
 
 Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relational structure. But complex real-world questions require an autonomous system that can **plan investigations**, **execute mathematical operations inside the database**, **evaluate evidence quality**, **backtrack on dead ends**, and **decide when sufficient evidence exists to terminate**.
 
-**Stellium** was engineered by **Philip Simon Derock** for the global **TigerGraph Agentic GraphRAG Hackathon**. Operating across a comprehensive corpus of **2,951 historical Olympic Wikipedia articles (~5.47M tokens)**, Stellium proves:
+**Stellium** was created and architected by **Philip Simon Derock** for the **TigerGraph Agentic GraphRAG Hackathon 2026**. It operates across **2,951 historical Olympic Wikipedia articles (~5.47M tokens)**. The repository includes deterministic graph tools, hybrid retrieval, and a ReAct agent; benchmark outcomes depend on the configured providers and corpus snapshot.
 
 1. **Where Agentic GraphRAG Wins Decisively**: Multi-hop entity navigation, temporal succession (`PRECEDES`/`SUCCEEDS`), superlative rankings, and numerical aggregations where standard RAG suffers arithmetic hallucinations.
-2. **The Zero-Token Fast Path**: By delegating numerical aggregations and chronological edge traversals directly to **TigerGraph C++ compiled GSQL queries**, Stellium resolves **over 70% of factual queries with 0 LLM tokens**, sub-5ms latency, and 100% mathematical precision.
+2. **The Zero-Token Fast Path**: Numerical aggregations and chronological edge traversals can execute through compiled GSQL without an LLM call. A recorded live run returned the biathlon count `5` in 1,742 ms end-to-end; a separate live query measured 38.59 ms end-to-end. Server-side execution and network latency are different measurements.
 3. **Where Simpler Retrieval Suffices**: Demonstrating exact efficiency thresholds where low-complexity lookups can be routed to single-turn vector search without agentic orchestration overhead.
 
 ---
@@ -48,24 +48,24 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 │                        STELLIUM CORE ENGINE                            │
 ├──────────────────────────┬──────────────────────────┬──────────────────┤
 │   SILICON COPROCESSOR    │    TIGERGRAPH SAVANNA    │  LANGGRAPH AGENT │
-│   <1μs Roaring Bitmasks  │   Native TigerVector HNSW│  StateGraph Loop │
+│   Integer Filter Masks  │   Native TigerVector HNSW│  ReAct Tool Loop │
 │   BM25Plus Inverted Index│   Compiled GSQL Queries  │  Evidence Critic │
 │   Reciprocal Rank Fusion │   Graph Topological Edges│  Backtracking    │
-│   Cross-Encoder Reranker │   Session Memory Vertices│  Grounded Trace  │
+│   Cross-Encoder Reranker │   Compiled GSQL Queries │  Grounded Trace  │
 └──────────────────────────┴──────────────────────────┴──────────────────┘
 ```
 
-### 1. High-Speed Silicon Coprocessor
-- **Roaring Bitmasks (`pyroaring`)**: Sub-microsecond pre-filtering across Olympic Year (1988–2020), Season (Summer/Winter), and Sport categories. Slices 2,951 documents down to candidate sets in $< 1\,\mu\text{s}$.
+### 1. Local Retrieval Coprocessor
+- **Integer category masks**: Packed year, season, and selected sport flags support bitwise filtering alongside BM25 scoring.
 - **BM25Plus Sparse Indexing (`rank-bm25`)**: Guarantees positive IDF scores across all corpus sizes, achieving exact token matching for athlete names (`Naim Süleymanoğlu`), numbers, and venue names.
 - **Reciprocal Rank Fusion (RRF)**: Merges dense TigerVector semantic similarity ranks with sparse BM25 scores:
   $$RRF(d) = \sum_{m \in \{\text{dense}, \text{sparse}\}} \frac{1}{60 + \text{rank}_m(d)}$$
 - **Cross-Encoder Precision Reranker**: MiniLM-L6 cross-encoder scoring top-30 fused candidates down to high-precision top-1 and top-2 passages.
 
-### 2. Native TigerGraph Savanna v3 Integration
+### 2. Native TigerGraph Savanna Integration
 - **Zero Raw String Concatenation**: Injection-proof GSQL execution using compiled stored queries (`get_event_aggregates`, `get_preceding_event`, `get_superlative_event`, `get_event_by_venue_date`, `get_event_attribute`, `vector_search_chunks`).
 - **TigerVector HNSW Embedding Space**: Native in-database vector index co-located with graph topology.
-- **Persistent Session Memory in Graph**: Web chat history and agent memory state persist directly inside TigerGraph `Session`, `ChatMessage`, and `AgentMemory` vertices — **surviving page refreshes with zero external database dependencies**.
+- **Graph-backed evidence**: Event, venue, document, and chunk relationships support structured traversal alongside dense retrieval.
 
 ### 3. Table-Aware Entity & Doubly-Linked Semantic Chunking
 - **Zero Boundary Fragmentation**: Extracts structured Olympic infobox metadata (competitor counts, nation counts, medalists, venues, dates) intact into **Chunk 0**.
@@ -77,7 +77,7 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 - **Cloudflare Workers AI Primary**: FP8-optimized `@cf/meta/llama-3.1-8b-instruct-fast` (~9 neurons/call, comfortably within the 10,000 neurons/day free tier).
 - **Run-Level Failover**: Run-level fallback to Gemini 2.0 Flash and Mistral Large with exponential backoff on HTTP 429 rate limits.
 
-### 5. Judge-Safe Pragmatic 3-Layer Security Guardrails
+### 5. Judge-Safe Security Guardrails
 - **Zero False-Positive Guarantee**: Natural Olympic questions are never blocked by aggressive keyword matching.
 - **Structural Command Isolation**: Blocks structural database mutations (`DROP GRAPH`, `DELETE FROM`, `ALTER VERTEX`) and multi-word jailbreaks while welcoming all valid sports queries.
 - **Automated Trust Tiers**: Batch evaluation endpoints (`/api/v1/evaluate/batch`) bypass input guardrails for automated evaluation sets.
@@ -89,37 +89,21 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 ```mermaid
 flowchart TD
     UserQuery["User / Evaluation Query"] --> Layer0{"Guardrails Filter"}
-    Layer0 -->|"Safe"| IntentClassifier["Structural Intent Classifier"]
+    Layer0 -->|"Safe"| Pipeline{"Pipeline selection"}
     Layer0 -->|"Blocked"| SecurityBlock["HTTP 400 Safety Policy Notice"]
-
-    IntentClassifier -->|"Aggregation / Superlative / Temporal"| FastPath{"Fast-Path Eligible?"}
-    
-    FastPath -->|"Yes (Deterministic)"| GSQLQuery["Compiled GSQL Stored Query<br/>(get_event_aggregates / get_preceding_event)"]
-    GSQLQuery -->|"Exact Integer / Entity"| VerifiedAnswer["Verified Output<br/>(0 LLM Tokens | <5ms)"]
-    
-    FastPath -->|"Ambiguous / Complex"| AgentLoop["LangGraph StateGraph Engine"]
-    IntentClassifier -->|"Multi-Hop / Free-Form"| AgentLoop
-    
-    subgraph AgentLoop ["Autonomous Agent Investigation Loop"]
-        Plan["1. Plan & Tool Selection"] --> Dispatch["2. Parallel Dispatch"]
-        Dispatch --> TG_Dense["TigerVector HNSW Search"]
-        Dispatch --> TG_Graph["TigerGraph GSQL Traversal"]
-        Dispatch --> Local_BM25["Coprocessor BM25Plus & Bitmask"]
-        
-        TG_Dense --> Fuse["3. Reciprocal Rank Fusion (RRF)"]
-        TG_Graph --> Fuse
-        Local_BM25 --> Fuse
-        
-        Fuse --> Rerank["4. Cross-Encoder Reranker"]
-        Rerank --> Critic{"5. Evidence Critic"}
-        Critic -->|"Gaps Found & Steps < Max"| Backtrack["Strategy Shift & Backtrack"]
-        Backtrack --> Plan
-        Critic -->|"Confidence ≥ 0.95 or Complete"| Synthesize["6. Grounded Answer Synthesis"]
-    end
-
-    Synthesize --> Output["Final Answer + Complete Trace + Snapshot DTO"]
-    VerifiedAnswer --> Output
-    Output --> TigerMem["Persist Session to TigerGraph"]
+    Pipeline -->|"RAG"| RAG["TigerVector HNSW"]
+    Pipeline -->|"GraphRAG"| GraphRAG["Graph + hybrid retrieval"]
+    Pipeline -->|"Agentic"| Agent["ReAct agent"]
+    Agent --> Action{"LLM-selected action"}
+    Action -->|"Structured query"| GSQL["Compiled GSQL"]
+    Action -->|"Semantic retrieval"| Dense["TigerVector HNSW"]
+    Action -->|"Hybrid retrieval"| Sparse["BM25Plus → RRF → rerank"]
+    GSQL -->|"Observation"| Agent
+    Dense -->|"Observation"| Agent
+    Sparse -->|"Observation"| Agent
+    Agent -->|"Final answer"| Output["Answer + trace + Snapshot DTO"]
+    RAG --> Output
+    GraphRAG --> Output
 ```
 
 ---
@@ -132,10 +116,10 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 | :--- | :--- | :--- | :--- |
 | **Retrieval Strategy** | Vanilla TigerVector HNSW top-5 | Fixed 1-2 hop graph expansion + vector | **Dynamic tool dispatch (GSQL + BM25 + Vector + RRF)** |
 | **Tool Calling** | None (Single vector retrieval) | Fixed sequence | **Autonomous (Evidence Critic + Backtracking)** |
-| **Aggregations** | Fails (hallucinates counts) | Weak (misses group counts) | **100% Accurate (Compiled GSQL Accumulators)** |
-| **Temporal Chains** | Conflates adjacent Olympics | Moderate | **High Precision (`PRECEDES`/`SUCCEEDS` edges)** |
-| **Token Cost** | ~1,200 tokens/query | ~1,500 tokens/query | **0 tokens (72% of queries) \| ~800 tokens (synthesis)** |
-| **Latency** | 800ms – 1,500ms | 1,200ms – 2,000ms | **3.8ms (deterministic) \| 650ms (hybrid)** |
+| **Aggregations** | LLM over retrieved passages | Graph plus retrieved passages | Compiled GSQL accumulators when the agent selects the matching tool |
+| **Temporal Chains** | Passage retrieval | Graph expansion | `PRECEDES`/`SUCCEEDS` traversal when applicable |
+| **Token Cost** | Measured per run | Measured per run | Deterministic tools consume 0 LLM tokens; LLM calls are reported per run |
+| **Latency** | Measure with the evaluation runner | Measure with the evaluation runner | Live end-to-end GSQL example: 38.59 ms; includes network overhead |
 | **Investigation Trace** | None | Fixed subgraph triples | **Full 10-field Agentic Trace (Judges Spec)** |
 
 ---
@@ -160,14 +144,14 @@ cp .env.example .env
 
 ### 2. Run the Verification Quality Gate
 ```bash
-# Run pytest test suite (100% green, 25/25 tests)
+# Run the complete test suite
 uv run pytest
 
 # Run Ruff linter and formatter checks
 uv run ruff check && uv run ruff format --check
 
-# Run strict static type checking
-uv run mypy src/
+# Run static type checking for application and tests
+uv run mypy src/ tests/
 ```
 
 ### 3. Run the Evaluation Benchmark Suite
@@ -178,7 +162,7 @@ uv run python -m src.evaluate \
   --pipeline all \
   --output results/public_results.jsonl
 
-# Run the autonomous agent on hidden questions for submission
+# Run the autonomous agent on hidden questions
 uv run python -m src.evaluate \
   --dataset hackathon-resources/questions/eval_hidden.jsonl \
   --pipeline agentic \
@@ -200,10 +184,12 @@ Stellium provides a modern REST API with native Lunarbit `GraphSurface.tsx` visu
 | :--- | :---: | :--- |
 | `/health` | `GET` | System health check and readiness status |
 | `/api/v1/query/compare` | `POST` | Executes RAG, GraphRAG, and Agentic side-by-side |
+| `/api/v1/query/rag` | `POST` | Runs the vector RAG pipeline |
+| `/api/v1/query/graphrag` | `POST` | Runs the hybrid GraphRAG pipeline |
 | `/api/v1/query/agentic` | `POST` | Runs the full autonomous Agentic GraphRAG pipeline |
 | `/api/v1/evaluate/batch` | `POST` | Batch evaluation runner bypassing input guardrails |
 | `/api/v1/graph/snapshot` | `GET` | Serializes graph topology to Lunarbit `SnapshotDTO` |
-| `/api/v1/sessions/{id}/history` | `GET` | Hydrates persistent conversation memory from TigerGraph |
+| `/api/v1/sessions/{id}/history` | `GET` | Reads session history when supported by the configured graph |
 
 ---
 
@@ -231,16 +217,98 @@ stellium/
 │   ├── pipelines/            # Pipeline 1 (RAG), Pipeline 2 (GraphRAG), Pipeline 3 (Agentic)
 │   ├── evaluate.py           # CLI benchmark runner with Tier-1 metrics (EM, Token F1, MRR)
 │   └── api/main.py           # FastAPI backend server with CORS and snapshot serialization
-└── tests/                    # 25 automated unit and integration tests (100% green)
+└── tests/                    # Unit, integration, resilience, contract, and security tests
 ```
 
 ---
 
 ## 📜 Engineering Specifications
 
-- **Commit Protocol**: Atomic, verified micro-commits tied to green CI/CD verification cycles.
-- **Zero Docstrings Standard**: Code maintains strict documentation integrity using concise `#` inline and block comments exclusively.
-- **Grounding Mandate**: Zero hallucination on out-of-corpus queries. Responses are strictly anchored in retrieved `gold_doc_ids`.
+### Retrieval and Reasoning Formulations
+
+Dense and sparse rankings are fused by Reciprocal Rank Fusion. Here the two rankers are TigerVector HNSW and BM25Plus, and (k=60):
+
+$$
+\operatorname{RRF}(d)=\sum_{m\in\mathcal{M}}\frac{1}{k+r_m(d)},\qquad
+\mathcal{M}=\{\text{Dense HNSW},\text{Sparse BM25Plus}\},\quad k=60.
+$$
+
+The sparse ranker uses BM25Plus. The score below gives the document length normalization and additive \(\delta\) term; these are the `rank-bm25` convention and parameters used by the library defaults/configuration:
+
+$$
+\operatorname{Score}_{\mathrm{BM25+}}(D,Q)=\sum_{q_i\in Q}\operatorname{IDF}(q_i)
+\left[\frac{f(q_i,D)(k_1+1)}{f(q_i,D)+k_1\left(1-b+b\frac{|D|}{\operatorname{avgdl}}\right)}+\delta\right],
+\quad k_1=1.5,\ b=0.75,\ \delta=1.0.
+$$
+
+Evaluation normalizes answer strings before exact match and computes token overlap for F1. With token multisets \(T_{\hat y}\) and \(T_{y^*}\):
+
+$$
+\operatorname{EM}=\mathbb{I}[\operatorname{normalize}(\hat y)=\operatorname{normalize}(y^*)],\quad
+P=\frac{|T_{\hat y}\cap T_{y^*}|}{|T_{\hat y}|},\quad
+R=\frac{|T_{\hat y}\cap T_{y^*}|}{|T_{y^*}|},\quad
+F_1=\frac{2PR}{P+R}.
+$$
+
+The bitemporal module resolves fact conflicts by source authority, then validity timestamps, and reports competing versions when unresolved. A conceptual authority-and-recency score is:
+
+$$
+S(f)=\alpha\,\operatorname{Auth}(s)+\beta\,e^{-\lambda(t_{\mathrm{now}}-t_{\mathrm{valid\_from}})}\,\mathbb{I}[\operatorname{superseded\_by}(f)=\varnothing].
+$$
+
+This score is explanatory notation; the implementation's conflict resolution uses ordered authority and timestamp comparisons rather than evaluating this equation. The category mask uses integer bitwise operations; intersections of requested year, season, and sport masks can be written:
+
+$$
+M(q)=M_{\mathrm{year}}(y)\;\mathbf{AND}\;M_{\mathrm{season}}(s)\;\mathbf{AND}\;M_{\mathrm{sport}}(p).
+$$
+
+In code, a chunk is retained when its stored mask intersects the combined query mask; masks are packed integer fields, not a separate Roaring bitmap allocation.
+
+### Complexity, Memory, and Runtime Profile
+
+| Operation | Cost / profile | Scope and qualification |
+| :--- | :--- | :--- |
+| Neighbor chunk expansion | Expected (O(1)) map lookup per pointer | Uses `prev_chunk_id` / `next_chunk_id` in the in-memory coprocessor map |
+| TigerVector retrieval | Expected (O(\log N)) graph traversal | HNSW is an approximate-nearest-neighbor index; this is an expected scaling description, not a worst-case guarantee |
+| RRF fusion | (O(K\log K)) | Sorts at most the union of the input lists; current hybrid path takes up to 30 dense and 30 sparse candidates, so (K\le60) |
+| ReAct stream parsing | (O(N)) | Balanced-brace scan and line lexer over response length (N) |
+| Local coprocessor memory | Under 150 MB RSS in the reported full-corpus run | 22,016 chunks; host/runtime and measurement method affect RSS |
+| Category filtering | Integer bitwise operations | Avoids allocating candidate bit arrays; implementation scans BM25 scores when filtering |
+
+Live Savanna profiling used compiled native GSQL query installations. One `get_event_aggregates` request measured **38.59 ms end-to-end**; this includes client/network overhead, while the recorded internal execution target/measurement was **below 5 ms**. Do not compare the internal engine number directly with end-to-end API latency.
+
+### Token Economics and Recovery
+
+The configured Cloudflare Workers AI model has a recorded approximate consumption of **9 neurons per inference**. At that rate, 450 model inferences would use about **4,050 neurons**, or **40.5%** of a 10,000-neuron daily allowance. This is a planning estimate: retries, prompt length, and output length affect actual consumption. Deterministic GSQL steps report zero LLM tokens.
+
+The router locks a provider/model for each pipeline session. Transient HTTP 429/500/502/503/504/524 responses retry with backoff on that same model; provider failover starts a fresh run rather than mixing models mid-answer. The ReAct agent can select deterministic GSQL tools directly, avoiding planner/synthesis calls when its response and route permit. Bitemporal conflicts are resolved by authority first, then recency, with dual-version reports for ties or unresolved conflicts.
+
+### API and Operational Notes
+
+- The agent consumes LLM-generated ReAct tool actions; its response parser accepts structured text and JSON tool-call payloads.
+- GSQL calls use compiled named queries with parameter dictionaries.
+- Public and hidden benchmark commands are shown in Quickstart. The hidden-set command is intentionally `--pipeline agentic`; run all pipelines only when the submission protocol requests it.
+- Python application code follows the repository's no-docstring convention and uses `#` comments.
+- Commit messages follow `<type>(<scope>): <summary> [committed by master-agent-001]` for coordinator changes.
+
+### Architecture at a Glance
+
+```text
+Question
+  │
+  ├── Guardrails ── blocked request → HTTP 400
+  │
+  └── Pipeline selection
+       ├── RAG ─────────────── TigerVector HNSW ── grounded answer
+       ├── GraphRAG ────────── graph + hybrid retrieval ── grounded answer
+       └── Agentic ReAct ───── LLM chooses tools and next step
+              ├── compiled GSQL aggregations / graph traversal
+              ├── TigerVector HNSW
+              └── BM25Plus → RRF → optional cross-encoder
+                       └── evidence → answer and trace
+```
+
+**Creator and Lead Architect:** Philip Simon Derock.
 
 ---
 

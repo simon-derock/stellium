@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -125,7 +124,7 @@ Observation: {"prev_events": ["Athletics at the 2012 Summer Olympics - Men's 20 
 Thought: The PRECEDES edge traversal returned the 2012 event with gold athlete Chen Ding. Evidence is conclusive.
 Final Answer: Chen Ding
 
-Example 3 (Strategy Adaptation & Fallback):
+Example 3 (Multi-Hop Strategy Adaptation & Retrieval Pivot):
 User: Which athlete carried the flag for Italy during the closing ceremony in 2006?
 Thought: First, I will look for structured event attributes in the graph for the 2006 closing ceremony flag bearer.
 Action: gsql_lookup
@@ -159,46 +158,160 @@ class ReActParsedStep:
     is_terminal: bool = False
 
 
-_ACTION_RE = re.compile(r"Action:\s*([a-zA-Z0-9_-]+)", re.I)
-_ACTION_INPUT_RE = re.compile(r"Action Input:\s*(\{.*?\})", re.DOTALL)
-_FINAL_ANSWER_RE = re.compile(r"Final Answer:\s*(.*)", re.DOTALL | re.I)
-_THOUGHT_RE = re.compile(r"Thought:\s*(.*?)(?=\nAction:|\nFinal Answer:|$)", re.DOTALL | re.I)
+def _extract_balanced_json(text: str) -> dict[str, Any]:
+    # Multi-pass balanced brace JSON extractor.
+    # Handles markdown fences, nested objects, single-quote keys, and trailing commas.
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+
+    start_idx = cleaned.find("{")
+    if start_idx == -1:
+        return {}
+
+    depth = 0
+    in_string = False
+    escape = False
+    end_idx = -1
+
+    for i in range(start_idx, len(cleaned)):
+        char = cleaned[i]
+        if escape:
+            escape = False
+            continue
+        if char == "\\":
+            escape = True
+            continue
+        if char == '"':
+            in_string = not in_string
+            continue
+        if not in_string:
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    end_idx = i + 1
+                    break
+
+    json_str = cleaned[start_idx:end_idx] if end_idx != -1 else cleaned[start_idx:]
+
+    try:
+        data = json.loads(json_str)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+
+    try:
+        normalized = json_str.replace("'", '"')
+        normalized = (
+            normalized.replace("True", "true").replace("False", "false").replace("None", "null")
+        )
+        repaired_lines = []
+        for line in normalized.splitlines():
+            s = line.rstrip()
+            if s.endswith(","):
+                repaired_lines.append(s[:-1])
+            else:
+                repaired_lines.append(s)
+        data = json.loads("\n".join(repaired_lines))
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+
+    return {}
 
 
 def parse_react_response(text: str) -> ReActParsedStep:
-    # Parses ReAct formatted LLM response into structured Thought, Action, Action Input, or Final Answer.
+    # Production-grade multi-grammar parser for ReAct reasoning streams.
+    # Supports native JSON tool-calling schema and structured text ReAct blocks.
     step = ReActParsedStep()
+    raw = text.strip()
+    if not raw:
+        return step
 
-    # Extract thought
-    thought_m = _THOUGHT_RE.search(text)
-    if thought_m:
-        step.thought = thought_m.group(1).strip()
+    # Grammar 1: Direct JSON tool-call schema
+    if raw.startswith("{") or raw.startswith("```json"):
+        json_obj = _extract_balanced_json(raw)
+        if json_obj:
+            if "thought" in json_obj:
+                step.thought = str(json_obj["thought"]).strip()
+            if "final_answer" in json_obj:
+                step.final_answer = sanitize_output(str(json_obj["final_answer"]).strip())
+                step.is_terminal = True
+                return step
+            if "action" in json_obj:
+                step.action = str(json_obj["action"]).strip().lower()
+                step.action_input = json_obj.get("action_input") or {}
+                if step.action == "finish":
+                    step.is_terminal = True
+                    step.final_answer = sanitize_output(
+                        str(step.action_input.get("answer", "")).strip()
+                    )
+                return step
 
-    # Check for Final Answer
-    final_m = _FINAL_ANSWER_RE.search(text)
-    if final_m:
-        step.final_answer = sanitize_output(final_m.group(1).strip())
+    # Grammar 2: Token-boundary stream lexer for text ReAct blocks
+    lines = raw.splitlines()
+    current_section: str | None = None
+    thought_lines: list[str] = []
+    final_answer_lines: list[str] = []
+    action_input_lines: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+        lower = stripped.lower()
+
+        if lower.startswith("final answer:") or lower.startswith("**final answer:**"):
+            current_section = "final_answer"
+            content = stripped.split(":", 1)[1].strip(" *")
+            if content:
+                final_answer_lines.append(content)
+            continue
+        elif lower.startswith("thought:") or lower.startswith("**thought:**"):
+            current_section = "thought"
+            content = stripped.split(":", 1)[1].strip(" *")
+            if content:
+                thought_lines.append(content)
+            continue
+        elif lower.startswith("action:") or lower.startswith("**action:**"):
+            current_section = "action"
+            act_name = stripped.split(":", 1)[1].strip(" *`'\"")
+            step.action = act_name.lower()
+            continue
+        elif lower.startswith("action input:") or lower.startswith("**action input:**"):
+            current_section = "action_input"
+            content = stripped.split(":", 1)[1].strip()
+            if content:
+                action_input_lines.append(content)
+            continue
+        elif lower.startswith("observation:"):
+            break
+
+        if current_section == "thought":
+            thought_lines.append(stripped)
+        elif current_section == "final_answer":
+            final_answer_lines.append(stripped)
+        elif current_section == "action_input":
+            action_input_lines.append(stripped)
+
+    step.thought = " ".join(thought_lines).strip()
+
+    if final_answer_lines:
+        ans_text = " ".join(final_answer_lines).strip()
+        step.final_answer = sanitize_output(ans_text)
         step.is_terminal = True
         return step
 
-    # Extract Action
-    action_m = _ACTION_RE.search(text)
-    if action_m:
-        step.action = action_m.group(1).strip().lower()
-
-    # Extract Action Input JSON
-    input_m = _ACTION_INPUT_RE.search(text)
-    if input_m:
-        raw_json = input_m.group(1).strip()
-        try:
-            step.action_input = json.loads(raw_json)
-        except json.JSONDecodeError:
-            # Fallback: clean loose quotes or unescaped characters
-            cleaned = raw_json.replace("'", '"')
-            try:
-                step.action_input = json.loads(cleaned)
-            except Exception:
-                step.action_input = {}
+    if action_input_lines:
+        input_raw = "\n".join(action_input_lines).strip()
+        step.action_input = _extract_balanced_json(input_raw)
 
     if step.action == "finish":
         step.is_terminal = True
@@ -440,9 +553,9 @@ class AgenticPipeline:
                 )
                 break
 
-            # If no action was emitted (e.g. offline fallback or direct answer)
+            # Direct response generated without tool invocation
             if not step_parsed.action:
-                # Direct answer synthesis or offline mode fallback
+                # Direct synthesis branch
                 state.final_answer = sanitize_output(llm_res.content.strip())
                 state.stopping_reason = "Single-step direct reasoning completed"
                 state.confidence_score = 0.80

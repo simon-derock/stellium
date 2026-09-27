@@ -99,6 +99,9 @@ class BM25Index:
 
     def build(self, chunks: Iterable[Chunk]) -> None:
         self._chunks = list(chunks)
+        if not self._chunks:
+            self._bm25 = None
+            return
         # Tokenize normalized raw text (no metadata header to avoid over-weighting).
         tokenized = [normalize(c.raw_text).lower().split() for c in self._chunks]
         self._bm25 = BM25Plus(tokenized)

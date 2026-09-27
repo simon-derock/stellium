@@ -126,3 +126,44 @@ Action Input: {"answer": "Adapted Answer", "confidence": 0.85, "citations": ["do
         assert result.answer == "Adapted Answer"
         assert result.agentic_trace is not None
         assert result.agentic_trace["step_count"] >= 2
+
+
+def test_parse_react_response_direct_json_schema() -> None:
+    # Verifies production parser on direct JSON tool-call output
+    raw_output = """{
+        "thought": "Querying TigerGraph for preceding event winners",
+        "action": "gsql_temporal",
+        "action_input": {"sport": "Athletics", "current_year": 2016, "event_name_fragment": "20 kilometres walk"}
+    }"""
+    parsed = parse_react_response(raw_output)
+    assert parsed.thought == "Querying TigerGraph for preceding event winners"
+    assert parsed.action == "gsql_temporal"
+    assert parsed.action_input["sport"] == "Athletics"
+    assert parsed.action_input["current_year"] == 2016
+    assert not parsed.is_terminal
+
+
+def test_parse_react_response_markdown_fenced_and_nested() -> None:
+    # Verifies production parser with markdown code fences and nested JSON objects
+    raw_output = """Thought: Searching hybrid index with complex nested filter.
+Action: hybrid_search
+Action Input: ```json
+{
+    "query": "flag bearer 2006",
+    "filter": {"season": "Winter", "year": 2006}
+}
+```"""
+    parsed = parse_react_response(raw_output)
+    assert parsed.thought == "Searching hybrid index with complex nested filter."
+    assert parsed.action == "hybrid_search"
+    assert parsed.action_input["filter"]["season"] == "Winter"
+
+
+def test_parse_react_response_markdown_bold_headers() -> None:
+    # Verifies production parser on markdown bold headers
+    raw_output = """**Thought:** The evidence across graph edges confirms Chen Ding won the 2012 gold.
+**Final Answer:** Chen Ding"""
+    parsed = parse_react_response(raw_output)
+    assert "Chen Ding" in parsed.thought
+    assert parsed.final_answer == "Chen Ding"
+    assert parsed.is_terminal

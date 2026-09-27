@@ -36,6 +36,7 @@ _LEAK_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"sk-[0-9A-Za-z]{32,}"),
     re.compile(r"Bearer\s+[A-Za-z0-9\-\._~\+\/]+=*"),
     re.compile(r"TG_(?:PASSWORD|SECRET)\s*=\s*\S+"),
+    re.compile(r"jina_[0-9a-zA-Z]{20,}"),
 ]
 
 # Max input length for interactive endpoints (batch eval has no limit).

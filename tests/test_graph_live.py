@@ -21,6 +21,7 @@ from src.graph.verify_live import (
 load_dotenv()
 
 _HAS_LIVE_CREDS = bool(os.environ.get("TG_HOST") and os.environ.get("TG_SECRET"))
+_RUN_LIVE_TESTS = _HAS_LIVE_CREDS and os.environ.get("TG_RUN_LIVE_TESTS") == "1"
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +115,7 @@ def test_mock_benchmark_queries() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(not _HAS_LIVE_CREDS, reason="Live TigerGraph credentials not configured")
+@pytest.mark.skipif(not _RUN_LIVE_TESTS, reason="Set TG_RUN_LIVE_TESTS=1 to run live cluster tests")
 def test_live_tigergraph_connection() -> None:
     # Verifies real live connection and token authentication against TigerGraph Savanna.
     conn = connect()
@@ -125,7 +126,7 @@ def test_live_tigergraph_connection() -> None:
     assert "4." in report["version"]
 
 
-@pytest.mark.skipif(not _HAS_LIVE_CREDS, reason="Live TigerGraph credentials not configured")
+@pytest.mark.skipif(not _RUN_LIVE_TESTS, reason="Set TG_RUN_LIVE_TESTS=1 to run live cluster tests")
 def test_live_tigergraph_schema() -> None:
     # Verifies all 6 vertices, 7 edges, and HNSW vector index on live Savanna cluster.
     conn = connect()
@@ -137,7 +138,7 @@ def test_live_tigergraph_schema() -> None:
     assert report["vector_ok"] is True, "Vector embedding attribute missing from Chunk"
 
 
-@pytest.mark.skipif(not _HAS_LIVE_CREDS, reason="Live TigerGraph credentials not configured")
+@pytest.mark.skipif(not _RUN_LIVE_TESTS, reason="Set TG_RUN_LIVE_TESTS=1 to run live cluster tests")
 def test_live_tigergraph_compiled_queries() -> None:
     # Verifies that all 6 compiled queries execute with sub-second latency on live Savanna.
     conn = connect()
