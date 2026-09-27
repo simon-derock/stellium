@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from src.embeddings import JinaEmbeddingClient
 from src.graph.mock import MockTigerGraphConnection, create_mock_graph_client
 from src.ingest import (
@@ -258,3 +260,26 @@ def test_prepare_ingestion_plan_mock_embeddings(tmp_path: Path) -> None:
     first_chunk = plan.chunk_batches[0].records[0]
     assert "embedding" in first_chunk[1]
     assert first_chunk[1]["embedding"] == expected_vector
+
+
+def test_prepare_ingestion_plan_rejects_embedding_cardinality_mismatch(
+    tmp_path: Path,
+) -> None:
+    corpus_path = tmp_path / "embedding_cardinality.jsonl"
+    corpus_path.write_text(
+        '{"doc_id":"Q400","wikidata_qid":"Q400","wikipedia_pageid":400,'
+        '"title":"Rowing at the 2012 Summer Olympics",'
+        '"url":"https://en.wikipedia.org/wiki/rowing",'
+        '"text":"[Infobox Olympic event]\\n games: 2012 Summer\\n event: rowing\\n\\nFinals.",'
+        '"approx_tokens":20}\n',
+        encoding="utf-8",
+    )
+    client = JinaEmbeddingClient(api_key="configured", dimension=1024)
+    client.embed_passages = lambda texts, late_chunking=False: []  # type: ignore[method-assign]
+
+    with pytest.raises(ValueError, match="returned 0 vectors for 1 chunks"):
+        prepare_ingestion_plan(
+            corpus_path,
+            embedding_client=client,
+            cache_path=tmp_path / "embedding_cache.jsonl",
+        )

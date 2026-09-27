@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from src.ingest.batch_upsert import (
     load_chunk_embeddings_cache,
     save_chunk_embeddings_batch,
@@ -68,3 +70,36 @@ def test_checkpoint_cache_corrupted_line_resilience(tmp_path: Path) -> None:
     assert len(cache) == 2
     assert "c_valid_1" in cache
     assert "c_valid_2" in cache
+
+
+def test_checkpoint_cache_skips_wrong_dimension_and_non_finite_vectors(
+    tmp_path: Path,
+) -> None:
+    cache_file = tmp_path / "invalid_vectors.jsonl"
+    rows = [
+        {"chunk_id": "wrong_dimension", "embedding": [0.1] * 3},
+        {"chunk_id": "nan_value", "embedding": [0.1] * 1023 + [float("nan")]},
+        {"chunk_id": "bool_value", "embedding": [0.1] * 1023 + [True]},
+        {"chunk_id": "valid", "embedding": [0.25] * 1024},
+    ]
+    cache_file.write_text("\n".join(json.dumps(row) for row in rows), encoding="utf-8")
+
+    loaded = load_chunk_embeddings_cache(cache_file)
+
+    assert list(loaded) == ["valid"]
+    assert loaded["valid"] == [0.25] * 1024
+
+
+def test_checkpoint_cache_rejects_invalid_batch_without_partial_append(
+    tmp_path: Path,
+) -> None:
+    cache_file = tmp_path / "atomic_validation.jsonl"
+    cache_file.write_text('{"chunk_id":"existing","embedding":[]}\n', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="expected 1024 finite numeric values"):
+        save_chunk_embeddings_batch(
+            [("valid", [0.5] * 1024), ("invalid", [float("inf")] * 1024)],
+            cache_file,
+        )
+
+    assert cache_file.read_text(encoding="utf-8") == '{"chunk_id":"existing","embedding":[]}\n'

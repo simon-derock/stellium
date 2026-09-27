@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import sys
 import time
 from dataclasses import dataclass, field
@@ -27,6 +28,19 @@ from src.models import Chunk
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_PATH = Path("data/chunk_embeddings_cache.jsonl")
+_GRAPH_EMBEDDING_DIMENSION = 1024
+
+
+def _validated_embedding(values: Any) -> list[float] | None:
+    # Only reuse vectors that match the deployed TigerGraph schema exactly.
+    if not isinstance(values, list) or len(values) != _GRAPH_EMBEDDING_DIMENSION:
+        return None
+    if any(
+        isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
+        for value in values
+    ):
+        return None
+    return [float(value) for value in values]
 
 
 def partition_items[T](items: list[T], batch_size: int) -> list[list[T]]:
@@ -50,8 +64,9 @@ def load_chunk_embeddings_cache(cache_path: Path = DEFAULT_CACHE_PATH) -> dict[s
                         item = json.loads(line_str)
                         cid = item.get("chunk_id")
                         emb = item.get("embedding")
-                        if cid and isinstance(emb, list):
-                            cache[cid] = emb
+                        validated = _validated_embedding(emb)
+                        if isinstance(cid, str) and cid and validated is not None:
+                            cache[cid] = validated
                     except Exception:
                         continue
     except Exception as exc:
@@ -64,9 +79,19 @@ def save_chunk_embeddings_batch(
     cache_path: Path = DEFAULT_CACHE_PATH,
 ) -> None:
     # Appends and flushes a batch of chunk_id and embedding pairs to disk cache.
+    validated_records: list[tuple[str, list[float]]] = []
+    for cid, embedding in records:
+        validated = _validated_embedding(embedding)
+        if not cid or validated is None:
+            raise ValueError(
+                f"Invalid embedding cache record for chunk {cid!r}: "
+                f"expected {_GRAPH_EMBEDDING_DIMENSION} finite numeric values"
+            )
+        validated_records.append((cid, validated))
+
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     with open(cache_path, "a", encoding="utf-8") as f:
-        for cid, emb in records:
+        for cid, emb in validated_records:
             f.write(json.dumps({"chunk_id": cid, "embedding": emb}) + "\n")
         f.flush()
 
@@ -236,6 +261,11 @@ def prepare_ingestion_plan(
                 sub_batch = missing_chunks[idx : idx + b_size]
                 sub_texts = [c.text for c in sub_batch]
                 sub_embs = embedding_client.embed_passages(sub_texts, late_chunking=False)
+                if len(sub_embs) != len(sub_batch):
+                    raise ValueError(
+                        "Embedding provider returned "
+                        f"{len(sub_embs)} vectors for {len(sub_batch)} chunks"
+                    )
                 new_pairs = [(c.chunk_id, emb) for c, emb in zip(sub_batch, sub_embs)]
                 save_chunk_embeddings_batch(new_pairs, cache_path)
                 for cid, emb in new_pairs:
