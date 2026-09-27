@@ -1,10 +1,8 @@
 # Load, concurrency, volume, and latency SLA stress testing.
-# Verifies system throughput, thread safety, and sub-millisecond coprocessor operations.
+# Verifies system throughput, concurrent read safety, and coprocessor operations.
 
-import asyncio
 import time
-
-import pytest
+from concurrent.futures import ThreadPoolExecutor
 
 from src.coprocessor import Coprocessor, reciprocal_rank_fusion
 from src.models import Chunk
@@ -29,10 +27,9 @@ def _make_sample_chunks(count: int = 50) -> list[Chunk]:
     return chunks
 
 
-@pytest.mark.asyncio
-async def test_concurrent_coprocessor_search_stress() -> None:
-    # Simulates 100 concurrent async search requests against the coprocessor.
-    # Asserts thread safety, zero data races, and median latency < 10ms.
+def test_concurrent_coprocessor_search_stress() -> None:
+    # Runs 100 concurrent reads against one shared coprocessor instance.
+    # Asserts stable results and median latency < 10ms.
     chunks = _make_sample_chunks(100)
     coproc = Coprocessor()
     coproc.build(chunks)
@@ -45,23 +42,22 @@ async def test_concurrent_coprocessor_search_stress() -> None:
         "Skiing Olympic",
     ]
 
-    latencies: list[float] = []
-
-    async def worker(query: str) -> None:
+    def worker(query: str) -> tuple[float, int]:
         t0 = time.perf_counter()
         results = coproc.bm25_search(query, top_k=10)
         elapsed = (time.perf_counter() - t0) * 1000
-        latencies.append(elapsed)
-        assert len(results) > 0
+        return elapsed, len(results)
 
-    # Fire 100 concurrent coroutines
-    tasks = [worker(queries[i % len(queries)]) for i in range(100)]
-    await asyncio.gather(*tasks)
+    # Worker threads overlap synchronous reads from the shared in-memory index.
+    requests = [queries[i % len(queries)] for i in range(100)]
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        measurements = list(executor.map(worker, requests))
 
-    latencies.sort()
+    latencies = sorted(elapsed for elapsed, _ in measurements)
     median_latency = latencies[len(latencies) // 2]
     p99_latency = latencies[int(len(latencies) * 0.99)]
 
+    assert all(result_count > 0 for _, result_count in measurements)
     # SLA requirements: median sub-millisecond or sub-5ms in Python
     assert median_latency < 10.0, f"Median latency exceeded SLA: {median_latency:.2f}ms"
     assert p99_latency < 30.0, f"p99 latency exceeded SLA: {p99_latency:.2f}ms"

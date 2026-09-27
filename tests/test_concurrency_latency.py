@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import time
+from unittest.mock import AsyncMock, patch
 
+import httpx
 import pytest
 
 from src.coprocessor import Coprocessor
 from src.embeddings import AdaptiveRateLimiter
+from src.llm import LLMCallResult, LockedLLMSession
 from src.models import Chunk
 
 
@@ -61,12 +64,34 @@ def test_adaptive_rate_limiter_throttling() -> None:
 
 @pytest.mark.asyncio
 async def test_concurrent_evaluation_thread_safety() -> None:
-    # Concurrency: 10 concurrent async pipeline queries must execute without race conditions
-    async def worker(task_id: int) -> int:
-        await asyncio.sleep(0.01)
-        return task_id * 2
+    # Concurrent requests through a shared locked session retain their input identity/model.
+    session = LockedLLMSession(provider="cloudflare", model="test-model")
 
-    tasks = [worker(i) for i in range(10)]
-    results = await asyncio.gather(*tasks)
+    async def fake_provider_call(
+        model: str,
+        messages: list[dict[str, str]],
+        max_tokens: int,
+        temperature: float = 0.0,
+        client: httpx.AsyncClient | None = None,
+    ) -> LLMCallResult:
+        await asyncio.sleep(0.005)
+        return LLMCallResult(
+            content=messages[-1]["content"],
+            input_tokens=1,
+            output_tokens=1,
+            model_name=model,
+            provider="mock",
+            latency_ms=5.0,
+        )
 
-    assert results == [i * 2 for i in range(10)]
+    requests = [f"query-{index}" for index in range(20)]
+    provider_call = AsyncMock(side_effect=fake_provider_call)
+    with patch.dict(LockedLLMSession.chat.__globals__, {"_call_cloudflare": provider_call}):
+        results = await asyncio.gather(
+            *(session.chat([{"role": "user", "content": request}]) for request in requests)
+        )
+
+    assert provider_call.await_count == len(requests)
+    assert [result.content for result in results] == requests
+    assert {result.model_name for result in results} == {"test-model"}
+    assert all(result.input_tokens + result.output_tokens == 2 for result in results)
