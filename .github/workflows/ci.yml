@@ -2,7 +2,7 @@ name: Stellium CI/CD Quality Gate
 
 on:
   push:
-    branches: [main, "release/**", "feature/**"]
+    branches: [main, "release/**", "feature/**", "agent/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -11,10 +11,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   quality-gate:
     name: Code Quality & Static Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -22,14 +26,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: "0.9.5"
           enable-cache: true
 
       - name: Set up Python
         run: uv python install 3.12
 
       - name: Install Dependencies
-        run: uv sync --extra dev
+        run: uv sync --locked --extra dev
 
       - name: Ruff Linter Check
         run: uv run ruff check --output-format=github
@@ -38,11 +42,23 @@ jobs:
         run: uv run ruff format --check
 
       - name: Mypy Strict Static Typing
-        run: uv run mypy src/
+        run: uv run mypy src/ tests/
+
+      - name: Bandit Security Scan
+        run: uv run bandit -r src/ -ll
+
+      - name: Dependency Vulnerability Audit
+        run: uv run pip-audit
 
   test-suite:
     name: Test Suite & Coverage (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TG_USE_MOCK: "1"
+      TG_RUN_LIVE_TESTS: "0"
+      CLOUDFLARE_ACCOUNT_ID: ""
+      CLOUDFLARE_API_TOKEN: ""
     strategy:
       fail-fast: false
       matrix:
@@ -54,14 +70,14 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          version: "latest"
+          version: "0.9.5"
           enable-cache: true
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
       - name: Install Dependencies
-        run: uv sync --extra dev
+        run: uv sync --locked --extra dev
 
       - name: Run Pytest with Coverage
         run: |
@@ -69,6 +85,7 @@ jobs:
             --cov=src \
             --cov-report=term-missing \
             --cov-report=xml \
+            --cov-fail-under=70 \
             --durations=10 \
             -v
 
@@ -83,9 +100,15 @@ jobs:
 
       - name: API Server Smoke Test
         run: |
-          uv run uvicorn src.api.main:app --port 8000 &
+          set -euo pipefail
+          uv run uvicorn src.api.main:app --host 127.0.0.1 --port 8000 &
           PID=$!
-          sleep 4
-          curl -f http://127.0.0.1:8000/health || (kill $PID && exit 1)
-          curl -f http://127.0.0.1:8000/api/v1/graph/snapshot || (kill $PID && exit 1)
-          kill $PID
+          trap 'kill "$PID" 2>/dev/null || true; wait "$PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8000/health >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/health
+          curl --fail --silent http://127.0.0.1:8000/api/v1/graph/snapshot >/dev/null
