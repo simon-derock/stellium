@@ -6,19 +6,19 @@
 [ORCHESTRA:INDEX]
 - [ORCHESTRA:COMMON]              : System Purpose, Tech Stack, Quality Gates & Coding Standards
 - [ORCHESTRA:REPO_GIT]            : Repository Origin, Branching Model & Commit Signature Protocol
-- [ORCHESTRA:LLM_ROUTER]          : Multi-Provider Resilient LLM Router (Gemini, Mistral, Cloudflare)
+- [ORCHESTRA:LLM_ROUTER]          : Session-Locked LLM Router (Cloudflare primary; providers configurable)
 - [ORCHESTRA:GUARDRAILS]          : Pragmatic 3-Layer Security Guardrails (Injection, GSQL, Leak Defenses)
 - [ORCHESTRA:SCHEMA]              : TigerGraph Savanna Graph Schema, Embedding Space & GSQL Stored Queries
 - [ORCHESTRA:LINKED_CHUNKS]       : Doubly Linked Chunk & Event Hierarchy (Low-Byte Predecessor/Successor)
 - [ORCHESTRA:PIPELINES]           : 3-Way Comparative Benchmark Pipelines (RAG, GraphRAG, Agentic GraphRAG)
-- [ORCHESTRA:COPROCESSOR]         : High-Speed Coprocessor (Roaring Bitmasks, BM25, RRF, Cross-Encoder)
-- [ORCHESTRA:AGENT_HARNESS]       : LangGraph StateGraph, Tool Dispatch, Gap Critic & Adaptive Stopping
-- [ORCHESTRA:EVAL_BENCHMARK]      : 150-Question Evaluation Suite, Tier-1 Instant Metrics & Tier-2 Ragas
+- [ORCHESTRA:COPROCESSOR]         : Local Retrieval (Packed Integer Masks, BM25Plus, RRF, Optional Cross-Encoder)
+- [ORCHESTRA:AGENT_HARNESS]       : Bounded Cyclic ReAct Loop, Tool Dispatch, Evidence Review & Adaptive Stopping
+- [ORCHESTRA:EVAL_BENCHMARK]      : Public/Hidden Evaluation, Metrics & Reproducible Quality Measurement
 - [ORCHESTRA:DASHBOARD_FRONTEND]  : Lunarbit GraphSurface Visualizer, FastAPI Bridge & Snapshot DTOs
 - [ORCHESTRA:MASTER:001]          : Master Orchestrator Operational Playbook & Live Auditing
 - [ORCHESTRA:AGENT:001]           : Stream 1: Ingestion, Table-Aware Chunking & Savanna Graph Ingestion
 - [ORCHESTRA:AGENT:002]           : Stream 2: High-Speed Hybrid Coprocessor (Bitmasks, BM25, RRF)
-- [ORCHESTRA:AGENT:003]           : Stream 3: LangGraph Agentic Engine & GSQL Reasoning Tools
+- [ORCHESTRA:AGENT:003]           : Stream 3: ReAct Agent Loop & GSQL Reasoning Tools
 - [ORCHESTRA:AGENT:004]           : Stream 4: Evaluation Runner, Metrics Engine & React Dashboard Integration
 - [ORCHESTRA:SESSION_MEMORY]      : Persistent Chat History & Agent Memory in TigerGraph (Survives Refresh)
 - [ORCHESTRA:AGENTIC_TRACE]       : Full Agentic Trace Schema Required by Judges
@@ -26,6 +26,14 @@
 - [ORCHESTRA:DELIVERABLES]        : Submission Artifacts Checklist (GitHub, Video, Diagrams, Dashboard, Writeup)
 - [ORCHESTRA:HACKATHON_RULES]     : Binding Rulings from Organizer Q&A (Same Model, 0-Token, Anti-Hardcode)
 [/ORCHESTRA:INDEX]
+
+## Verified Baseline and Status Rules
+
+This specification records both the desired system and implementation work. A requirement is not complete merely because it appears in an architecture description. Use these labels in task tracking: **Implemented** means verified in current code or runtime; **Partial** means a primitive exists but the stated user-facing behavior is incomplete; **Missing** means no implementation evidence exists. Performance and accuracy numbers require reproducible result artifacts before they can be presented as measured outcomes.
+
+Verified starting point (2026-09-28): the agent is a bounded cyclic ReAct loop in `src/pipelines/agentic.py`; TigerGraph uses the 1024-dimensional Jina embedding space; local sparse retrieval uses `rank-bm25` and packed integer masks; the API serves a single HTML dashboard and Lunarbit source samples are under `samples/frontend/`. Persistent session history, query-specific graph snapshots, the maintained premium frontend, and complete public benchmark artifacts are not yet implemented. The snapshot endpoint intentionally returns empty data until live query-derived data is wired in.
+
+The primary quality objective is **at least 98% measured answer accuracy**, pursued without hard-coded answers or hidden-set tuning. Treat this as a target, not a result or guarantee. Report accuracy with completeness, evidence/citation quality, latency, token use, and question-category breakdowns.
 
 ---
 
@@ -38,10 +46,10 @@ The fundamental research thesis is to prove where Agentic GraphRAG provides posi
 ## 2. Core Tech Stack
 - Runtime: Python 3.12+ managed exclusively via `uv` (0.9.5+).
 - Graph & Vector Engine: TigerGraph Savanna (GSQL compiled queries + TigerVector HNSW embedding space).
-- Agent Harness: LangGraph (StateGraph) + `pyTigerGraph[mcp]`.
-- Hybrid Search Coprocessor: BM25 (`rank-bm25`), Roaring Bitmaps (`pyroaring`), Reciprocal Rank Fusion (RRF), Cross-Encoder reranker (`sentence-transformers`).
+- Agent Harness: bounded cyclic ReAct loop with LLM-selected tools and session-locked LLM calls.
+- Hybrid Search Coprocessor: BM25Plus (`rank-bm25`), packed integer category masks, Reciprocal Rank Fusion (RRF), optional Cross-Encoder reranker (`sentence-transformers`).
 - Backend API: FastAPI (async ASGI) + Pydantic v2.
-- Frontend: React 18 + TypeScript + Vite + Tailwind CSS + Lunarbit `GraphSurface.tsx` (Canvas force simulation).
+- Frontend target: premium React/TypeScript dashboard based on Lunarbit samples under `samples/frontend/`. Current app is a single HTML file served by FastAPI.
 - Quality Tooling: `ruff` (linter and formatter), `mypy` (strict static typing), `pytest` (test runner).
 
 ## 3. Strict Quality Gates & Coding Standards
@@ -73,24 +81,23 @@ stellium/
 │   └── frontend/                    # Lunarbit GraphSurface.tsx source files
 ├── src/
 │   ├── __init__.py
-│   ├── models/                      # Pydantic domain models (AgentState, DTOs, etc.)
+│   ├── models/__init__.py           # Pydantic domain models (AgentState, DTOs, etc.)
 │   ├── ingest/                      # Corpus parser, table-aware chunker, header injector
 │   ├── graph/                       # TigerGraph Savanna client, DDL scripts, mock adapter
-│   ├── coprocessor/                 # BM25, Roaring Bitmasks, RRF, Cross-Encoder reranker
-│   ├── agent/                       # LangGraph StateGraph, tool dispatch, critic, stopping
+│   ├── coprocessor/                 # BM25Plus, packed integer masks, RRF, optional reranker
 │   ├── pipelines/                   # Pipeline 1 (RAG), Pipeline 2 (GraphRAG), Pipeline 3 (Agentic)
 │   ├── llm/                         # Multi-provider LLM router with circuit breaker
 │   ├── guardrails/                  # Input sanitizer, output leak guard
 │   ├── evaluate.py                  # CLI evaluation runner (--pipeline, --dataset, --output)
 │   └── api/
 │       └── main.py                  # FastAPI app with /query/{rag|graphrag|agentic|compare}
-├── frontend/                        # Vite + React + TypeScript dashboard (production build)
+├── src/api/static/index.html        # Current single-file dashboard
+├── samples/frontend/                # Lunarbit graph visualization source and style reference
 ├── tests/
 │   ├── __init__.py
 │   ├── test_smoke.py                # Environment & import sanity
 │   ├── test_ingest/                 # Chunker, header injection, linked pointer tests
 │   ├── test_coprocessor/            # Bitmask, BM25, RRF, reranker tests
-│   ├── test_agent/                  # LangGraph state transitions, tool dispatch tests
 │   ├── test_pipelines/              # Pipeline 1/2/3 contract tests
 │   └── test_eval/                   # Metric computation (EM, F1, MRR) tests
 └── results/                         # Generated evaluation output (gitignored except final submissions)
@@ -111,16 +118,15 @@ MISTRAL_API_KEY=
 CLOUDFLARE_ACCOUNT_ID=
 CLOUDFLARE_API_TOKEN=
 
-# Embedding Model
-OPENAI_API_KEY=
-EMBEDDING_MODEL=text-embedding-3-small
-EMBEDDING_DIMENSION=1536
+# Embedding Model (Jina v5 text-small; must match TigerGraph's vector dimension)
+JINA_API_KEY=
+JINA_EMBEDDING_MODEL=jina-embeddings-v5-text-small
+EMBEDDING_DIMENSION=1024
 ```
 
-## 6. Primary Judging Surface: Hosted Live Web Application
-Judges evaluate the system primarily via a hosted web application (not CLI).
-The live web app must support:
-- Preset dropdown selector for all 100 public + 50 hidden questions.
+## 6. Target Judging Surface: Hosted Live Web Application
+The hackathon requires a working system and metrics dashboard. A hosted experience is our target presentation surface; it is not yet complete. The finished app should support:
+- Preset dropdown selector for public questions only; the hidden set is for the required submission run, not public demo presets.
 - Free-form custom query input (adversarial and edge-case queries by judges).
 - 3-column comparative view: RAG answer vs. GraphRAG answer vs. Agentic GraphRAG answer.
 - Token cost and latency gauges per pipeline.
@@ -184,7 +190,7 @@ Valid Agent Identifiers:
 - `master-agent-001` : Lead Architect & Master Coordinator
 - `agent-001`        : Ingestion & Schema Worker
 - `agent-002`        : Hybrid Search Coprocessor Worker
-- `agent-003`        : LangGraph Agentic Engine Worker
+- `agent-003`        : ReAct Agent Loop & GSQL Tools Worker
 - `agent-004`        : Evaluation & Dashboard Worker
 
 Examples:
@@ -203,24 +209,21 @@ Within a single pipeline execution for a single question, ALL LLM calls must use
 
 ### Model Lock Protocol
 ```text
-1. Before starting a pipeline run, lock a model (e.g., gemini-2.0-flash).
-2. ALL LLM calls within that run (classifier, planner, critic, synthesis) use ONLY the locked model.
+1. Before starting a pipeline run, lock the selected provider/model (Cloudflare is the default).
+2. ALL LLM calls within that run use ONLY the locked provider/model.
 3. If the locked model returns 429 mid-run: RETRY with exponential backoff on the SAME model.
-4. Only if the provider is completely unreachable after N retries: ABORT the run and re-queue
-   the question with the next fallback provider for a FRESH complete re-run.
+4. Current behavior raises after retry exhaustion. Automatic fresh-run fallback/re-queue is not implemented yet.
 5. NEVER mix models within a single question's pipeline execution.
 ```
 
-### Provider Tier Chain (Run-Level Selection)
+### Configured Providers (Run-Level Selection)
 ```text
-Tier 1 (Primary):  Google Gemini API (gemini-2.0-flash)
-Tier 2 (Fallback): Mistral AI API (mistral-large / mistral-small)
-Tier 3 (Fallback): Cloudflare Workers AI (@cf/meta/llama-3.3-70b-instruct)
+Default: Cloudflare Workers AI (@cf/meta/llama-3.1-8b-instruct-fast)
+Also selectable: Google Gemini and Mistral (configured model constants in src/llm/)
 ```
 
 ### Deterministic Steps Are Model-Free
-Steps that use 0 LLM tokens (GSQL queries, bitmask filters, regex classification) have no model
-to constrain. The same-model rule only applies when the system DOES invoke an LLM.
+Steps that use 0 LLM tokens (GSQL queries and local filtering) have no model to constrain. The ReAct loop selects tools; there is no regex-based question classifier.
 
 ### Telemetry
 Every LLM call logs: `model_name`, `provider`, `prompt_tokens`, `completion_tokens`, `latency_ms`.
@@ -299,8 +302,8 @@ CREATE GRAPH OlympicsGraph()
 
 # Embedding Space Definition (TigerVector HNSW)
 CREATE EMBEDDING SPACE OlympicChunkSpace (
-    DIMENSION = 1536,
-    MODEL = 'text-embedding-3-small',
+  DIMENSION = 1024,
+  MODEL = 'jina-embeddings-v5-text-small',
     INDEX = HNSW,
     DATATYPE = FLOAT,
     METRIC = COSINE
@@ -427,9 +430,9 @@ To avoid chunk boundary truncation and support chronological progression, chunks
 - In TigerGraph, materialized as `prev_event_id` attribute and `PRECEDES` / `SUCCEEDS` directed edges.
 
 ### Behavioral Differentiation Across Pipelines
-- Pipeline 1 (RAG): PRIMARY BENEFICIARY. Standard vector RAG retrieves disjoint top-$k$ chunks with no awareness of neighbors. By storing `prev_chunk_id` / `next_chunk_id` directly in the chunk metadata, the RAG pipeline can optionally fetch adjacent chunks when the top-1 chunk appears truncated (e.g., a medal table split mid-row). This is a lightweight O(1) pointer dereference, not a graph traversal.
-- Pipeline 2 (GraphRAG): Does NOT need chunk-level pointers. GraphRAG natively uses TigerGraph `PRECEDES` / `SUCCEEDS` edges for event-level temporal succession and `HAS_CHUNK` edges for document-to-chunk expansion. The graph structure itself is the linked list.
-- Pipeline 3 (Agentic GraphRAG): PRIMARY BENEFICIARY. The Evidence Critic can detect when a retrieved chunk is incomplete (e.g., a result table is cut off, or a temporal question requires the prior edition). It then calls `expand_chunk_window(chunk_id, direction="prev"|"next")` using the stored pointer to fetch the adjacent chunk in O(1), or `get_preceding_winner()` via GSQL for event-level temporal chains.
+- Pipeline 1 (RAG): the baseline currently retrieves vector top-5 and does not expand adjacent chunks. The coprocessor stores chunk pointers and offers an expected O(1) in-memory neighbor lookup; wiring that behavior into a pipeline remains future work.
+- Pipeline 2 (GraphRAG): currently performs fixed graph lookups/multihop queries plus dense retrieval; it does not currently use chunk-level neighbor expansion or the temporal predecessor tool.
+- Pipeline 3 (Agentic GraphRAG): can use the temporal GSQL tool. Chunk-neighbor expansion is not yet exposed to the ReAct loop, and the evidence critic remains a roadmap item.
 [/ORCHESTRA:LINKED_CHUNKS]
 
 ---
@@ -441,51 +444,48 @@ The baseline must be vanilla to create maximum contrast with Agentic GraphRAG.
 - Generation: Single-turn LLM call: inject top-k chunks as context → generate answer.
 - Tools Allowed: `vector_search` only.
 - Expected Weaknesses: Fails on aggregation (can't count), temporal (conflates years), multi-hop (misses second entity).
-- Metrics: `context_tokens`, `llm_input_tokens`, `llm_output_tokens`, `total_tokens`, `latency_ms`, `accuracy`.
+- Metrics: context length (currently estimated from characters), provider-reported LLM input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
 
-## 2. Pipeline 2: Hybrid GraphRAG (Fixed Pipeline, Non-Agentic)
-Uses graph structure but follows a FIXED retrieval sequence — no dynamic planning, no backtracking.
+## 2. Pipeline 2: GraphRAG (Fixed Pipeline, Non-Agentic)
+Uses graph structure and text retrieval in a fixed sequence — no dynamic planning or backtracking.
 - Retrieval (Fixed Sequence):
-  1. Entity linking: Extract named entities from query → fuzzy match to graph vertices.
-  2. 1-2 hop neighborhood expansion: Traverse edges from seed vertices in TigerGraph.
-  3. Subgraph context fusion: Merge graph triples + related chunk text.
+  1. Ask the configured LLM to extract year, sport, and venue fields.
+  2. Run the corresponding compiled graph lookup/multihop query when fields are available.
+  3. Run TigerVector search at fixed top-3 and combine returned graph facts and chunk text.
 - Generation: Single-turn LLM call: inject fused graph + text context → generate answer.
-- Tools Allowed: `entity_linker`, `graph_expand_1hop`, `vector_search`.
-- Expected Weaknesses: No backtracking if entity linking fails. No strategy adaptation. Fixed hop depth.
-- Metrics: `subgraph_nodes`, `subgraph_edges`, `context_tokens`, `llm_input_tokens`, `llm_output_tokens`, `total_tokens`, `latency_ms`, `accuracy`.
+- Current code does not implement a distinct fuzzy entity-linker or generic 1-hop traversal agent.
+- Expected Weaknesses: No backtracking if extraction/retrieval fails. No strategy adaptation. Fixed retrieval order.
+- Metrics: graph/subgraph counts when exposed, estimated context length, provider-reported input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
 
 ## 3. Pipeline 3: Autonomous Agentic GraphRAG (Full Arsenal, Dynamic)
 The agent plans its own investigation, selects retrieval methods dynamically, and adapts based on what it finds.
 - Retrieval & Reasoning (Dynamic, Agent-Controlled):
-  1. Query Classification: Determines structural intent (aggregation/lookup/multi_hop/superlative/temporal).
-  2. Fast-Path Router: Simple factoid lookups with high-confidence entity matches bypass multi-step investigation.
-  3. Dynamic Tool Dispatch: Agent selects from ALL available tools based on evidence gaps:
+  1. The ReAct LLM reads the question and selects an action; there is no separate regex query classifier.
+  2. Dynamic Tool Dispatch: The agent chooses from implemented tools and observes returned evidence:
      - `vector_search` (TigerVector HNSW semantic retrieval)
-     - `bm25_search` (exact token matching for names, codes, numbers)
-     - `rrf_fusion` (Reciprocal Rank Fusion combining dense + sparse scores)
-     - `cross_encoder_rerank` (precision reranking of fused candidates)
-     - `entity_linker` (fuzzy entity resolution against graph vertices)
-     - `graph_traverse` (multi-hop traversal via GSQL compiled queries)
-     - `gsql_aggregate` (deterministic COUNT/SUM/MAX/MIN via GSQL — 0 LLM tokens)
+     - `hybrid_search` (BM25Plus + RRF + optional cross-encoder inside the coprocessor)
+     - `gsql_aggregate` (deterministic event aggregation via compiled GSQL)
      - `gsql_temporal` (PRECEDES/SUCCEEDS edge traversal — 0 LLM tokens)
-     - `expand_chunk_window` (fetch adjacent chunks via prev/next pointers — 0 LLM tokens)
-  4. Evidence Critic & Backtracking: After each retrieval step, evaluates completeness. If gaps found, shifts strategy.
-  5. Grounded Synthesis: Final answer generation tied to `doc_id` citations.
-- Tools Allowed: ALL tools. Agent decides which to use and in what order.
-- Stopping Criteria: Confidence ≥ 0.95 OR max_steps reached OR evidence verified by GSQL.
+     - `gsql_superlative`, `gsql_multihop`, and `gsql_lookup` (compiled structured queries)
+     - `finish` (agent-supplied answer and citations)
+  3. Bounded Cycle: The loop appends observations and asks the LLM for its next action until a finish, deterministic fast stop, direct answer, or iteration limit.
+  4. Evidence review and distinct specialist agent components are incomplete; they remain roadmap work.
+- Chunk-neighbor expansion exists in the local coprocessor but is not exposed as a ReAct tool.
+- Stopping confidence values are assigned by current code paths and are not calibrated probabilities.
+- Stopping Criteria: Current hard stops are finish/direct-answer actions, selected deterministic GSQL results, or maximum iterations; calibrated evidence-based stopping remains a goal.
 - Metrics: Full agentic trace (per `[ORCHESTRA:AGENTIC_TRACE]` spec).
 [/ORCHESTRA:PIPELINES]
 
 ---
 
 [ORCHESTRA:COPROCESSOR]
-## 1. High-Speed Retrieval Coprocessor Architecture
-To deliver near $O(1)$ sub-millisecond retrieval without sacrificing precision, the coprocessor complements TigerGraph Savanna with local silicon-level accelerators:
+## 1. Local Retrieval Coprocessor Architecture
+The local coprocessor supplements TigerGraph Savanna with sparse retrieval, compact metadata masks, rank fusion, and optional reranking. The complete retrieval pipeline is not O(1); complexity and latency claims must be qualified by implementation and benchmark scope.
 
 ```mermaid
 flowchart LR
-    Q[Query] --> Bitmask["1. Roaring Bitmask Filter (<1 μs)"]
-    Q --> BM25["2. BM25 Inverted Index (Exact Tokens)"]
+    Q[Query] --> Bitmask["1. Packed Integer Mask Filter"]
+    Q --> BM25["2. BM25Plus Corpus Scoring"]
     Q --> TGVector["3. TigerVector HNSW (Semantic)"]
     
     Bitmask -.-> BM25
@@ -496,15 +496,16 @@ flowchart LR
     
     RRF --> Top30["Top 30 Candidates"]
     Top30 --> Rerank["5. Cross-Encoder Reranker"]
-    Rerank --> TopK["Top 1-2 Chunks (Hit@1 > 96%)"]
+    Rerank --> TopK["Top K Chunks"]
 ```
 
 ### Components
-1. **Roaring Bitmasks (`pyroaring`)**:
-   - Fixed bit flags for Olympic Year (1988..2020), Season (Summer/Winter), and Sport.
-   - Slices candidate document IDs from 2,951 down to relevant subset in $< 1\,\mu\text{s}$.
+1. **Packed Integer Masks**:
+   - Current implementation stores a `uint32` mask on chunks and checks it while scanning BM25 scores.
+   - The current sport-bit mapping is a fixed list and violates the no-static-sport-list rule; replace it with corpus-derived indexing or remove sport bits before claiming compliance.
+   - One fixed-width integer AND is constant-time, but finding all matching chunks still depends on the candidate scan or index.
 2. **BM25 Sparse Index (`rank-bm25`)**:
-   - Sub-millisecond exact token matching for athlete names, numbers, codes, and venues.
+   - Current `rank-bm25` path scores all indexed chunks and sorts positive candidates; do not claim constant-time retrieval.
 3. **TigerVector Dense Search**:
    - HNSW semantic search returning top-$k$ nearest chunk embeddings.
 4. **Reciprocal Rank Fusion (RRF)**:
@@ -516,55 +517,12 @@ flowchart LR
 ---
 
 [ORCHESTRA:AGENT_HARNESS]
-## 1. LangGraph State Machine Specification
+## 1. Bounded Cyclic ReAct Loop
+**Current implementation: bounded cyclic ReAct, not LangGraph.** `AgentState`, `EvidenceItem`, and `ToolAuditCall` are defined in `src/models/__init__.py`. The loop in `src/pipelines/agentic.py` sends the question and prior tool observations to the LLM, validates/parses the next action, executes it, records telemetry, and repeats until an explicit finish, a deterministic fast stop, a direct answer, or the maximum iteration count.
 
-```python
-# Typed Agent State Definition
-from typing import Any, Literal
-from pydantic import BaseModel, Field
+**Current gaps:** there is no separately implemented evidence-critic node or specialist-agent set; the next ReAct decision serves as the current evidence review. Confidence values are code-assigned and not calibrated. Chunk-window expansion is available in the coprocessor but not exposed as an agent action.
 
-
-class EvidenceItem(BaseModel):
-    doc_id: str
-    chunk_id: str | None = None
-    text: str
-    relevance_score: float = 1.0
-
-
-class ToolAuditCall(BaseModel):
-    step: int
-    tool_name: str
-    input_args: dict[str, Any]
-    output_summary: str
-    tokens: int
-    latency_ms: float
-
-
-class AgentState(BaseModel):
-    query: str
-    qtype: Literal["aggregation", "lookup", "multi_hop", "superlative", "temporal"]
-    sub_questions: list[str] = Field(default_factory=list)
-    hypotheses: list[str] = Field(default_factory=list)
-    evidence: list[EvidenceItem] = Field(default_factory=list)
-    traversed_vertices: list[str] = Field(default_factory=list)
-    tool_history: list[ToolAuditCall] = Field(default_factory=list)
-    step_count: int = 0
-    max_steps: int = 4
-    strategy_history: list[str] = Field(default_factory=list)
-    strategy_changed: bool = False
-    strategy_change_rationale: str | None = None
-    stopping_reason: str = "Initialized"
-    confidence_score: float = 0.0
-    final_answer: str | None = None
-```
-
-## 2. Graph Nodes & Transitions
-- Node `classify_and_route`: Determines whether query is direct lookup (routes to `fast_path_node`) or complex (routes to `investigation_node`).
-- Node `fast_path_node`: Single-turn hybrid retrieval + answer generation.
-- Node `investigation_node`: Deconstructs query into relational and mathematical requirements.
-- Node `dispatch_tools`: Calls compiled GSQL queries, multi-hop traversals, or vector search.
-- Node `critic_gap_detector`: Evaluates evidence completeness. If confidence $> 0.95$ or budget exhausted, routes to `synthesize_answer`; otherwise updates strategy and loops back.
-- Node `synthesize_answer`: Generates the grounded answer with citations to `gold_doc_ids`.
+**Target improvements:** keep the loop flexible and bounded; add typed tool argument validation, a deduplicated evidence ledger, repeated-action/no-new-evidence detection, specialist capabilities with explicit contracts, evidence-supported stopping, and calibration based on measured validation outcomes. Do not introduce heuristic question-text routing or hard-coded answer paths.
 [/ORCHESTRA:AGENT_HARNESS]
 
 ---
@@ -575,17 +533,18 @@ class AgentState(BaseModel):
 - Hidden Dataset: `hackathon-resources/questions/eval_hidden.jsonl` (50 unseen questions without answers).
 - Execution CLI:
   `uv run python -m src.evaluate --dataset hackathon-resources/questions/eval_public.jsonl --pipeline all --output results/public_results.jsonl`
-  `uv run python -m src.evaluate --dataset hackathon-resources/questions/eval_hidden.jsonl --pipeline all --output results/hidden_submission.jsonl`
+  `uv run python -m src.evaluate --dataset hackathon-resources/questions/eval_hidden.jsonl --pipeline agentic --output results/hidden_submission.jsonl`
 
 ## 2. Metrics Hierarchy
-- Tier 1: Deterministic Metrics (Sub-millisecond, Zero LLM Calls)
+- Implemented local answer/retrieval metrics (computed without extra LLM calls; latency depends on dataset size):
   - Exact Match (EM)
   - Token F1-score
   - Gold Document Recall@k, Precision@k, MRR (Mean Reciprocal Rank)
-  - Latency (ms) and Token Consumption (context, prompt, completion, total)
-- Tier 2: Asynchronous RAGAS Evaluation
-  - Faithfulness (Context Groundedness)
-  - Answer Relevancy
+  - Wall-clock latency and provider-reported prompt/completion/total LLM tokens
+- `context_tokens` is currently estimated from text length; it is not a tokenizer-measured context count.
+- Missing measurement work: completeness, citation precision/recall, groundedness, p50/p95/p99 latency, neuron/accounting breakdowns, and confidence calibration.
+- Missing: answer completeness, groundedness/faithfulness, and a reviewed semantic grading protocol. RAGAS is a possible optional evaluator, not currently integrated or required by the supplied guidebook.
+- Accuracy objective: pursue 98%+ on the public evaluation while protecting generalization; publish the measured score and category breakdown, never a target as if achieved.
 - Comparative Metrics:
   - Token Efficiency Delta: $\Delta_{\text{tokens}} = \frac{\text{Tokens}_{\text{Agentic}}}{\text{Tokens}_{\text{RAG}}}$
   - Accuracy Delta: $\Delta_{\text{accuracy}} = \text{Accuracy}_{\text{Agentic}} - \text{Accuracy}_{\text{RAG}}$
@@ -595,11 +554,11 @@ class AgentState(BaseModel):
 ---
 
 [ORCHESTRA:DASHBOARD_FRONTEND]
-## 1. Lunarbit Integration (`samples/frontend/`)
-The frontend directly incorporates the Lunarbit visualizer (`GraphSurface.tsx`, `graph.ts`, `styles.css`, `index.tsx`, `viewport.ts`).
+## 1. Lunarbit-Based Frontend Target (`samples/frontend/`)
+The Lunarbit files are source samples for the future Stellium frontend; they are not currently integrated into a maintained React application. The current dashboard is `src/api/static/index.html`.
 
-## 2. API Contract: Snapshot DTO for Live Visualization
-The FastAPI endpoint `/api/v1/query/agentic` returns the evaluation answer, metrics, and a compatible `Snapshot` object:
+## 2. API Contract: Snapshot DTO for Future Live Visualization
+`POST /api/v1/query/compare` returns all three `PipelineResult` objects, including the Agentic trace. `GET /api/v1/graph/snapshot` currently returns empty graph/metric lists with a disclosure; query-derived graph serialization and measured dashboard metrics remain missing.
 
 ```python
 class GraphNodeDTO(BaseModel):
@@ -675,46 +634,28 @@ class SnapshotDTO(BaseModel):
 
 [ORCHESTRA:AGENT:002]
 ## Stream 2: High-Speed Hybrid Coprocessor
-- Assigned Worker: `agent-002` (or parallel worker in elastic pool)
-- Branch: `agent/002/hybrid-engine`
-- Responsibilities:
-  1. Build Roaring Bitmask index over Year, Season, and Sport attributes.
-  2. Implement BM25 sparse index over clean chunk tokens.
-  3. Implement Reciprocal Rank Fusion (RRF) and Cross-Encoder reranker.
-  4. Expose unified interface: `coprocessor.search(query, filter_mask, top_k=2)` delivering $<1\,\text{ms}$ retrieval.
+Current baseline has BM25Plus scoring, packed integer masks, RRF, and an optional cross-encoder. Remaining work: remove the fixed sport-name bit map, benchmark the 22,016-chunk corpus, and report latency/recall without unsupported sub-millisecond claims.
 [/ORCHESTRA:AGENT:002]
 
 ---
 
 [ORCHESTRA:AGENT:003]
-## Stream 3: LangGraph Agentic Engine & GSQL Reasoning Tools
-- Assigned Worker: `agent-003` (or parallel worker in elastic pool)
-- Branch: `agent/003/langgraph-agent`
-- Responsibilities:
-  1. Implement LangGraph `StateGraph` state machine with fast-path and deep-investigation branches.
-  2. Build GSQL tools (`get_event_aggregates`, `get_preceding_winner`, `traverse_multihop_path`).
-  3. Implement Evidence Critic and strategy backtracking logic.
-  4. Ensure full audit trace generation matching the judges' submission schema.
+## Stream 3: ReAct Agent Loop & GSQL Reasoning Tools
+Current baseline is the bounded cyclic ReAct loop and compiled GSQL tool set. Remaining work: evidence-quality critic, real specialist components, robust loop/repetition controls, calibrated stopping, and complete trace/citation validation.
 [/ORCHESTRA:AGENT:003]
 
 ---
 
 [ORCHESTRA:AGENT:004]
 ## Stream 4: Evaluation Benchmark Suite & React Dashboard
-- Assigned Worker: `agent-004` (or parallel worker in elastic pool)
-- Branch: `agent/004/eval-dashboard`
-- Responsibilities:
-  1. Build `evaluate.py` CLI runner for 100 public and 50 hidden questions.
-  2. Implement Tier-1 deterministic metrics (EM, F1, MRR on `gold_doc_ids`) and Tier-2 Ragas integration.
-  3. Build FastAPI endpoints `/api/v1/query/{rag|graphrag|agentic|compare}` and `/api/v1/snapshot`.
-  4. Integrate Lunarbit `GraphSurface.tsx` into web app to visualize the agent's live graph traversal.
+Current baseline includes the CLI, local answer/retrieval metrics, compare API, and a single-file HTML UI. Remaining work: full benchmark artifacts, completeness/evidence evaluation, actual graph snapshots and measured dashboard metrics, and the Lunarbit-based premium frontend.
 [/ORCHESTRA:AGENT:004]
 
 ---
 
 [ORCHESTRA:SESSION_MEMORY]
 ## 1. Persistent Chat History & Agent Memory in TigerGraph
-The live web application must preserve conversation history and agent investigation state across page refreshes and browser sessions. We use TigerGraph Savanna itself as the persistence layer (zero additional infrastructure).
+**Status: Missing.** The current history endpoint returns empty arrays. Target design uses TigerGraph Savanna as the durable source of truth for chat messages and investigation memories; no Postgres/Supabase dependency is planned. A bounded process-local cache may speed reads but is disposable. JSONL is for local development, exports, and diagnostics only, not production persistence.
 
 ### TigerGraph Session Vertices & Edges
 ```gsql
@@ -751,6 +692,10 @@ CREATE DIRECTED EDGE HAS_MEMORY (FROM Session, TO AgentMemory)
 ```
 
 ### Behavioral Contract
+- Persist messages and traces through parameterized installed GSQL queries with stable, idempotent message/run IDs.
+- Keep session retrieval scoped by session ID; a UUID identifies a session but is not user authentication.
+- Include only bounded recent turns plus a compact summary in prompts; do not append unbounded history.
+- Benchmark questions must run with isolated memory or memory disabled so prior questions cannot affect results.
 - On page load: Frontend calls `GET /api/v1/sessions/{session_id}/history` to hydrate the chat panel and prior results.
 - On query: Backend persists the query, all 3 pipeline answers, and the full agentic trace as `ChatMessage` and `AgentMemory` vertices.
 - Session ID: Generated client-side (UUID v4), stored in `localStorage`. New tab = new session.
@@ -767,41 +712,36 @@ The hackathon evaluation explicitly requires the following trace fields for ever
 | :--- | :--- | :--- | :---: |
 | Number of retrieval and reasoning steps | `int` | `step_count` in `AgentState` | ✅ |
 | Retrieval methods selected | `list[str]` | `strategy_history` in `AgentState` | ✅ |
-| Specialised agents invoked | `list[str]` | Derived from `tool_history[].tool_name` | ✅ |
+| Specialised agents invoked | `list[str]` | Current trace reports only `ReActOrchestrator`; tools are not distinct specialist agents | Partial |
 | Tools called | `list[ToolAuditCall]` | Full `tool_history` with args and outputs | ✅ |
 | Time per operation | `list[float]` | `tool_history[].latency_ms` | ✅ |
-| Tokens per operation | `list[int]` | `tool_history[].tokens` | ✅ |
+| Tokens per operation | `list[int]` | `tool_history[].llm_tokens` is zero for deterministic tools; `llm_calls` separately records model token counts | ✅ |
 | Total tokens used | `int` | Sum of all `tool_history[].tokens` + synthesis tokens | ✅ |
-| Number of chunks and citations | `int` + `list[str]` | `len(evidence)` and `[e.doc_id for e in evidence]` | ✅ |
-| Whether the system changed strategy | `bool` | `strategy_changed` in `AgentState` | ✅ |
-| When and why the system decided to stop | `str` | `stopping_reason` in `AgentState` | ✅ |
+| Number of chunks and citations | `int` + `list[str]` | Current values come from chunk evidence; structured GSQL citations need end-to-end validation | Partial |
+| Whether the system changed strategy | `bool` | Current code infers change from broad tool categories; refine and validate | Partial |
+| When and why the system decided to stop | `str` | `stopping_reason` is emitted; confidence is not calibrated | Partial |
 
 ### Submission Output Contract for Hidden Questions
-For each of the 50 hidden questions, the output JSONL record includes:
+Example record shape for the specified Agentic-only hidden run (values below are illustrative, not measured results):
 ```json
 {
   "qid": "eval-001",
   "question": "...",
   "qtype": "multi_hop",
-  "rag_answer": "...",
-  "rag_tokens": 1200,
-  "graphrag_answer": "...",
-  "graphrag_tokens": 980,
   "agentic_answer": "...",
   "agentic_tokens": 1450,
   "agentic_trace": {
     "step_count": 3,
     "retrieval_methods": ["bitmask_filter", "gsql_traversal", "vector_search"],
-    "agents_invoked": ["Orchestrator", "GraphTraversalAgent", "EvidenceCritic"],
+    "agents_invoked": ["ReActOrchestrator"],
     "tools_called": [
-      {"tool": "entity_linker", "args": {"query": "..."}, "result_summary": "...", "tokens": 120, "latency_ms": 45},
-      {"tool": "traverse_multihop", "args": {"start": "...", "hops": 2}, "result_summary": "...", "tokens": 340, "latency_ms": 180}
+      {"tool_name": "gsql_multihop", "input_args": {"venue_name_fragment": "..."}, "output_summary": "...", "llm_tokens": 0, "latency_ms": 45}
     ],
     "chunks_retrieved": 4,
     "citations": ["Q1050909", "Q26233122"],
     "strategy_changed": true,
     "strategy_change_rationale": "Initial entity match failed; switched to fuzzy alias + vector fallback",
-    "stopping_reason": "Evidence verified against 2 source documents with confidence 0.97",
+"stopping_reason": "Evidence sufficiency criterion met",
     "total_tokens": 1450,
     "total_latency_ms": 820
   }
@@ -887,35 +827,35 @@ We build Stellium as an independent, purpose-built system but reference the offi
 ## Binding Rulings from Organizer Q&A (Source: Official Hackathon Discord + Office Hours)
 These rulings are HARD CONSTRAINTS that override any prior assumptions.
 
-### Rule 1: Deterministic-First Orchestrator is Valid
+### Rule 1: Dynamic Agentic Behavior and No Answer Hardcoding
 - Ruling: "Deterministic-first is fine, as long as the agentic mode is genuinely agentic and nothing is hard-coded for the public 100. Report 0-token answers honestly."
-- Our compliance: LangGraph StateGraph with dynamic tool dispatch. The agent DECIDES when to use GSQL vs LLM. No question-ID matching. No hard-coded answers. Parameterized GSQL queries generalize to any question.
-- Anti-hardcoding guarantee: Judges will `grep` for `if qid ==`, hard-coded answer strings, and question-text conditionals. Our classifier uses generalizable regex + entity linking against graph vertices.
+- Current implementation uses a cyclic ReAct LLM loop with dynamic tool selection and parameterized GSQL. Keep it free of question-ID answers, heuristic query classifiers, and static sport/entity lists.
+- The coprocessor's current fixed sport-bit mapping violates the static-list rule and must be removed or replaced with corpus-derived metadata before claiming full compliance.
 
-### Rule 2: All 3 Pipelines on All 150 Questions
-- Ruling: "All three pipelines on all 150 (public + hidden)."
-- Our compliance: 150 × 3 = 450 total pipeline executions. Output in `results/public_results.jsonl` (300 records) and `results/hidden_submission.jsonl` (150 records).
+### Rule 2: Benchmark Runs Follow the Supplied Hackathon Instructions
+- Public: run all three pipelines on all 100 visible questions.
+- Hidden: use the specified Agentic-only command for all 50 questions and preserve raw answers, token counts, and complete agentic traces. Change this only if a newer, verifiable organizer instruction overrides the supplied command.
+- Current artifacts are missing; do not claim benchmark completion until the output files and run metadata exist and are audited.
 
 ### Rule 3: Same Model Everywhere Per Pipeline Run
-- Ruling: "Same model everywhere, including planner and router."
-- Our compliance: Session-level model lock (see `[ORCHESTRA:LLM_ROUTER]`). Within a single pipeline execution, ALL LLM calls use the identical model. Fallback only happens between runs, never within a run.
-- Deterministic steps (GSQL, bitmask, regex) have no model to constrain — they report `llm_tokens: 0`.
+- Guidebook requirement: use an LLM provider of choice. Project policy locks one provider/model for the duration of a pipeline run.
+- Current implementation: session-level lock and same-provider retry are implemented. Automatic fresh-run fallback after retry exhaustion is not implemented.
+- Deterministic steps (GSQL and local filtering) report zero LLM tokens.
 
 ### Rule 4: Team Events as Comma-Separated Lists
-- Ruling: "Comma-separated list is fine, scoring is on meaning not exact string."
-- Our compliance: Table-aware parser splits concatenated athlete names. Answers formatted as sorted comma-separated lists. Evaluation uses Token F1 / Jaccard overlap.
+- Guidebook scoring allows meaning-based answer evaluation. Comma-separated team/event answers are a supported output form; validate completeness and ordering on the public set.
+- Current local metrics include normalized exact match and token F1; Jaccard is not currently computed.
 
-### Rule 5: Shorter Names Accepted, Diacritics Normalized
-- Ruling: "Shorter name is fine if unambiguous. Diacritics normalised."
-- Our compliance: All text processing (ingestion, BM25, entity linking, answer formatting) runs through Unicode NFKD normalization: `unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode("utf-8")`.
+### Rule 5: Name and Diacritic Normalization
+- The project normalizes text for answer scoring and BM25/entity matching paths. Do not claim all answer generation or all entity linking uses this path until verified; a separate entity-linker component is still missing.
 
 ### Rule 6: GSQL + Python Counts as TigerGraph Usage; Use TigerGraph's Own Vector Search
 - Ruling: "Yes, that counts. Use TigerGraph's own vector search, no external vector DB needed."
-- Our compliance: TigerVector HNSW is our PRIMARY dense retrieval engine. BM25 (`rank-bm25`) is a SUPPLEMENTARY local scoring signal for exact token matching, NOT a replacement for TigerVector. No external vector DBs (Pinecone/Qdrant/etc).
+- Current implementation uses TigerVector HNSW for dense search and local BM25Plus as a complementary sparse ranker. No external vector database is used.
 
 ### Rule 7: Token Counting — Only LLM Tokens; GSQL = 0
 - Ruling: "Count only LLM tokens. Deterministic steps and GSQL = 0. Report tool calls and latency too."
-- Our compliance: Every trace step logs `llm_tokens` (0 for deterministic) + `tool_name` + `latency_ms`. Total token count sums only LLM tokens.
+- Current trace records deterministic tool calls with zero LLM tokens and operation latency; model calls record token counts separately. Keep total-token accounting limited to LLM tokens.
 
 ### Accuracy Evaluation Methods (from Guidebook)
 - For 100 public questions: Teams choose their method. Options: LLM-as-Judge (PASS/FAIL), BERTScore (semantic similarity), or manual comparison.
