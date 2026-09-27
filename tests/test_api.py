@@ -63,8 +63,10 @@ def test_graph_snapshot_dto() -> None:
     assert "graph_nodes" in data
     assert "graph_edges" in data
     assert "metrics" in data
-    assert len(data["graph_nodes"]) > 0
-    assert len(data["graph_edges"]) > 0
+    assert data["graph_nodes"] == []
+    assert data["graph_edges"] == []
+    assert data["metrics"] == []
+    assert "not available yet" in data["disclosure"]
 
 
 def test_session_history_endpoint() -> None:

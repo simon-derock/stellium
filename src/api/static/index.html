@@ -447,7 +447,7 @@
       <div class="pipeline-card">
         <div class="card-header">
           <div class="card-title">2. Hybrid GraphRAG</div>
-          <span class="badge badge-graph">Fixed 2-Hop</span>
+          <span class="badge badge-graph">Fixed Graph + Vector</span>
         </div>
         <div class="card-metrics">
           <div class="metric-col">
@@ -478,7 +478,7 @@
           </div>
           <div class="metric-col">
             <span class="metric-label">LLM Tokens</span>
-            <span id="agenticTokens" class="metric-val zero-token">0 (Fast Path)</span>
+            <span id="agenticTokens" class="metric-val">--</span>
           </div>
         </div>
         <div class="answer-block">
@@ -493,8 +493,8 @@
       <!-- Force-Directed Graph Surface -->
       <div class="graph-container">
         <div class="container-title">
-          <span>Active Graph Topology (TigerGraph Traversal)</span>
-          <span id="graphMeta" style="font-size: 11px; color: var(--accent-gold);">6 Nodes | 5 Edges</span>
+          <span>Evidence Graph</span>
+          <span id="graphMeta" style="font-size: 11px; color: var(--accent-gold);">No query evidence loaded</span>
         </div>
         <canvas id="graphCanvas"></canvas>
       </div>
@@ -503,24 +503,10 @@
       <div class="trace-container">
         <div class="container-title">
           <span>Full Agentic Trace Timeline</span>
-          <span id="traceConfidence" style="color: var(--accent-green); font-size: 11px;">Confidence: 100%</span>
+          <span id="traceConfidence" style="color: var(--accent-green); font-size: 11px;">No investigation run yet</span>
         </div>
         <div id="traceSteps" style="display: flex; flex-direction: column; gap: 8px;">
-          <div class="trace-step">
-            <div class="step-header"><span>Step 1: Structural Intent Classification</span><span>&lt;1ms</span></div>
-            <div class="step-detail">Classified as aggregation inquiry. Target year: 2018, min_competitors: 73.</div>
-            <div class="step-stats"><span>Tokens: 0</span><span>Engine: Python Coprocessor</span></div>
-          </div>
-          <div class="trace-step">
-            <div class="step-header"><span>Step 2: Compiled GSQL Fast Path</span><span>3.8ms</span></div>
-            <div class="step-detail">Executed get_event_aggregates in TigerGraph C++ engine. Count verified.</div>
-            <div class="step-stats"><span>Tokens: 0</span><span>Engine: TigerGraph Savanna</span></div>
-          </div>
-          <div class="trace-step">
-            <div class="step-header"><span>Step 3: Evidence Critic & Stopping</span><span>&lt;1ms</span></div>
-            <div class="step-detail">Confidence reached 0.99 with verified mathematical reduction. Terminated.</div>
-            <div class="step-stats"><span>Tokens: 0</span><span>Status: Complete</span></div>
-          </div>
+          <div class="trace-step">Run a comparison to see the actual agent trace.</div>
         </div>
       </div>
     </section>
@@ -559,7 +545,7 @@
 
       // Set loading states
       document.getElementById("ragAnswer").innerText = "Retrieving TigerVector HNSW...";
-      document.getElementById("graphragAnswer").innerText = "Traversing 2-hop subgraph...";
+      document.getElementById("graphragAnswer").innerText = "Running fixed graph and vector retrieval...";
       document.getElementById("agenticAnswer").innerText = "Executing autonomous investigation...";
 
       try {
@@ -641,7 +627,9 @@
           vy: 0
         }));
         edges = data.graph_edges;
-        document.getElementById("graphMeta").innerText = `${nodes.length} Nodes | ${edges.length} Edges`;
+        document.getElementById("graphMeta").innerText = nodes.length
+          ? `${nodes.length} Nodes | ${edges.length} Edges`
+          : "No query evidence loaded";
         drawGraph();
       } catch (e) {
         console.error("Snapshot error:", e);

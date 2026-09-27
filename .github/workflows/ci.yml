@@ -129,7 +129,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8000/health
           curl --fail --silent http://127.0.0.1:8000/api/v1/graph/snapshot --output /tmp/stellium-snapshot.json
-          python -c 'import json; payload=json.load(open("/tmp/stellium-snapshot.json")); assert payload["graph_nodes"]; assert payload["graph_edges"]; assert payload["metrics"]'
+          python -c 'import json; payload=json.load(open("/tmp/stellium-snapshot.json")); assert payload["graph_nodes"] == []; assert payload["graph_edges"] == []; assert payload["metrics"] == []; assert "not available yet" in payload["disclosure"]'
 
       - name: Upload Test and Smoke Artifacts
         if: always()

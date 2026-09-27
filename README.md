@@ -47,11 +47,11 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 ┌────────────────────────────────────────────────────────────────────────┐
 │                        STELLIUM CORE ENGINE                            │
 ├──────────────────────────┬──────────────────────────┬──────────────────┤
-│   SILICON COPROCESSOR    │    TIGERGRAPH SAVANNA    │  LANGGRAPH AGENT │
-│   Integer Filter Masks  │   Native TigerVector HNSW│  ReAct Tool Loop │
+│    LOCAL RETRIEVAL      │    TIGERGRAPH SAVANNA    │   REACT AGENT    │
+│   Packed Integer Masks  │   Native TigerVector HNSW│  Bounded Tool Loop│
 │   BM25Plus Inverted Index│   Compiled GSQL Queries  │  Evidence Critic │
 │   Reciprocal Rank Fusion │   Graph Topological Edges│  Backtracking    │
-│   Cross-Encoder Reranker │   Compiled GSQL Queries │  Grounded Trace  │
+│ Optional Cross-Encoder  │   Compiled GSQL Queries │  Grounded Trace  │
 └──────────────────────────┴──────────────────────────┴──────────────────┘
 ```
 
@@ -210,7 +210,7 @@ stellium/
 │   ├── models/               # Domain models, AgentState, trace contracts, Snapshot DTOs
 │   ├── guardrails/           # Judge-safe structural injection detection & NFKD normalizer
 │   ├── ingest/               # Table-aware infobox parser & doubly-linked chunking engine
-│   ├── coprocessor/          # Roaring Bitmasks, BM25Plus inverted index, RRF, Cross-Encoder
+│   ├── coprocessor/          # Packed integer masks, BM25Plus, RRF, optional cross-encoder
 │   ├── graph/                # TigerGraph Savanna schema DDL, TigerVector, compiled GSQL
 │   ├── llm/                  # Session-locked multi-provider router (Cloudflare, Gemini, Mistral)
 │   ├── pipelines/            # Pipeline 1 (RAG), Pipeline 2 (GraphRAG), Pipeline 3 (Agentic)

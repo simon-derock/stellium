@@ -29,10 +29,6 @@ from src.llm import make_session
 from src.models import (
     CompareResult,
     EvalQuestion,
-    FindingDTO,
-    GraphEdgeDTO,
-    GraphNodeDTO,
-    MetricDTO,
     PipelineResult,
     SnapshotDTO,
 )
@@ -248,87 +244,9 @@ async def evaluate_batch(req: BatchEvalRequest) -> list[dict[str, Any]]:
 
 @app.get("/api/v1/graph/snapshot", response_model=SnapshotDTO)
 async def get_graph_snapshot() -> SnapshotDTO:
-    # Lunarbit GraphSurface compatible DTO payload
-    nodes: list[GraphNodeDTO] = [
-        GraphNodeDTO(
-            id="ev_001", type="Event", layer="events", label="Men's 20km Walk (2012)", weight=2.0
-        ),
-        GraphNodeDTO(id="ath_001", type="Person", layer="athletes", label="Chen Ding", weight=1.8),
-        GraphNodeDTO(
-            id="ven_001", type="Venue", layer="venues", label="Olympic Stadium", weight=1.5
-        ),
-        GraphNodeDTO(
-            id="doc_001", type="Document", layer="documents", label="Q1050909", weight=1.2
-        ),
-        GraphNodeDTO(
-            id="ev_000", type="Event", layer="events", label="Men's 20km Walk (2008)", weight=1.7
-        ),
-        GraphNodeDTO(
-            id="ath_000", type="Person", layer="athletes", label="Valeriy Borchin", weight=1.4
-        ),
-    ]
-    edges: list[GraphEdgeDTO] = [
-        GraphEdgeDTO(
-            id="e1",
-            source="ath_001",
-            target="ev_001",
-            relationship_type="COMPETED_IN",
-            provenance_label="Gold Medal",
-        ),
-        GraphEdgeDTO(
-            id="e2",
-            source="ev_001",
-            target="ven_001",
-            relationship_type="HELD_AT",
-            provenance_label="Venue",
-        ),
-        GraphEdgeDTO(
-            id="e3",
-            source="ev_001",
-            target="doc_001",
-            relationship_type="DOCUMENTED_IN",
-            provenance_label="Wiki Article",
-        ),
-        GraphEdgeDTO(
-            id="e4",
-            source="ev_001",
-            target="ev_000",
-            relationship_type="PRECEDES",
-            provenance_label="Prior Edition",
-        ),
-        GraphEdgeDTO(
-            id="e5",
-            source="ath_000",
-            target="ev_000",
-            relationship_type="COMPETED_IN",
-            provenance_label="Gold Medal",
-        ),
-    ]
-    metrics: list[MetricDTO] = [
-        MetricDTO(label="Accuracy Delta", value="+42%", unit="vs RAG"),
-        MetricDTO(label="Deterministic Steps", value="72%", unit="0 LLM Tokens"),
-        MetricDTO(label="Avg Latency", value="4.8", unit="ms"),
-    ]
-    findings = [
-        FindingDTO(
-            id="f1",
-            title="Deterministic GSQL Hit",
-            detail="Aggregation resolved via COUNT query without LLM math hallucination",
-            severity="high",
-        ),
-        FindingDTO(
-            id="f2",
-            title="Temporal PRECEDES Traversal",
-            detail="Chen Ding verified via prior edition traversal",
-            severity="info",
-        ),
-    ]
+    # Do not present example graph data or unmeasured metrics as live results.
     return SnapshotDTO(
-        metrics=metrics,
-        graph_nodes=nodes,
-        graph_edges=edges,
-        findings=findings,
-        disclosure="Stellium Agentic GraphRAG — TigerGraph Hackathon 2026",
+        disclosure="Query-specific graph snapshot and measured benchmark metrics are not available yet.",
     )
 
 
