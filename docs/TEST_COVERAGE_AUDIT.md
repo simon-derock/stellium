@@ -21,7 +21,7 @@ This inventory maps the requested software-testing checklist to evidence in this
 | Software composition / dependency vulnerability scanning | `pip-audit` runs on pushes, pull requests, and daily schedule | Covered / partial | Review exceptions explicitly; scanner coverage is dependencies, not application code |
 | License compliance | No license inventory or allow/deny policy found | Missing | Add dependency license report and an approved license policy |
 | Dead code elimination analysis | No maintained dead-code check found | Missing | Add a conservative unused-code check, reviewed to avoid false positives |
-| Complexity auditing | No complexity threshold or report found | Missing | Add per-function complexity reporting; gate only newly introduced hotspots |
+| Complexity auditing | Ruff McCabe C901 gate in `pyproject.toml`, capped at the current maximum complexity of 24 | Covered / partial | Refactor the 11 existing hotspots, then lower the ceiling in small steps |
 | Architecture and layer isolation | `tests/test_architecture_layers.py` checks imports and package boundaries | Covered | Extend checks to runtime wiring and forbidden dependency directions |
 | Unit, component, mock, property, regression tests | Domain, coprocessor, ingestion, bitemporal, mocks, Hypothesis, and parser tests across `tests/` | Covered / partial | Add edge cases where coverage is low; retain bug reproductions as regressions |
 | Integration and system testing | FastAPI `TestClient`, graph mock, embedding and provider mocks | Partial | Add a deterministic end-to-end run covering ingest → retrieval → answer → trace |
@@ -54,6 +54,7 @@ This inventory maps the requested software-testing checklist to evidence in this
 4. **Retrieval quality and evaluation:** direct RAG/GraphRAG/API tests and benchmark JSONL contract tests are present; complete the three-pipeline 100-question public run and all 50 hidden questions under the required pipeline protocol, preserving raw JSONL and run metadata.
 5. **Real system and UX verification:** replace the static graph snapshot/metrics fixture with live result data; once a UI is present, add browser, accessibility, and visual checks.
 6. **Performance evidence:** benchmark the full corpus and live Savanna under repeatable conditions; publish latency distributions, concurrency, memory, token/neuron cost, accuracy, and completeness together.
+7. **Complexity reduction:** C901 currently prevents functions exceeding the measured baseline of 24; prioritize the ReAct parser, conflict resolver, corpus parser, and benchmark runner, then ratchet the ceiling downward.
 
 ## Scope Notes
 
