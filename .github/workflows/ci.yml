@@ -5,6 +5,8 @@ on:
     branches: [main, "release/**", "feature/**", "agent/**"]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "0 5 * * *"
   workflow_dispatch:
 
 concurrency:
@@ -96,7 +98,7 @@ jobs:
             --pipeline agentic \
             --limit 3 \
             --output results/ci_smoke_results.jsonl
-          test -f results/ci_smoke_results.jsonl
+          uv run python -c 'import json; from pathlib import Path; rows=[json.loads(line) for line in Path("results/ci_smoke_results.jsonl").read_text().splitlines()]; assert len(rows)==3; assert all({"qid", "agentic_answer", "agentic_tokens", "agentic_trace"} <= row.keys() for row in rows)'
 
       - name: API Server Smoke Test
         run: |
@@ -111,4 +113,16 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:8000/health
-          curl --fail --silent http://127.0.0.1:8000/api/v1/graph/snapshot >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/api/v1/graph/snapshot --output /tmp/stellium-snapshot.json
+          python -c 'import json; payload=json.load(open("/tmp/stellium-snapshot.json")); assert payload["graph_nodes"]; assert payload["graph_edges"]; assert payload["metrics"]'
+
+      - name: Upload Test and Smoke Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stellium-checks-py${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            results/ci_smoke_results.jsonl
+          if-no-files-found: warn
+          retention-days: 14
