@@ -46,6 +46,9 @@ jobs:
       - name: Mypy Strict Static Typing
         run: uv run mypy src/ tests/
 
+      - name: High-Confidence Dead Code Analysis
+        run: uv run vulture src/ --min-confidence 80
+
       - name: Bandit Security Scan
         run: uv run bandit -r src/ -ll
 
