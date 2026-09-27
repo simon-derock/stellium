@@ -4,12 +4,12 @@ This inventory maps the requested software-testing checklist to evidence in this
 
 ## Verified Local Baseline
 
-- Latest measured suite: 141 collected, 138 passed, 3 live TigerGraph checks skipped by default.
-- Local source statement coverage: 79.46% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
+- Latest measured suite: 142 collected, 139 passed, 3 live TigerGraph checks skipped by default.
+- Local source statement coverage: 79.98% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
 - Highest coverage: models and guardrails (100%), ingestion (93%), embeddings and bitemporal logic (87–88%).
-- RAG and GraphRAG retrieval paths are now directly tested at 95% and 86%, respectively.
-- Evaluation runner coverage is 88%, API coverage 74%, LLM router coverage 78%, and graph client coverage 76% after focused contract tests.
-- Lowest remaining core areas: live graph verifier (55%), graph mock (67%), and ingestion batch upsert (68%). Cache validation now rejects wrong-dimension, boolean, and non-finite vectors, and ingestion rejects embedding response cardinality mismatches.
+- RAG and GraphRAG retrieval paths are now directly tested at 95% and 87%, respectively.
+- Evaluation runner coverage is 88%, API coverage 82%, LLM router coverage 78%, and graph client coverage 76% after focused contract tests.
+- Lowest remaining core areas: live graph verifier (55%), graph mock (67%), and ingestion batch upsert (68%). Cache validation rejects wrong-dimension, boolean, and non-finite vectors, and ingestion rejects embedding response cardinality mismatches.
 - Live checks in `tests/test_graph_live.py` require `TG_RUN_LIVE_TESTS=1`; the default suite does not prove live cluster readiness.
 
 ## Checklist Mapping
@@ -24,7 +24,7 @@ This inventory maps the requested software-testing checklist to evidence in this
 | Complexity auditing | Ruff McCabe C901 gate in `pyproject.toml`, capped at the current maximum complexity of 24 | Covered / partial | Refactor the 11 existing hotspots, then lower the ceiling in small steps |
 | Architecture and layer isolation | `tests/test_architecture_layers.py` checks imports and package boundaries | Covered | Extend checks to runtime wiring and forbidden dependency directions |
 | Unit, component, mock, property, regression tests | Domain, coprocessor, ingestion, bitemporal, mocks, Hypothesis, and parser tests across `tests/` | Covered / partial | Add edge cases where coverage is low; retain bug reproductions as regressions |
-| Integration and system testing | FastAPI `TestClient`, graph mock, embedding and provider mocks | Partial | Add a deterministic end-to-end run covering ingest → retrieval → answer → trace |
+| Integration and system testing | FastAPI `TestClient`, graph mock, embedding and provider mocks; compare route runs all three pipelines with retrieved text and agentic trace | Covered / partial | Add a deterministic full-corpus ingest → retrieval → answer → trace scenario |
 | End-to-end testing | No browser-to-live-backend-to-live-graph test found | Missing | Add separately gated deployment smoke/E2E using a disposable or controlled dataset |
 | Smoke and sanity testing | `tests/test_smoke.py`; CI starts API and checks health/snapshot | Covered / partial | Make CI smoke assert meaningful response contracts, not only HTTP success |
 | API and schema/contract testing | `tests/test_api.py`, `tests/test_contract_and_schema_drift.py`, OpenAPI checks | Covered / partial | Add consumer contracts for the actual dashboard client when one exists |

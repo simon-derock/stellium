@@ -175,6 +175,77 @@ def test_graphrag_api_sends_retrieved_text_to_synthesis(
     )
 
 
+def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph, chat = _wire_retrieval_api(
+        monkeypatch,
+        [
+            LLMCallResult(
+                content="Samuel Wanjiru",
+                input_tokens=20,
+                output_tokens=5,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
+            LLMCallResult(
+                content='{"year": 2008, "sport": "Athletics", "venue": null}',
+                input_tokens=12,
+                output_tokens=8,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
+            LLMCallResult(
+                content="Samuel Wanjiru",
+                input_tokens=24,
+                output_tokens=5,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
+            LLMCallResult(
+                content=(
+                    "Thought: A deterministic event query can answer this count.\n"
+                    "Action: gsql_aggregate\n"
+                    'Action Input: {"sport":"Athletics","target_year":2008,'
+                    '"min_competitors":0,"max_competitors":0}'
+                ),
+                input_tokens=30,
+                output_tokens=18,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
+        ],
+    )
+    graph.run_aggregation.return_value = {
+        "count": 7,
+        "events": ["Men's marathon"],
+        "gold_doc_ids": ["Q123"],
+    }
+
+    response = client.post(
+        "/api/v1/query/compare",
+        json={"query": "Who won the 2008 Olympic men's marathon?", "qid": "compare-001"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["qid"] == "compare-001"
+    assert payload["rag"]["answer"] == "Samuel Wanjiru"
+    assert payload["graphrag"]["answer"] == "Samuel Wanjiru"
+    assert payload["agentic"]["answer"] == "7"
+    assert payload["rag"]["retrieved_doc_ids"] == ["Q123"]
+    assert payload["graphrag"]["retrieved_doc_ids"] == ["Q123"]
+    trace = payload["agentic"]["agentic_trace"]
+    assert trace["agents_invoked"] == ["ReActOrchestrator"]
+    assert trace["tools_called"][0]["tool_name"] == "gsql_aggregate"
+    assert trace["tools_called"][0]["llm_tokens"] == 0
+    assert chat.await_count == 4
+
+
 def test_batch_eval_bypasses_input_guards() -> None:
     # Batch evaluation accepts questions and invokes pipeline without interactive character limits
     from unittest.mock import patch
