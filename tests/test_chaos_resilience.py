@@ -61,12 +61,14 @@ def test_corrupted_vector_embedding_dimension_validation() -> None:
 
 
 @pytest.mark.asyncio
-async def test_llm_rate_limit_and_server_error_chaos() -> None:
+async def test_llm_rate_limit_and_server_error_chaos(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulates HTTP 429 Too Many Requests and HTTP 500 errors from LLM endpoint.
     session = LockedLLMSession(
         provider="cloudflare",
         model="@cf/meta/llama-3.1-8b-instruct-fast",
     )
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-token")
 
     req = httpx.Request("POST", "https://api.cloudflare.com/test")
     # Simulate HTTP 429 response

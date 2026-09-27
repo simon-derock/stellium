@@ -516,6 +516,8 @@ class AgenticPipeline:
 
         total_input_tokens = 0
         total_output_tokens = 0
+        llm_calls: list[dict[str, Any]] = []
+        reasoning_steps = 0
         scratchpad = ""
         current_strategy = "initial_reasoning"
         prev_tool_category: str | None = None
@@ -527,6 +529,18 @@ class AgenticPipeline:
 
             total_input_tokens += llm_res.input_tokens
             total_output_tokens += llm_res.output_tokens
+            reasoning_steps += 1
+            llm_calls.append(
+                {
+                    "step": iteration,
+                    "operation": "react_orchestrator",
+                    "model_name": llm_res.model_name,
+                    "provider": llm_res.provider,
+                    "prompt_tokens": llm_res.input_tokens,
+                    "completion_tokens": llm_res.output_tokens,
+                    "latency_ms": llm_latency,
+                }
+            )
 
             step_parsed = parse_react_response(llm_res.content)
 
@@ -541,16 +555,6 @@ class AgenticPipeline:
                     "ReAct agent concluded investigation with conclusive evidence"
                 )
                 state.confidence_score = 0.95
-                state.tool_history.append(
-                    ToolAuditCall(
-                        step=iteration,
-                        tool_name="finish",
-                        input_args={"answer": step_parsed.final_answer},
-                        output_summary="Investigation concluded",
-                        llm_tokens=llm_res.input_tokens + llm_res.output_tokens,
-                        latency_ms=llm_latency,
-                    )
-                )
                 break
 
             # Direct response generated without tool invocation
@@ -559,16 +563,6 @@ class AgenticPipeline:
                 state.final_answer = sanitize_output(llm_res.content.strip())
                 state.stopping_reason = "Single-step direct reasoning completed"
                 state.confidence_score = 0.80
-                state.tool_history.append(
-                    ToolAuditCall(
-                        step=iteration,
-                        tool_name="direct_synthesis",
-                        input_args={},
-                        output_summary=f"Synthesized: {state.final_answer[:60]}",
-                        llm_tokens=llm_res.input_tokens + llm_res.output_tokens,
-                        latency_ms=llm_latency,
-                    )
-                )
                 break
 
             # Execute the selected tool
@@ -598,7 +592,7 @@ class AgenticPipeline:
                     tool_name=action_name,
                     input_args=action_input,
                     output_summary=json.dumps(tool_obs)[:150],
-                    llm_tokens=llm_res.input_tokens + llm_res.output_tokens,
+                    llm_tokens=0,
                     latency_ms=tool_lat,
                 )
             )
@@ -663,11 +657,23 @@ class AgenticPipeline:
             synth_call = await self.llm.chat(synth_msg, max_tokens=128)
             total_input_tokens += synth_call.input_tokens
             total_output_tokens += synth_call.output_tokens
+            llm_calls.append(
+                {
+                    "step": reasoning_steps + 1,
+                    "operation": "answer_synthesis",
+                    "model_name": synth_call.model_name,
+                    "provider": synth_call.provider,
+                    "prompt_tokens": synth_call.input_tokens,
+                    "completion_tokens": synth_call.output_tokens,
+                    "latency_ms": synth_call.latency_ms,
+                }
+            )
+            reasoning_steps += 1
             state.final_answer = sanitize_output(synth_call.content.strip())
             state.stopping_reason = "Synthesized from accumulated multi-step evidence"
             state.confidence_score = 0.85
 
-        state.step_count = len(state.tool_history)
+        state.step_count = reasoning_steps + len(state.tool_history)
         total_tokens = total_input_tokens + total_output_tokens
         elapsed_ms = (time.perf_counter() - t_start) * 1000
 
@@ -675,7 +681,9 @@ class AgenticPipeline:
         agentic_trace: dict[str, Any] = {
             "step_count": state.step_count,
             "retrieval_methods": state.strategy_history or [current_strategy],
-            "agents_invoked": list({t.tool_name for t in state.tool_history}),
+            "agents_invoked": ["ReActOrchestrator"],
+            "specialized_tools_used": list(dict.fromkeys(state.strategy_history)),
+            "llm_calls": llm_calls,
             "tools_called": [t.model_dump() for t in state.tool_history],
             "chunks_retrieved": len([e for e in state.evidence if e.chunk_id]),
             "citations": list({e.doc_id for e in state.evidence if e.doc_id}),

@@ -83,8 +83,14 @@ Action Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, 
         # Verify trace structure matching hackathon rubric
         trace = result.agentic_trace
         assert trace is not None
-        assert trace["step_count"] >= 1
+        assert trace["step_count"] == len(trace["llm_calls"]) + len(trace["tools_called"])
+        assert trace["agents_invoked"] == ["ReActOrchestrator"]
         assert "gsql_aggregate" in trace["tools_called"][0]["tool_name"]
+        assert trace["tools_called"][0]["llm_tokens"] == 0
+        assert (
+            sum(call["prompt_tokens"] + call["completion_tokens"] for call in trace["llm_calls"])
+            == result.total_llm_tokens
+        )
         assert trace["stopping_reason"] != ""
         assert trace["confidence_score"] >= 0.90
 
