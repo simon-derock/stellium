@@ -9,6 +9,8 @@ import pytest
 
 from src.llm import (
     CLOUDFLARE_PRIMARY_MODEL,
+    GEMINI_MODEL,
+    MISTRAL_MODEL,
     LockedLLMSession,
     make_session,
 )
@@ -132,3 +134,47 @@ async def test_cloudflare_transient_error_retry(monkeypatch: pytest.MonkeyPatch)
         res = await session.chat(messages, max_retries=3)
         assert res.content == "Chen Ding"
         assert res.input_tokens == 30
+
+
+@pytest.mark.asyncio
+async def test_gemini_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GEMINI_API_KEY", "test-gemini-key")
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "candidates": [{"content": {"parts": [{"text": "Chen Ding"}]}}],
+        "usageMetadata": {"promptTokenCount": 31, "candidatesTokenCount": 6},
+    }
+
+    session = make_session("gemini")
+    with patch("httpx.AsyncClient.post", return_value=response) as post:
+        result = await session.chat([{"role": "system", "content": "Use evidence."}])
+
+    assert result.provider == "gemini"
+    assert result.model_name == GEMINI_MODEL
+    assert (result.input_tokens, result.output_tokens) == (31, 6)
+    request_url = post.call_args.args[0]
+    request_payload = post.call_args.kwargs["json"]
+    assert GEMINI_MODEL in request_url
+    assert request_payload["contents"][0]["role"] == "user"
+
+
+@pytest.mark.asyncio
+async def test_mistral_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "choices": [{"message": {"content": "Chen Ding"}}],
+        "usage": {"prompt_tokens": 29, "completion_tokens": 5},
+    }
+
+    session = make_session("mistral")
+    with patch("httpx.AsyncClient.post", return_value=response) as post:
+        result = await session.chat([{"role": "user", "content": "Who won?"}])
+
+    assert result.provider == "mistral"
+    assert result.model_name == MISTRAL_MODEL
+    assert (result.input_tokens, result.output_tokens) == (29, 5)
+    assert post.call_args.args[0] == "https://api.mistral.ai/v1/chat/completions"
+    assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer test-mistral-key"
