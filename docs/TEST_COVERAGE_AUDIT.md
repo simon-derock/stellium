@@ -2,12 +2,14 @@
 
 This inventory maps the requested software-testing checklist to evidence in this repository. “Covered” means a maintained automated check exists for the named concern; it does not mean every production configuration, failure mode, or deployment has been exercised. “Partial” means tests cover only a local, synthetic, or narrow slice. “Missing” means no repeatable check was found. “N/A” means the capability is not currently part of this repository's product surface.
 
-## Baseline
+## Verified Local Baseline
 
-- Last measured baseline: 127 collected, 124 passed, 3 live TigerGraph checks skipped by default.
-- Local source statement coverage: 70% overall (`pytest --cov=src`); this is a baseline, not a quality score or a claim that critical paths are covered.
+- Latest measured suite: 132 collected, 129 passed, 3 live TigerGraph checks skipped by default.
+- Local source statement coverage: 76.80% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
 - Highest coverage: models and guardrails (100%), ingestion (93%), embeddings and bitemporal logic (87–88%).
-- Lowest core areas: GraphRAG (35%), RAG (39%), evaluation runner (41%), LLM router (53%), and live graph verifier (55%).
+- RAG and GraphRAG retrieval paths are now directly tested at 95% and 86%, respectively.
+- Evaluation runner coverage rose from 42% to 88%; API coverage rose from 64% to 74% with the new workflow tests.
+- Lowest remaining core areas: LLM router (53%), live graph verifier (55%), ingestion batch upsert (63%), graph client (66%), and graph mock (67%).
 - Live checks in `tests/test_graph_live.py` require `TG_RUN_LIVE_TESTS=1`; the default suite does not prove live cluster readiness.
 
 ## Checklist Mapping
@@ -47,7 +49,7 @@ This inventory maps the requested software-testing checklist to evidence in this
 ## Priority Plan
 
 1. **Metric correctness:** keep EM/F1, retrieval completeness, token accounting, and trace fields mathematically and semantically consistent. Token F1 was changed to multiset overlap; regression tests now cover duplicate tokens and empty inputs.
-2. **Agentic trace truthfulness:** distinguish agent identities from tool names; record planner, tool, and synthesis latency/tokens separately; deterministic GSQL operations must report zero LLM tokens while planner-token attribution remains explicit.
+2. **Agentic trace truthfulness:** distinguish agent identities from tool names; record planner, tool, and synthesis latency/tokens separately; deterministic GSQL operations now report zero LLM tokens and orchestrator usage is recorded in separate `llm_calls` entries. Distinct specialist agents remain a design gap.
 3. **Meaningful CI gates:** type-check `src/` and `tests/`, run Bandit and dependency audit, enforce a coverage floor based on the measured baseline, and make smoke tests deterministic and assert useful behavior.
 4. **Retrieval quality and evaluation:** add direct tests for RAG and GraphRAG, complete the three-pipeline 100-question public run, then all 50 hidden questions under the required pipeline protocol; preserve raw JSONL and run metadata.
 5. **Real system and UX verification:** replace the static graph snapshot/metrics fixture with live result data; once a UI is present, add browser, accessibility, and visual checks.
