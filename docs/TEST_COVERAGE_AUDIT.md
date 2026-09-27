@@ -4,21 +4,21 @@ This inventory maps the requested software-testing checklist to evidence in this
 
 ## Verified Local Baseline
 
-- Latest measured suite: 134 collected, 131 passed, 3 live TigerGraph checks skipped by default.
-- Local source statement coverage: 78.50% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
+- Latest measured suite: 138 collected, 135 passed, 3 live TigerGraph checks skipped by default.
+- Local source statement coverage: 78.95% overall (`pytest --cov=src`); CI enforces a 75% regression floor. Coverage is not a quality score or proof that critical paths are covered.
 - Highest coverage: models and guardrails (100%), ingestion (93%), embeddings and bitemporal logic (87–88%).
 - RAG and GraphRAG retrieval paths are now directly tested at 95% and 86%, respectively.
-- Evaluation runner coverage is 88%, API coverage 74%, and LLM router coverage 78% after the new provider and workflow tests.
-- Lowest remaining core areas: live graph verifier (55%), ingestion batch upsert (63%), graph client (66%), and graph mock (67%).
+- Evaluation runner coverage is 88%, API coverage 74%, LLM router coverage 78%, and graph client coverage 76% after focused contract tests.
+- Lowest remaining core areas: live graph verifier (55%), ingestion batch upsert (63%), and graph mock (67%).
 - Live checks in `tests/test_graph_live.py` require `TG_RUN_LIVE_TESTS=1`; the default suite does not prove live cluster readiness.
 
 ## Checklist Mapping
 
 | Checklist area | Current evidence | Status | Next useful step |
 | :--- | :--- | :---: | :--- |
-| Linting, formatting, type checking | Ruff and mypy configured; workflow runs Ruff and `mypy src/` | Covered / partial | Type-check tests in CI too; keep full local gate |
-| Static application security (SAST) | `tests/test_sast_and_guardrails.py`; Bandit is a dev dependency | Partial | Run Bandit as a CI gate and retain a machine-readable report |
-| Software composition / dependency vulnerability scanning | `pip-audit` is a dev dependency and was run previously | Partial | Add scheduled and pull-request CI audit; review exceptions explicitly |
+| Linting, formatting, type checking | Ruff configured; workflow runs Ruff and `mypy src/ tests/` | Covered | Keep the local and CI checks aligned |
+| Static application security (SAST) | `tests/test_sast_and_guardrails.py`; Bandit runs in CI | Covered / partial | Retain machine-readable reports and review suppressions |
+| Software composition / dependency vulnerability scanning | `pip-audit` runs on pushes, pull requests, and daily schedule | Covered / partial | Review exceptions explicitly; scanner coverage is dependencies, not application code |
 | License compliance | No license inventory or allow/deny policy found | Missing | Add dependency license report and an approved license policy |
 | Dead code elimination analysis | No maintained dead-code check found | Missing | Add a conservative unused-code check, reviewed to avoid false positives |
 | Complexity auditing | No complexity threshold or report found | Missing | Add per-function complexity reporting; gate only newly introduced hotspots |
@@ -30,7 +30,7 @@ This inventory maps the requested software-testing checklist to evidence in this
 | API and schema/contract testing | `tests/test_api.py`, `tests/test_contract_and_schema_drift.py`, OpenAPI checks | Covered / partial | Add consumer contracts for the actual dashboard client when one exists |
 | Consumer-driven contracts | No consumer-owned contract suite found | Missing | Add when a maintained frontend/client is in this repository |
 | UI, visual regression, snapshot, accessibility, localization, browser, mobile | No `frontend/` application found; snapshot endpoint returns static fixture data | Missing / N/A currently | Build the actual dashboard first, then add Playwright, visual, a11y, locale and browser checks |
-| Load, stress, concurrency, latency, volume | `test_load_and_stress.py`, `test_concurrency_latency.py` use synthetic/small local corpora | Partial | Repeat against all 22,016 chunks and live graph; record p50/p95/p99, throughput and RSS |
+| Load, stress, concurrency, latency, volume | `test_load_and_stress.py` uses synthetic chunks with 10 worker threads; `test_concurrency_latency.py` overlaps 20 mocked LLM requests | Partial | Repeat against all 22,016 chunks and live graph; record p50/p95/p99, throughput and RSS |
 | Endurance, soak, spike, scalability, capacity planning | No long-duration or stepped-capacity run found | Missing | Add a separately invoked benchmark profile and define capacity/SLO targets from measurements |
 | Benchmark testing | RRF/coprocessor microbenchmarks exist; no saved full 100/50 comparison result set | Partial | Run all three pipelines on both datasets and persist raw results plus aggregate report |
 | Chaos and fault injection | `test_chaos_resilience.py` injects selected fake HTTP/graph failures | Partial | Add timeouts, malformed/partial responses, retry exhaustion, and live dependency fault drills |
@@ -50,8 +50,8 @@ This inventory maps the requested software-testing checklist to evidence in this
 
 1. **Metric correctness:** keep EM/F1, retrieval completeness, token accounting, and trace fields mathematically and semantically consistent. Token F1 was changed to multiset overlap; regression tests now cover duplicate tokens and empty inputs.
 2. **Agentic trace truthfulness:** distinguish agent identities from tool names; record planner, tool, and synthesis latency/tokens separately; deterministic GSQL operations now report zero LLM tokens and orchestrator usage is recorded in separate `llm_calls` entries. Distinct specialist agents remain a design gap.
-3. **Meaningful CI gates:** type-check `src/` and `tests/`, run Bandit and dependency audit, enforce a coverage floor based on the measured baseline, and make smoke tests deterministic and assert useful behavior.
-4. **Retrieval quality and evaluation:** add direct tests for RAG and GraphRAG, complete the three-pipeline 100-question public run, then all 50 hidden questions under the required pipeline protocol; preserve raw JSONL and run metadata.
+3. **Meaningful CI gates:** source and test typing, Bandit, scheduled `pip-audit`, a measured 75% coverage floor, deterministic benchmark smoke assertions, and retained test artifacts are now in CI; validate hosted runs and continue raising the floor with evidence.
+4. **Retrieval quality and evaluation:** direct RAG/GraphRAG/API tests and benchmark JSONL contract tests are present; complete the three-pipeline 100-question public run and all 50 hidden questions under the required pipeline protocol, preserving raw JSONL and run metadata.
 5. **Real system and UX verification:** replace the static graph snapshot/metrics fixture with live result data; once a UI is present, add browser, accessibility, and visual checks.
 6. **Performance evidence:** benchmark the full corpus and live Savanna under repeatable conditions; publish latency distributions, concurrency, memory, token/neuron cost, accuracy, and completeness together.
 
