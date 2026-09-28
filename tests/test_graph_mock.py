@@ -71,6 +71,31 @@ def test_mock_upsert_edge() -> None:
     assert len(conn.edges) == 3
 
 
+def test_mock_multihop_filters_event_year_and_yearless_edge_date() -> None:
+    conn = MockTigerGraphConnection()
+    conn.upsertVertex(
+        "Event", "e2012", {"name": "2012 event", "year": 2012, "gold_athlete": "Athlete A"}
+    )
+    conn.upsertVertex(
+        "Event", "e2016", {"name": "2016 event", "year": 2016, "gold_athlete": "Athlete B"}
+    )
+    conn.upsertVertex("Venue", "venue", {"name": "Test Arena"})
+    conn.upsertEdge("Event", "e2012", "HELD_AT", "Venue", "venue", {"start_date": "11–19 August"})
+    conn.upsertEdge("Event", "e2016", "HELD_AT", "Venue", "venue", {"start_date": "11–19 August"})
+
+    result = conn.runInstalledQuery(
+        "get_event_by_venue_date",
+        {
+            "venue_name_fragment": "Test Arena",
+            "target_date_fragment": "11–19 August",
+            "target_year": 2012,
+        },
+    )[0]
+
+    assert result["events"] == ["2012 event"]
+    assert result["gold_athletes"] == ["Athlete A"]
+
+
 # Test installed query simulation for event aggregates
 def test_mock_query_event_aggregates() -> None:
     conn = MockTigerGraphConnection()

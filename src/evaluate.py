@@ -14,6 +14,8 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 from src.coprocessor import Coprocessor
 from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import normalize
@@ -94,6 +96,89 @@ def compute_precision_at_k(
     return len(matched) / len(retrieved_k)
 
 
+def _load_checkpoint(
+    out_file: Path,
+    questions: list[EvalQuestion],
+    pipeline_names: list[str],
+) -> dict[str, dict[str, Any]]:
+    # Reject stale or malformed files rather than mixing results from different runs.
+    question_by_id = {question.qid: question for question in questions}
+    completed: dict[str, dict[str, Any]] = {}
+    with out_file.open(encoding="utf-8") as result_file:
+        for line_number, line in enumerate(result_file, start=1):
+            if not line.strip():
+                continue
+            try:
+                saved_record = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"Cannot resume malformed JSONL record at {out_file}:{line_number}"
+                ) from exc
+            qid = saved_record.get("qid")
+            question = question_by_id.get(qid)
+            if question is None or saved_record.get("question") != question.question:
+                raise ValueError(f"Resume artifact {out_file} does not match the selected dataset")
+            if qid in completed:
+                raise ValueError(f"Duplicate question {qid} in resume artifact {out_file}")
+            if any(f"{pipeline}_answer" not in saved_record for pipeline in pipeline_names):
+                raise ValueError(f"Resume artifact {out_file} lacks a requested pipeline result")
+            completed[qid] = saved_record
+    return completed
+
+
+def _summarize_records(
+    questions: list[EvalQuestion],
+    records: list[dict[str, Any]],
+    pipeline_names: list[str],
+) -> tuple[dict[str, dict[str, float]], dict[str, int], dict[str, dict[str, dict[str, float]]]]:
+    # Recompute report metrics from the durable result rows after fresh or resumed runs.
+    qtypes = ["aggregation", "temporal", "superlative", "multi_hop", "lookup"]
+    stats = {
+        pipeline: {
+            metric: 0.0
+            for metric in (
+                "em",
+                "f1",
+                "mrr",
+                "rec5",
+                "prec5",
+                "tokens",
+                "zero_tokens",
+                "latency_ms",
+            )
+        }
+        for pipeline in pipeline_names
+    }
+    qtype_counts = {qtype: 0 for qtype in qtypes}
+    qtype_stats = {
+        qtype: {pipeline: {"em": 0.0, "tokens": 0.0} for pipeline in pipeline_names}
+        for qtype in qtypes
+    }
+    metric_fields = {
+        "em": "em",
+        "f1": "f1",
+        "mrr": "mrr",
+        "rec5": "recall@5",
+        "prec5": "prec@5",
+    }
+    for question, record in zip(questions, records, strict=True):
+        qtype = question.qtype if question.qtype in qtypes else "lookup"
+        qtype_counts[qtype] += 1
+        for pipeline in pipeline_names:
+            tokens = float(record.get(f"{pipeline}_tokens", 0.0))
+            stats[pipeline]["tokens"] += tokens
+            stats[pipeline]["latency_ms"] += float(record.get(f"{pipeline}_latency_ms", 0.0))
+            stats[pipeline]["zero_tokens"] += float(tokens == 0)
+            for metric, field_name in metric_fields.items():
+                value = record.get(f"{pipeline}_{field_name}")
+                if value is not None:
+                    stats[pipeline][metric] += float(value)
+            if f"{pipeline}_em" in record:
+                qtype_stats[qtype][pipeline]["em"] += float(record[f"{pipeline}_em"])
+                qtype_stats[qtype][pipeline]["tokens"] += tokens
+    return stats, qtype_counts, qtype_stats
+
+
 # ---------------------------------------------------------------------------
 # Evaluation Runner
 # ---------------------------------------------------------------------------
@@ -107,6 +192,8 @@ class EvaluationHarness:
         use_mock: bool = False,
         session_factory: Callable[[str], LockedLLMSession] | None = None,
     ) -> None:
+        # Load local credentials before selecting the graph client or creating LLM sessions.
+        load_dotenv()
         self.corpus_path = corpus_path
         self.provider = provider
         self.session_factory = session_factory or make_session
@@ -178,6 +265,7 @@ class EvaluationHarness:
         pipeline_names: list[str],
         output_path: str | None = None,
         limit: int | None = None,
+        resume: bool = False,
     ) -> list[dict[str, Any]]:
         questions: list[EvalQuestion] = []
         with open(dataset_path, encoding="utf-8") as f:
@@ -188,40 +276,35 @@ class EvaluationHarness:
         if limit:
             questions = questions[:limit]
 
+        out_file = Path(output_path) if output_path else None
+        completed_records: dict[str, dict[str, Any]] = {}
+        if out_file:
+            out_file.parent.mkdir(parents=True, exist_ok=True)
+            if resume and out_file.exists():
+                completed_records = _load_checkpoint(out_file, questions, pipeline_names)
+            else:
+                out_file.write_text("", encoding="utf-8")
+
         print(
             f"Benchmarking {len(questions)} questions across pipelines: {pipeline_names}...",
             file=sys.stderr,
         )
 
         all_records: list[dict[str, Any]] = []
-        stats: dict[str, dict[str, float]] = {
-            p: {
-                "em": 0.0,
-                "f1": 0.0,
-                "mrr": 0.0,
-                "rec5": 0.0,
-                "prec5": 0.0,
-                "tokens": 0.0,
-                "zero_tokens": 0.0,
-                "latency_ms": 0.0,
-            }
-            for p in pipeline_names
-        }
-
-        # Track metrics by question category
-        qtypes = ["aggregation", "temporal", "superlative", "multi_hop", "lookup"]
-        qtype_counts: dict[str, int] = {qt: 0 for qt in qtypes}
-        qtype_stats: dict[str, dict[str, dict[str, float]]] = {
-            qt: {p: {"em": 0.0, "tokens": 0.0} for p in pipeline_names} for qt in qtypes
-        }
 
         for idx, q in enumerate(questions, start=1):
+            if q.qid in completed_records:
+                restored_record = completed_records[q.qid]
+                all_records.append(restored_record)
+                print(
+                    f"[{idx}/{len(questions)}] {q.qid} restored from checkpoint",
+                    file=sys.stderr,
+                )
+                continue
+
             t0 = time.perf_counter()
             pipe_results = await self.evaluate_question(q, pipeline_names)
             elapsed = (time.perf_counter() - t0) * 1000
-
-            qt_norm = q.qtype if q.qtype in qtypes else "lookup"
-            qtype_counts[qt_norm] += 1
 
             record: dict[str, Any] = {
                 "qid": q.qid,
@@ -233,13 +316,16 @@ class EvaluationHarness:
                 res = pipe_results[p]
                 record[f"{p}_answer"] = res.answer
                 record[f"{p}_tokens"] = res.total_llm_tokens
+                record[f"{p}_input_tokens"] = res.llm_input_tokens
+                record[f"{p}_output_tokens"] = res.llm_output_tokens
+                record[f"{p}_context_tokens"] = res.context_tokens
                 record[f"{p}_latency_ms"] = res.latency_ms
+                record[f"{p}_model"] = res.model_name
+                record[f"{p}_provider"] = res.provider
+                record[f"{p}_retrieved_doc_ids"] = res.retrieved_doc_ids
 
                 if res.agentic_trace:
                     record["agentic_trace"] = res.agentic_trace
-
-                if res.total_llm_tokens == 0:
-                    stats[p]["zero_tokens"] += 1.0
 
                 # Compute metrics if ground truth is present
                 if q.answer:
@@ -255,23 +341,20 @@ class EvaluationHarness:
                     record[f"{p}_recall@5"] = rec5
                     record[f"{p}_prec@5"] = prec5
 
-                    stats[p]["em"] += em
-                    stats[p]["f1"] += f1
-                    stats[p]["mrr"] += mrr
-                    stats[p]["rec5"] += rec5
-                    stats[p]["prec5"] += prec5
-
-                    qtype_stats[qt_norm][p]["em"] += em
-                    qtype_stats[qt_norm][p]["tokens"] += res.total_llm_tokens
-
-                stats[p]["tokens"] += res.total_llm_tokens
-                stats[p]["latency_ms"] += res.latency_ms
-
             all_records.append(record)
+            if out_file:
+                with out_file.open("a", encoding="utf-8") as result_file:
+                    result_file.write(json.dumps(record) + "\n")
+                    result_file.flush()
             print(
                 f"[{idx}/{len(questions)}] {q.qid} ({q.qtype}) in {elapsed:.1f}ms",
                 file=sys.stderr,
             )
+
+        stats, qtype_counts, qtype_stats = _summarize_records(
+            questions, all_records, pipeline_names
+        )
+        qtypes = list(qtype_counts)
 
         n = max(1, len(questions))
 
@@ -335,14 +418,8 @@ class EvaluationHarness:
             )
             print("=" * 90 + "\n", file=sys.stderr)
 
-        # Write output file if specified
         if output_path:
-            out_file = Path(output_path)
-            out_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(out_file, "w", encoding="utf-8") as f:
-                for r in all_records:
-                    f.write(json.dumps(r) + "\n")
-            print(f"Results written to {output_path}", file=sys.stderr)
+            print(f"Results checkpointed to {output_path}", file=sys.stderr)
 
         return all_records
 
@@ -382,6 +459,11 @@ def main() -> None:
         default=None,
         help="Optional limit on number of questions to evaluate",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume missing questions from existing JSONL results at --output",
+    )
     args = parser.parse_args()
 
     pipelines = ["rag", "graphrag", "agentic"] if args.pipeline == "all" else [args.pipeline]
@@ -393,6 +475,7 @@ def main() -> None:
             pipeline_names=pipelines,
             output_path=args.output,
             limit=args.limit,
+            resume=args.resume,
         )
     )
 

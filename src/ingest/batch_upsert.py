@@ -164,7 +164,7 @@ def prepare_ingestion_plan(
 
     for doc in docs:
         infobox = parse_infobox(doc.text, title=doc.title)
-        mask = build_filter_mask(infobox.year, infobox.season, infobox.sport)
+        mask = build_filter_mask(infobox.year, infobox.season)
 
         # 1. Document Vertex
         doc_records.append(
@@ -202,6 +202,7 @@ def prepare_ingestion_plan(
                         "year": infobox.year or 0,
                         "season": infobox.season or "",
                         "sport": infobox.sport or "",
+                        "gender": infobox.gender or "",
                         "venue": infobox.venue or "",
                         "competitor_count": infobox.competitor_count or 0,
                         "nation_count": infobox.nation_count or 0,
@@ -456,11 +457,19 @@ def main() -> None:
         help="Upsert only Chunk vertices with embeddings into TigerGraph Savanna",
     )
     parser.add_argument(
+        "--events-only",
+        action="store_true",
+        default=False,
+        help="Upsert only Event vertices, without rewriting documents, chunks, or edges",
+    )
+    parser.add_argument(
         "--cache-path",
         default="data/chunk_embeddings_cache.jsonl",
         help="Path to persistent disk cache for embeddings",
     )
     args = parser.parse_args()
+    if args.embed_only and args.events_only:
+        parser.error("--embed-only and --events-only cannot be used together")
 
     try:
         import dotenv
@@ -513,6 +522,29 @@ def main() -> None:
             f"[Stream 1] Chunk embedding upsert complete in {stats.elapsed_seconds:.2f}s "
             f"(Chunk vertices: {stats.total_vertices_upserted}, Batches: {stats.batches_processed})"
         )
+        return
+
+    if args.events_only:
+        print("[Stream 1] Executing Event metadata-only upsert...")
+        client = (
+            create_mock_graph_client()
+            if (args.mock or args.dry_run)
+            else GraphClient(conn=connect())
+        )
+        event_plan = IngestionPlan(
+            event_batches=plan.event_batches,
+            total_events=plan.total_events,
+        )
+        stats = execute_ingestion(client, event_plan, dry_run=args.dry_run)
+        print(
+            f"[Stream 1] Event upsert complete in {stats.elapsed_seconds:.2f}s "
+            f"(Events: {stats.total_vertices_upserted}, Batches: {stats.batches_processed})"
+        )
+        if stats.errors:
+            print(f"[Stream 1] Encountered {len(stats.errors)} batch errors:")
+            for err in stats.errors:
+                print(f"  - {err}")
+            sys.exit(1)
         return
 
     if args.mock:

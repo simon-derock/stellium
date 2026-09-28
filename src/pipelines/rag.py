@@ -86,4 +86,5 @@ class RAGPipeline:
             latency_ms=latency_ms,
             retrieved_doc_ids=doc_ids,
             model_name=llm_result.model_name,
+            provider=llm_result.provider,
         )

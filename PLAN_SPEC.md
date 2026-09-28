@@ -31,7 +31,7 @@
 
 This specification records both the desired system and implementation work. A requirement is not complete merely because it appears in an architecture description. Use these labels in task tracking: **Implemented** means verified in current code or runtime; **Partial** means a primitive exists but the stated user-facing behavior is incomplete; **Missing** means no implementation evidence exists. Performance and accuracy numbers require reproducible result artifacts before they can be presented as measured outcomes.
 
-Verified starting point (2026-09-28): the agent is a bounded cyclic ReAct loop in `src/pipelines/agentic.py`; TigerGraph uses the 1024-dimensional Jina embedding space; local sparse retrieval uses `rank-bm25` and packed integer masks; the API serves a single HTML dashboard and Lunarbit source samples are under `samples/frontend/`. Persistent session history, query-specific graph snapshots, the maintained premium frontend, and complete public benchmark artifacts are not yet implemented. The snapshot endpoint intentionally returns empty data until live query-derived data is wired in.
+Verified starting point (2026-09-28): the agent is a bounded cyclic ReAct loop in `src/pipelines/agentic.py`; TigerGraph uses the 1024-dimensional Jina embedding space; local sparse retrieval uses `rank-bm25` and packed integer masks; the API serves a single HTML dashboard and Lunarbit source samples are under `samples/frontend/`. Persistent session history, query-specific graph snapshots, the maintained premium frontend, and complete public benchmark artifacts are not yet implemented. The snapshot endpoint intentionally returns empty data until live query-derived data is wired in. The latest completed live three-pipeline public run before the multi-hop date-query correction scored RAG 5/100 EM, GraphRAG 34/100 EM, and Agentic 80/100 EM (Agentic token F1 0.807); its local artifact is `results/public_results_20260928_v3.jsonl`. This is a baseline, not the 98% objective.
 
 The primary quality objective is **at least 98% measured answer accuracy**, pursued without hard-coded answers or hidden-set tuning. Treat this as a target, not a result or guarantee. Report accuracy with completeness, evidence/citation quality, latency, token use, and question-category breakdowns.
 
@@ -502,7 +502,7 @@ flowchart LR
 ### Components
 1. **Packed Integer Masks**:
    - Current implementation stores a `uint32` mask on chunks and checks it while scanning BM25 scores.
-   - The current sport-bit mapping is a fixed list and violates the no-static-sport-list rule; replace it with corpus-derived indexing or remove sport bits before claiming compliance.
+   - Masks encode year and season only. Sport names remain corpus-derived text and are handled by retrieval rather than a static taxonomy.
    - One fixed-width integer AND is constant-time, but finding all matching chunks still depends on the candidate scan or index.
 2. **BM25 Sparse Index (`rank-bm25`)**:
    - Current `rank-bm25` path scores all indexed chunks and sorts positive candidates; do not claim constant-time retrieval.
@@ -534,6 +534,7 @@ flowchart LR
 - Execution CLI:
   `uv run python -m src.evaluate --dataset hackathon-resources/questions/eval_public.jsonl --pipeline all --output results/public_results.jsonl`
   `uv run python -m src.evaluate --dataset hackathon-resources/questions/eval_hidden.jsonl --pipeline agentic --output results/hidden_submission.jsonl`
+- Completed question results are flushed to JSONL as the run proceeds. `--resume` validates the dataset/question identity and pipeline fields, restores completed records, and evaluates only missing questions. This supports recovery from transient provider or network failures without discarding completed measurements.
 
 ## 2. Metrics Hierarchy
 - Implemented local answer/retrieval metrics (computed without extra LLM calls; latency depends on dataset size):
@@ -545,6 +546,10 @@ flowchart LR
 - Missing measurement work: completeness, citation precision/recall, groundedness, p50/p95/p99 latency, neuron/accounting breakdowns, and confidence calibration.
 - Missing: answer completeness, groundedness/faithfulness, and a reviewed semantic grading protocol. RAGAS is a possible optional evaluator, not currently integrated or required by the supplied guidebook.
 - Accuracy objective: pursue 98%+ on the public evaluation while protecting generalization; publish the measured score and category breakdown, never a target as if achieved.
+- Latest verified public baseline (2026-09-28, Cloudflare `@cf/meta/llama-3.1-8b-instruct-fast`, 100 questions): RAG EM 5%, GraphRAG EM 34%, Agentic EM 80%, Agentic token F1 0.807. Agentic EM by type: aggregation 21/21, temporal 17/22, superlative 10/10, multi-hop 17/28, lookup 15/19. The output artifact is local/ignored; rerun before treating these as a published submission result.
+- Latest completed Agentic-only run (before the newest tool-validation/stopping changes) scored 84/100 EM, token F1 0.852, and 2.34s mean latency. It is not a new three-pipeline comparison. The current code now rejects aggregate actions containing an event-specific attribute request and routes valid aggregates back through ReAct for question-to-result verification; this accuracy safeguard is not yet benchmarked because Cloudflare exhausted retries.
+- A 2026-09-28 correction passes the Olympic year as an Event filter for venue/date queries and strips it from the edge-date fragment, because source infobox date edges commonly omit the year. The query was reinstalled and a live Riocentro lookup returned the expected event and athlete. The v4 Agentic-only public run improved to 84/100, although the run also included stricter answer formatting; treat the score as a combined-change result.
+- Evaluator results are checkpointed per question; `--resume` validates the dataset and requested pipelines before continuing incomplete runs. Local tests exercise recovery from a partial checkpoint.
 - Comparative Metrics:
   - Token Efficiency Delta: $\Delta_{\text{tokens}} = \frac{\text{Tokens}_{\text{Agentic}}}{\text{Tokens}_{\text{RAG}}}$
   - Accuracy Delta: $\Delta_{\text{accuracy}} = \text{Accuracy}_{\text{Agentic}} - \text{Accuracy}_{\text{RAG}}$

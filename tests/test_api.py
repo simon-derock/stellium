@@ -99,7 +99,15 @@ def test_agentic_query_mock_execution() -> None:
         provider="mock",
         latency_ms=10.0,
     )
-    with patch.object(LockedLLMSession, "chat", return_value=mock_res):
+    mock_final = LLMCallResult(
+        content="Thought: The event count matches the requested threshold.\nFinal Answer: 5",
+        input_tokens=60,
+        output_tokens=12,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=8.0,
+    )
+    with patch.object(LockedLLMSession, "chat", side_effect=[mock_res, mock_final]):
         resp = client.post(
             "/api/v1/query/agentic",
             json={
@@ -220,11 +228,33 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
                 provider="test",
                 latency_ms=1.0,
             ),
+            LLMCallResult(
+                content=(
+                    "Thought: The count does not answer who won; query the gold medalist.\n"
+                    "Action: gsql_lookup\n"
+                    'Action Input: {"event_name_fragment":"men\'s marathon",'
+                    '"target_year":2008,"sport":"Athletics",'
+                    '"gender":"Men","attribute":"gold_athlete"}'
+                ),
+                input_tokens=42,
+                output_tokens=24,
+                model_name="test-model",
+                provider="test",
+                latency_ms=1.0,
+            ),
         ],
     )
     graph.run_aggregation.return_value = {
         "count": 7,
         "events": ["Men's marathon"],
+        "gold_doc_ids": ["Q123"],
+    }
+    graph.run_lookup.return_value = {
+        "events": ["Athletics at the 2008 Summer Olympics – Men's marathon"],
+        "competitor_counts": [98],
+        "nation_counts": [59],
+        "gold_athletes": ["Samuel Wanjiru"],
+        "venues": ["Beijing National Stadium"],
         "gold_doc_ids": ["Q123"],
     }
 
@@ -238,14 +268,14 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
     assert payload["qid"] == "compare-001"
     assert payload["rag"]["answer"] == "Samuel Wanjiru"
     assert payload["graphrag"]["answer"] == "Samuel Wanjiru"
-    assert payload["agentic"]["answer"] == "7"
+    assert payload["agentic"]["answer"] == "Samuel Wanjiru"
     assert payload["rag"]["retrieved_doc_ids"] == ["Q123"]
     assert payload["graphrag"]["retrieved_doc_ids"] == ["Q123"]
     trace = payload["agentic"]["agentic_trace"]
     assert trace["agents_invoked"] == ["ReActOrchestrator"]
     assert trace["tools_called"][0]["tool_name"] == "gsql_aggregate"
     assert trace["tools_called"][0]["llm_tokens"] == 0
-    assert chat.await_count == 4
+    assert chat.await_count == 5
 
 
 def test_batch_eval_bypasses_input_guards() -> None:

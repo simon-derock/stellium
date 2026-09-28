@@ -307,6 +307,7 @@ class MockTigerGraphConnection:
     def _query_get_event_by_venue_date(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         venue_frag = str(params.get("venue_name_fragment", "")).strip().lower()
         date_frag = str(params.get("target_date_fragment", "")).strip().lower()
+        target_year = int(params.get("target_year", 0))
 
         events_store = self.vertices.get("Event", {})
         venues_store = self.vertices.get("Venue", {})
@@ -319,13 +320,15 @@ class MockTigerGraphConnection:
                 event_id, venue_id, edge_attrs = e[1], e[4], e[5]
                 venue_name = str(venues_store.get(venue_id, {}).get("name", venue_id)).lower()
                 start_date = str(edge_attrs.get("start_date", "")).lower()
+                ev_attrs = events_store.get(event_id, {})
 
                 if venue_frag and venue_frag not in venue_name:
+                    continue
+                if target_year and int(ev_attrs.get("year", 0)) != target_year:
                     continue
                 if date_frag and date_frag not in start_date:
                     continue
 
-                ev_attrs = events_store.get(event_id, {})
                 events_out.append(str(ev_attrs.get("name", event_id)))
                 ath = str(ev_attrs.get("gold_athlete", "")).strip()
                 if ath:

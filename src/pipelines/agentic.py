@@ -44,6 +44,7 @@ Your mission is to investigate complex sports queries autonomously by planning r
    Traverse PRECEDES edges in TigerGraph to find the event and gold medalist in the edition immediately preceding a given year.
    Parameters:
      - sport: string (e.g. "Athletics", or "" for any)
+     - gender: string ("Men", "Women", "Mixed", or "" for any)
      - event_name_fragment: string (e.g. "20 kilometres walk", "100 metres", or "")
      - current_year: integer (the reference year, e.g. 2016)
 
@@ -60,14 +61,18 @@ Your mission is to investigate complex sports queries autonomously by planning r
    Traverse HELD_AT edges to find Olympic events and gold medalists held at a specific venue and/or date.
    Parameters:
      - venue_name_fragment: string (e.g. "National Stadium", "Ice Center", or "")
-     - target_date_fragment: string (e.g. "16 August 2008", or "")
+     - target_date_fragment: string (date only, e.g. "16 August"; omit the year because it is stored on Event)
+     - target_year: integer (Olympic edition year, e.g. 2008; use 0 only when the year is unknown)
 
 5. gsql_lookup:
    Look up specific Event attributes (medalists, competitors, nations, venue) by event name fragment, year, and sport.
    Parameters:
-     - event_name_fragment: string (e.g. "marathon", "100m", or "")
+     - event_name_fragment: distinctive phrase from the event title (e.g. "Women's 57 kg"); omit sport and year because they have separate parameters
      - target_year: integer (e.g. 2012, or 0 for any)
      - sport: string (e.g. "Athletics", or "" for any)
+     - gender: string ("Men", "Women", "Mixed", or "" for any)
+     - attribute: one of "competitor_count", "nation_count", "gold_athlete", or "venue"
+   Preserve every qualifier that distinguishes the requested event. For attribute questions, select the exact attribute.
 
 6. vector_search:
    Perform 1024-dimensional HNSW dense semantic similarity search over passage chunks in TigerGraph.
@@ -99,6 +104,8 @@ Action Input: <JSON formatted parameters matching the tool schema>
 When you receive the Observation, you must reflect on the result:
 - If the evidence definitively answers the question: Call finish or output Final Answer directly.
 - If the result is empty, ambiguous, or incomplete: Adapt strategy (e.g. switch from structured GSQL to hybrid_search or vector_search) and call the next action.
+- If a graph query returns multiple candidate events, never assume the first is correct. Refine the query with all distinguishing qualifiers from the original question or gather evidence to select the matching event.
+- Use gsql_aggregate only when the question asks how many events match criteria. Use gsql_lookup for an attribute (including the number of nations or competitors) of one named event.
 
 To conclude, you may either call the finish tool or output:
 Thought: I have sufficient evidence to answer accurately.
@@ -140,7 +147,8 @@ Final Answer: Armin Zöggeler
 ### STRICT ANSWERING RULES:
 1. ONLY provide facts verified in tool observations. Do NOT hallucinate.
 2. If evidence is missing across all retrieval attempts, answer "Not found in corpus".
-3. Return ONLY the answer (name, number, or entity), concise and unadorned.
+3. Return ONLY the answer value: a number, or the exact athlete/entity name(s) copied from evidence. Do not add a sentence, country, event title, explanation, or markdown.
+4. Never answer from general knowledge when retrieval fails. Continue with another tool or return "Not found in corpus".
 """
 
 
@@ -347,6 +355,15 @@ class AgenticPipeline:
 
         try:
             if tool_name == "gsql_aggregate":
+                if tool_args.get("attribute") or tool_args.get("event_name_fragment"):
+                    result = {
+                        "error": (
+                            "gsql_aggregate counts matching events; it does not return an "
+                            "attribute for one named event. Retry with gsql_lookup and pass "
+                            "event_name_fragment, target_year, sport, gender, and attribute."
+                        )
+                    }
+                    return result, citations, (time.perf_counter() - t0) * 1000
                 sport = str(tool_args.get("sport", ""))
                 year = int(tool_args.get("target_year", tool_args.get("year", 0)))
                 min_c = int(
@@ -367,12 +384,13 @@ class AgenticPipeline:
 
             elif tool_name == "gsql_temporal":
                 sport = str(tool_args.get("sport", ""))
+                gender = str(tool_args.get("gender", ""))
                 fragment = str(
                     tool_args.get("event_name_fragment", tool_args.get("event_fragment", ""))
                 )
                 year = int(tool_args.get("current_year", tool_args.get("year", 0)))
                 res = self.graph.run_temporal(
-                    sport=sport, event_name_fragment=fragment, current_year=year
+                    sport=sport, event_name_fragment=fragment, current_year=year, gender=gender
                 )
                 result = {
                     "prev_events": res.get("prev_events", [])[:5],
@@ -406,7 +424,8 @@ class AgenticPipeline:
                     tool_args.get("venue_name_fragment", tool_args.get("venue_fragment", ""))
                 )
                 date = str(tool_args.get("target_date_fragment", tool_args.get("date", "")))
-                res = self.graph.run_multihop(venue_fragment=venue, date_fragment=date)
+                year = int(tool_args.get("target_year", tool_args.get("year", 0)))
+                res = self.graph.run_multihop(venue_fragment=venue, date_fragment=date, year=year)
                 result = {
                     "events": res.get("events", [])[:5],
                     "gold_athletes": res.get("gold_athletes", [])[:5],
@@ -422,14 +441,29 @@ class AgenticPipeline:
                 )
                 year = int(tool_args.get("target_year", tool_args.get("year", 0)))
                 sport = str(tool_args.get("sport", ""))
-                res = self.graph.run_lookup(event_fragment=fragment, year=year, sport=sport)
+                gender = str(tool_args.get("gender", ""))
+                attribute = str(tool_args.get("attribute", ""))
+                res = self.graph.run_lookup(
+                    event_fragment=fragment, year=year, sport=sport, gender=gender
+                )
+                values_by_attribute = {
+                    "competitor_count": res.get("competitor_counts", []),
+                    "nation_count": res.get("nation_counts", []),
+                    "gold_athlete": res.get("gold_athletes", []),
+                    "venue": res.get("venues", []),
+                }
+                requested_values = values_by_attribute.get(attribute, [])
                 result = {
                     "events": res.get("events", [])[:5],
                     "competitor_counts": res.get("competitor_counts", [])[:5],
+                    "nation_counts": res.get("nation_counts", [])[:5],
                     "gold_athletes": res.get("gold_athletes", [])[:5],
                     "venues": res.get("venues", [])[:5],
                     "gold_doc_ids": res.get("gold_doc_ids", [])[:5],
                 }
+                if attribute in values_by_attribute:
+                    result["requested_attribute"] = attribute
+                    result["requested_value"] = requested_values[0] if requested_values else None
                 citations = res.get("gold_doc_ids", [])[:5]
                 for doc_id in citations:
                     evidence_collector.append(EvidenceItem(doc_id=doc_id, text="", source="gsql"))
@@ -604,14 +638,12 @@ class AgenticPipeline:
                 state.confidence_score = float(action_input.get("confidence", 0.95))
                 break
 
-            # Deterministic fast-break: If GSQL returned exact count or medalist on Step 1, verify and complete
-            if action_name == "gsql_aggregate" and tool_obs.get("count", 0) > 0:
-                state.final_answer = str(tool_obs["count"])
-                state.confidence_score = 0.99
-                state.stopping_reason = "Deterministic GSQL aggregate verified from graph topology"
-                break
-
-            if action_name == "gsql_temporal" and tool_obs.get("gold_athletes"):
+            if (
+                action_name == "gsql_temporal"
+                and len(tool_obs.get("prev_events", [])) == 1
+                and len(tool_obs.get("gold_athletes", [])) == 1
+                and tool_obs["gold_athletes"][0]
+            ):
                 athletes = tool_obs["gold_athletes"]
                 state.final_answer = athletes[0]
                 state.confidence_score = 0.98
@@ -624,10 +656,29 @@ class AgenticPipeline:
                 state.stopping_reason = "Deterministic GSQL superlative ranking verified"
                 break
 
-            if action_name == "gsql_multihop" and tool_obs.get("gold_athletes"):
+            if (
+                action_name == "gsql_multihop"
+                and len(tool_obs.get("events", [])) == 1
+                and len(tool_obs.get("gold_athletes", [])) == 1
+                and tool_obs["gold_athletes"][0]
+            ):
                 state.final_answer = tool_obs["gold_athletes"][0]
                 state.confidence_score = 0.97
                 state.stopping_reason = "Deterministic GSQL HELD_AT multi-hop verified"
+                break
+
+            if (
+                action_name == "gsql_lookup"
+                and len(tool_obs.get("events", [])) == 1
+                and tool_obs.get("requested_attribute")
+                and tool_obs.get("requested_value") is not None
+                and tool_obs.get("requested_value") != ""
+            ):
+                state.final_answer = str(tool_obs["requested_value"])
+                state.confidence_score = 0.99
+                state.stopping_reason = (
+                    f"Unique graph event returned requested {tool_obs['requested_attribute']}"
+                )
                 break
 
             # Append to ReAct dialogue history
@@ -708,4 +759,5 @@ class AgenticPipeline:
             retrieved_doc_ids=list({e.doc_id for e in state.evidence if e.doc_id}),
             agentic_trace=agentic_trace,
             model_name=self.llm.model,
+            provider=self.llm.provider,
         )

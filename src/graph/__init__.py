@@ -295,6 +295,7 @@ _QUERY_TEMPORAL = """
 USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_preceding_event (
     STRING sport,
+    STRING gender,
     STRING event_name_fragment,
     INT current_year
 ) FOR GRAPH OlympicsGraph {
@@ -305,6 +306,7 @@ CREATE OR REPLACE QUERY get_preceding_event (
     Events = {Event.*};
     Current = SELECT e FROM Events:e
               WHERE (sport == "" OR e.sport == sport)
+                AND (gender == "" OR e.gender == gender)
                 AND (event_name_fragment == "" OR e.name LIKE "%" + event_name_fragment + "%")
                 AND e.year == current_year;
 
@@ -367,7 +369,8 @@ _QUERY_MULTIHOP = """
 USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_event_by_venue_date (
     STRING venue_name_fragment,
-    STRING target_date_fragment
+    STRING target_date_fragment,
+    INT target_year
 ) FOR GRAPH OlympicsGraph {
     ListAccum<STRING> @@event_names;
     ListAccum<STRING> @@gold_athletes;
@@ -376,6 +379,7 @@ CREATE OR REPLACE QUERY get_event_by_venue_date (
     Events = {Event.*};
     Matched = SELECT e FROM Events:e -(HELD_AT:h)- Venue:v
               WHERE (venue_name_fragment == "" OR v.name LIKE "%" + venue_name_fragment + "%")
+                AND (target_year == 0 OR e.year == target_year)
                 AND (target_date_fragment == "" OR h.start_date LIKE "%" + target_date_fragment + "%")
               ACCUM @@event_names += e.name, @@gold_athletes += e.gold_athlete;
 
@@ -393,7 +397,8 @@ USE GRAPH OlympicsGraph
 CREATE OR REPLACE QUERY get_event_attribute (
     STRING event_name_fragment,
     INT target_year,
-    STRING sport
+    STRING sport,
+    STRING gender
 ) FOR GRAPH OlympicsGraph {
     ListAccum<STRING> @@event_names;
     ListAccum<INT> @@competitor_counts;
@@ -406,7 +411,8 @@ CREATE OR REPLACE QUERY get_event_attribute (
     Matched = SELECT e FROM Events:e
               WHERE (event_name_fragment == "" OR e.name LIKE "%" + event_name_fragment + "%")
                 AND (target_year == 0 OR e.year == target_year)
-                AND (sport == "" OR e.sport == sport);
+                AND (sport == "" OR e.sport == sport)
+                AND (gender == "" OR e.gender == gender);
 
     x = SELECT e FROM Matched:e
         ACCUM @@event_names += e.name,
@@ -533,6 +539,7 @@ class GraphClient:
             "year": infobox.year or 0,
             "season": infobox.season or "",
             "sport": infobox.sport or "",
+            "gender": infobox.gender or "",
             "venue": infobox.venue or "",
             "competitor_count": infobox.competitor_count or 0,
             "nation_count": infobox.nation_count or 0,
@@ -652,12 +659,14 @@ class GraphClient:
         sport: str = "",
         event_name_fragment: str = "",
         current_year: int = 0,
+        gender: str = "",
     ) -> dict[str, Any]:
         t0 = time.perf_counter()
         results = self.conn.runInstalledQuery(
             "get_preceding_event",
             params={
                 "sport": sport,
+                "gender": gender,
                 "event_name_fragment": event_name_fragment,
                 "current_year": current_year,
             },
@@ -705,13 +714,18 @@ class GraphClient:
         self,
         venue_fragment: str = "",
         date_fragment: str = "",
+        year: int = 0,
     ) -> dict[str, Any]:
+        # Event year is stored on Event, while HELD_AT dates usually omit the year.
+        if year:
+            date_fragment = date_fragment.replace(str(year), "").strip(" ,–—-()")
         t0 = time.perf_counter()
         results = self.conn.runInstalledQuery(
             "get_event_by_venue_date",
             params={
                 "venue_name_fragment": venue_fragment,
                 "target_date_fragment": date_fragment,
+                "target_year": year,
             },
             timeout=10000,
         )
@@ -729,6 +743,7 @@ class GraphClient:
         event_fragment: str = "",
         year: int = 0,
         sport: str = "",
+        gender: str = "",
     ) -> dict[str, Any]:
         t0 = time.perf_counter()
         results = self.conn.runInstalledQuery(
@@ -737,6 +752,7 @@ class GraphClient:
                 "event_name_fragment": event_fragment,
                 "target_year": year,
                 "sport": sport,
+                "gender": gender,
             },
             timeout=10000,
         )

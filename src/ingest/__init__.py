@@ -63,6 +63,7 @@ _FIELD_ALIASES: dict[str, str] = {
     "year": "year",
     "sport": "sport",
     "event": "event",
+    "gender": "gender",
     "venue": "venue",
     "dates": "dates",
     "date": "dates",
@@ -138,6 +139,25 @@ def parse_infobox(text: str, title: str = "") -> ParsedInbox:
     if not sport and title:
         sport = extract_sport_from_title(title)
 
+    event_name = fields.get("event", "").strip()
+    gender_value = fields.get("gender", "").strip().casefold()
+    title_event = title.rsplit("–", 1)[-1].rsplit("—", 1)[-1].strip().casefold()
+    event_prefixes = (event_name.casefold(), title_event)
+    if gender_value.startswith("women") or any(
+        prefix.startswith("women") for prefix in event_prefixes
+    ):
+        gender = "Women"
+    elif gender_value.startswith("men") or any(
+        prefix.startswith("men") for prefix in event_prefixes
+    ):
+        gender = "Men"
+    elif gender_value.startswith("mixed") or any(
+        prefix.startswith("mixed") for prefix in event_prefixes
+    ):
+        gender = "Mixed"
+    else:
+        gender = None
+
     # Extract competitor and nation counts
     def _parse_int(raw: str | None) -> int | None:
         if not raw:
@@ -176,7 +196,8 @@ def parse_infobox(text: str, title: str = "") -> ParsedInbox:
         year=year,
         season=season,
         sport=sport,
-        event_name=fields.get("event"),
+        gender=gender,
+        event_name=event_name or None,
         venue=fields.get("venue"),
         start_date=fields.get("dates"),
         competitor_count=_parse_int(fields.get("competitors")),
@@ -239,7 +260,7 @@ def chunk_document(doc: CorpusDoc) -> list[Chunk]:
     # Chunk 0 always includes the full infobox text + injected metadata header.
     # Subsequent chunks are sliding window splits of the body text.
     infobox = parse_infobox(doc.text, title=doc.title)
-    mask = build_filter_mask(infobox.year, infobox.season, infobox.sport)
+    mask = build_filter_mask(infobox.year, infobox.season)
     header = _build_metadata_header(doc, infobox)
 
     # Split text into sections at double-newlines (Wikipedia paragraph structure).

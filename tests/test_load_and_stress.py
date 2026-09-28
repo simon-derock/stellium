@@ -10,17 +10,17 @@ from src.models import Chunk
 
 def _make_sample_chunks(count: int = 50) -> list[Chunk]:
     # Generates synthetic Olympic chunks for high-concurrency benchmarks.
-    sports = ["Athletics", "Biathlon", "Swimming", "Gymnastics", "Skiing"]
+    categories = [f"Category-{index}" for index in range(5)]
     chunks: list[Chunk] = []
     for i in range(count):
-        sport = sports[i % len(sports)]
+        category = categories[i % len(categories)]
         chunk = Chunk(
             chunk_id=f"doc_{i}#0",
             doc_id=f"doc_{i}",
             chunk_index=0,
             section_title="Overview",
-            text=f"The {sport} event at the Olympic Games was held with high competition. Gold won by Athlete {i}.",
-            raw_text=f"The {sport} event at the Olympic Games was held with high competition. Gold won by Athlete {i}.",
+            text=f"The {category} event at the Olympic Games was held with high competition. Gold won by Athlete {i}.",
+            raw_text=f"The {category} event at the Olympic Games was held with high competition. Gold won by Athlete {i}.",
             filter_mask=0,
         )
         chunks.append(chunk)

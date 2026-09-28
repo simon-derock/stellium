@@ -65,7 +65,7 @@ def test_domain_model_contracts() -> None:
         raw_text="Sample passage text",
         prev_chunk_id=None,
         next_chunk_id="Q12345#1",
-        filter_mask=4194304,
+        filter_mask=1,
     )
     assert chunk.next_chunk_id == "Q12345#1"
 

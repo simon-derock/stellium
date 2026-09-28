@@ -68,8 +68,15 @@ Action Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, 
         provider="mock",
         latency_ms=15.0,
     )
-
-    with patch.object(LockedLLMSession, "chat", return_value=mock_res):
+    mock_final = LLMCallResult(
+        content="Thought: The aggregate matches the requested threshold.\nFinal Answer: 5",
+        input_tokens=80,
+        output_tokens=10,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=8.0,
+    )
+    with patch.object(LockedLLMSession, "chat", side_effect=[mock_res, mock_final]) as chat:
         result = await pipeline.run(
             qid="test-pub-1",
             question="According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",
@@ -93,6 +100,7 @@ Action Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, 
         )
         assert trace["stopping_reason"] != ""
         assert trace["confidence_score"] >= 0.90
+        assert chat.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -132,6 +140,252 @@ Action Input: {"answer": "Adapted Answer", "confidence": 0.85, "citations": ["do
         assert result.answer == "Adapted Answer"
         assert result.agentic_trace is not None
         assert result.agentic_trace["step_count"] >= 2
+
+
+@pytest.mark.asyncio
+async def test_agentic_lookup_returns_requested_nation_count_from_unique_event() -> None:
+    graph = create_mock_graph_client()
+    lookup_result = {
+        "events": ["Judo at the 2016 Summer Olympics – Women's 57 kg"],
+        "competitor_counts": [36],
+        "nation_counts": [23],
+        "gold_athletes": ["Kayla Harrison"],
+        "venues": ["Carioca Arena 2"],
+        "gold_doc_ids": ["Q123"],
+    }
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    response = LLMCallResult(
+        content='Thought: Retrieve the requested nation count.\nAction: gsql_lookup\nAction Input: {"event_name_fragment":"57 kg","target_year":2016,"sport":"Judo","gender":"Women","attribute":"nation_count"}',
+        input_tokens=90,
+        output_tokens=35,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+
+    with (
+        patch.object(graph, "run_lookup", return_value=lookup_result) as lookup,
+        patch.object(LockedLLMSession, "chat", return_value=response) as chat,
+    ):
+        result = await pipeline.run(
+            qid="lookup-nations",
+            question="How many nations competed in Women's 57 kg judo?",
+        )
+
+    assert result.answer == "23"
+    assert result.agentic_trace is not None
+    assert "requested nation_count" in result.agentic_trace["stopping_reason"]
+    lookup.assert_called_once_with(event_fragment="57 kg", year=2016, sport="Judo", gender="Women")
+    chat.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_agentic_retries_when_aggregate_action_contains_event_attribute_request() -> None:
+    graph = create_mock_graph_client()
+    lookup_result = {
+        "events": ["Biathlon at the 2018 Winter Olympics – Women's pursuit"],
+        "competitor_counts": [58],
+        "nation_counts": [24],
+        "gold_athletes": ["Laura Dahlmeier"],
+        "venues": ["Alpensia"],
+        "gold_doc_ids": ["Q47155365"],
+    }
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content='Thought: Get the nations for this event.\nAction: gsql_aggregate\nAction Input: {"sport":"Biathlon","target_year":2018,"event_name_fragment":"Women\'s pursuit","attribute":"nation_count"}',
+            input_tokens=90,
+            output_tokens=35,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content='Thought: Aggregation cannot return an event attribute; use lookup.\nAction: gsql_lookup\nAction Input: {"event_name_fragment":"Women\'s pursuit","target_year":2018,"sport":"Biathlon","gender":"Women","attribute":"nation_count"}',
+            input_tokens=100,
+            output_tokens=40,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(graph, "run_aggregation") as aggregate,
+        patch.object(graph, "run_lookup", return_value=lookup_result) as lookup,
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run(
+            qid="lookup-aggregate-misroute",
+            question="How many nations competed in the Women's pursuit at the 2018 Winter Olympics?",
+        )
+
+    assert result.answer == "24"
+    aggregate.assert_not_called()
+    lookup.assert_called_once_with(
+        event_fragment="Women's pursuit", year=2018, sport="Biathlon", gender="Women"
+    )
+    assert chat.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_agentic_does_not_return_aggregate_count_for_medalist_question() -> None:
+    graph = create_mock_graph_client()
+    lookup_result = {
+        "events": ["Athletics at the 2008 Summer Olympics – Women's pole vault"],
+        "competitor_counts": [38],
+        "nation_counts": [24],
+        "gold_athletes": ["Yelena Isinbayeva"],
+        "venues": ["Beijing National Stadium"],
+        "gold_doc_ids": ["Q123"],
+    }
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content='Thought: I will query the 2008 event records.\nAction: gsql_aggregate\nAction Input: {"target_year":2008,"sport":"","min_competitors":0,"max_competitors":0}',
+            input_tokens=90,
+            output_tokens=35,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content='Thought: The count does not answer who won. Query the medalist for the event.\nAction: gsql_lookup\nAction Input: {"event_name_fragment":"Women\'s pole vault","target_year":2008,"sport":"Athletics","gender":"Women","attribute":"gold_athlete"}',
+            input_tokens=110,
+            output_tokens=40,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(graph, "run_aggregation", return_value={"count": 209, "events": []}),
+        patch.object(graph, "run_lookup", return_value=lookup_result) as lookup,
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run(
+            qid="wrong-aggregate-action",
+            question="Who won the gold medal at the Beijing National Stadium on 16 August 2008?",
+        )
+
+    assert result.answer == "Yelena Isinbayeva"
+    assert result.answer != "209"
+    lookup.assert_called_once()
+    assert chat.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_agentic_temporal_does_not_select_first_of_ambiguous_events() -> None:
+    graph = create_mock_graph_client()
+    temporal_result = {
+        "prev_events": ["Men's 200 metre freestyle", "Women's 200 metre freestyle"],
+        "gold_athletes": ["Michael Phelps", "Allison Schmitt"],
+        "gold_doc_ids": ["Q1", "Q2"],
+    }
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content='Thought: Search for the preceding edition.\nAction: gsql_temporal\nAction Input: {"sport":"Swimming","gender":"Women","event_name_fragment":"200 metre freestyle","current_year":2016}',
+            input_tokens=90,
+            output_tokens=35,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content="Thought: Refine the gender qualifier to match the question.\nFinal Answer: Allison Schmitt",
+            input_tokens=110,
+            output_tokens=20,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(graph, "run_temporal", return_value=temporal_result) as temporal,
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run(
+            qid="temporal-ambiguous",
+            question="Who won the women's 200 metre freestyle immediately before 2016?",
+        )
+
+    assert result.answer == "Allison Schmitt"
+    temporal.assert_called_once_with(
+        sport="Swimming",
+        event_name_fragment="200 metre freestyle",
+        current_year=2016,
+        gender="Women",
+    )
+    assert chat.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_agentic_multihop_does_not_select_first_of_ambiguous_events() -> None:
+    graph = create_mock_graph_client()
+    multihop_result = {
+        "events": ["Women's skeet", "Men's 10 metre running target"],
+        "gold_athletes": ["Zemfira Meftahatdinova", "Yang Ling"],
+        "gold_doc_ids": ["Q1", "Q2"],
+    }
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content='Thought: Search venue and event date.\nAction: gsql_multihop\nAction Input: {"venue_name_fragment":"Sydney International Shooting Centre","target_date_fragment":"21 September 2000","target_year":2000}',
+            input_tokens=90,
+            output_tokens=35,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content="Thought: Match the event to the exact date qualifier.\nFinal Answer: Yang Ling",
+            input_tokens=110,
+            output_tokens=20,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(graph, "run_multihop", return_value=multihop_result) as multihop,
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run(
+            qid="multihop-ambiguous",
+            question="Who won the event at Sydney International Shooting Centre on 21 September 2000?",
+        )
+
+    assert result.answer == "Yang Ling"
+    multihop.assert_called_once_with(
+        venue_fragment="Sydney International Shooting Centre",
+        date_fragment="21 September 2000",
+        year=2000,
+    )
+    assert chat.await_count == 2
 
 
 def test_parse_react_response_direct_json_schema() -> None:

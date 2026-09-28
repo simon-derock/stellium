@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+import src.evaluate as evaluate_module
 from src.evaluate import (
     EvaluationHarness,
     compute_exact_match,
@@ -81,6 +82,17 @@ def test_precision_at_k() -> None:
     assert compute_precision_at_k(retrieved, gold, k=5) == 0.4
 
 
+def test_evaluation_harness_loads_environment_before_backend_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[bool] = []
+    monkeypatch.setattr(evaluate_module, "load_dotenv", lambda: calls.append(True))
+
+    EvaluationHarness(corpus_path="missing-corpus.jsonl", use_mock=True)
+
+    assert calls == [True]
+
+
 @pytest.mark.asyncio
 async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.llm import LLMCallResult, LockedLLMSession
@@ -100,8 +112,16 @@ async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) 
         provider="mock",
         latency_ms=12.0,
     )
+    final_res = LLMCallResult(
+        content="Thought: The aggregate matches the requested condition.\nFinal Answer: 5",
+        input_tokens=70,
+        output_tokens=12,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=8.0,
+    )
     session = LockedLLMSession(provider="cloudflare", model="mock-model")
-    chat = AsyncMock(return_value=mock_res)
+    chat = AsyncMock(side_effect=[mock_res, final_res])
     monkeypatch.setattr(session, "chat", chat)
 
     harness = EvaluationHarness(
@@ -116,7 +136,7 @@ async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) 
     assert results["agentic"].total_llm_tokens > 0
     assert results["agentic"].agentic_trace is not None
     assert results["agentic"].agentic_trace["stopping_reason"] != ""
-    assert chat.await_count == 1
+    assert chat.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -138,6 +158,8 @@ async def test_benchmark_runner_writes_public_and_hidden_records(tmp_path: Path)
                     total_llm_tokens=15,
                     latency_ms=7.5,
                     retrieved_doc_ids=["Q1"],
+                    model_name="mock-model",
+                    provider="mock",
                     agentic_trace={"step_count": 1} if pipeline == "agentic" else None,
                 )
                 for pipeline in pipelines
@@ -171,7 +193,35 @@ async def test_benchmark_runner_writes_public_and_hidden_records(tmp_path: Path)
     assert records[0]["rag_em"] == 1.0
     assert records[0]["agentic_recall@5"] == 1.0
     assert records[0]["agentic_trace"] == {"step_count": 1}
+    assert records[0]["rag_input_tokens"] == 12
+    assert records[0]["graphrag_model"] == "mock-model"
+    assert records[0]["agentic_provider"] == "mock"
+    assert records[0]["rag_retrieved_doc_ids"] == ["Q1"]
     assert "rag_em" not in records[1]
     assert records[1]["graphrag_answer"] == "Not found in corpus"
     written_records = [json.loads(line) for line in output_path.read_text().splitlines()]
     assert written_records == records
+
+    # A partial JSONL checkpoint restores completed work and only evaluates missing questions.
+    output_path.write_text(json.dumps(written_records[0]) + "\n", encoding="utf-8")
+
+    class ResumeHarness(DeterministicHarness):
+        evaluated_qids: list[str] = []
+
+        async def evaluate_question(
+            self, question: EvalQuestion, pipelines: list[str]
+        ) -> dict[str, PipelineResult]:
+            self.evaluated_qids.append(question.qid)
+            return await super().evaluate_question(question, pipelines)
+
+    resume_harness = ResumeHarness(corpus_path="missing-corpus.jsonl", use_mock=True)
+    resumed_records = await resume_harness.run_benchmark(
+        str(dataset_path), ["rag", "graphrag", "agentic"], str(output_path), resume=True
+    )
+
+    assert [record["qid"] for record in resumed_records] == ["public-001", "hidden-001"]
+    assert resume_harness.evaluated_qids == ["hidden-001"]
+    assert [json.loads(line)["qid"] for line in output_path.read_text().splitlines()] == [
+        "public-001",
+        "hidden-001",
+    ]

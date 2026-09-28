@@ -133,10 +133,10 @@ def test_chunk_filter_mask_bit_invariants_under_fuzz() -> None:
     from src.coprocessor import build_filter_mask
 
     # Empty inputs
-    mask_empty = build_filter_mask(None, None, None)
+    mask_empty = build_filter_mask(None, None)
     assert mask_empty == 0
 
     # Malformed year / season
-    mask_weird = build_filter_mask(1800, "Spring", "Quidditch")
+    mask_weird = build_filter_mask(1800, "Spring")
     # Year outside Olympic range should not set year bits
     assert mask_weird >= 0

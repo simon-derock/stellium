@@ -20,6 +20,7 @@ def test_graph_schema_setup_and_query_installation() -> None:
     assert "CREATE GRAPH OlympicsGraph" in ddl_statements[0]
     assert "VECTOR ATTRIBUTE" in ddl_statements[1]
     assert "CONFLICTS_WITH" in ddl_statements[2]
+    assert any("e.gender == gender" in statement for statement in ddl_statements)
     assert "INSTALL QUERY" in ddl_statements[-1]
 
 
@@ -39,6 +40,7 @@ def test_graph_upserts_preserve_schema_fields_and_limits() -> None:
         year=2008,
         season="Summer",
         sport="Athletics",
+        gender="Women",
         competitor_count=95,
     )
 
@@ -55,6 +57,7 @@ def test_graph_upserts_preserve_schema_fields_and_limits() -> None:
     assert connection.upsertVertex.call_args_list[0].args[2] == {"embedding": [0.25] * 1024}
     event_attrs = connection.upsertVertex.call_args_list[-1].args[2]
     assert event_attrs["year"] == 2008
+    assert event_attrs["gender"] == "Women"
     assert event_attrs["competitor_count"] == 95
     assert connection.upsertEdge.call_count == 4
 
@@ -66,10 +69,15 @@ def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
     hostile_value = "Athletics' OR 1=1 --"
 
     client.run_aggregation(sport=hostile_value, year=2012, min_competitors=74)
-    client.run_temporal(sport=hostile_value, event_name_fragment="marathon", current_year=2016)
+    client.run_temporal(
+        sport=hostile_value,
+        event_name_fragment="marathon",
+        current_year=2016,
+        gender="Men",
+    )
     client.run_superlative(sport=hostile_value, year=2008, order="desc", limit=2)
-    client.run_multihop(venue_fragment=hostile_value, date_fragment="12 August")
-    client.run_lookup(event_fragment=hostile_value, year=2004)
+    client.run_multihop(venue_fragment=hostile_value, date_fragment="12 August 2012", year=2012)
+    client.run_lookup(event_fragment=hostile_value, year=2004, gender="Women")
 
     calls = connection.runInstalledQuery.call_args_list
     assert [call.args[0] for call in calls] == [
@@ -81,9 +89,13 @@ def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
     ]
     assert calls[0].kwargs["params"]["sport"] == hostile_value
     assert calls[1].kwargs["params"]["sport"] == hostile_value
+    assert calls[1].kwargs["params"]["gender"] == "Men"
     assert calls[2].kwargs["params"]["sport"] == hostile_value
     assert calls[3].kwargs["params"]["venue_name_fragment"] == hostile_value
+    assert calls[3].kwargs["params"]["target_date_fragment"] == "12 August"
+    assert calls[3].kwargs["params"]["target_year"] == 2012
     assert calls[4].kwargs["params"]["event_name_fragment"] == hostile_value
+    assert calls[4].kwargs["params"]["gender"] == "Women"
     assert all("timeout" in call.kwargs for call in calls)
 
 

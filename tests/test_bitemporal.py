@@ -484,6 +484,7 @@ def test_graph_client_bitemporal_methods() -> None:
             "year": 2024,
             "season": "",
             "sport": "Athletics",
+            "gender": "",
             "venue": "",
             "competitor_count": 0,
             "nation_count": 0,

@@ -5,7 +5,7 @@ from __future__ import annotations
 from hypothesis import given
 from hypothesis import strategies as st
 
-from src.coprocessor import build_filter_mask, season_mask, sport_mask, year_mask
+from src.coprocessor import build_filter_mask, season_mask, year_mask
 from src.evaluate import (
     compute_exact_match,
     compute_mrr,
@@ -62,19 +62,16 @@ def test_property_recall_precision_bounded(retrieved: list[str], gold: list[str]
 @given(
     year=st.integers(min_value=1980, max_value=2030),
     season=st.sampled_from(["Summer", "Winter", ""]),
-    sport=st.sampled_from(["Athletics", "Swimming", "Judo", "Rowing", "Other"]),
 )
-def test_property_filter_mask_invariants(year: int, season: str, sport: str) -> None:
-    mask = build_filter_mask(year, season, sport)
+def test_property_filter_mask_invariants(year: int, season: str) -> None:
+    mask = build_filter_mask(year, season)
     assert isinstance(mask, int)
     assert mask >= 0
     # Combined mask subsumes individual components
     y_m = year_mask(year)
     s_m = season_mask(season)
-    sp_m = sport_mask(sport)
     assert (mask & y_m) == y_m
     assert (mask & s_m) == s_m
-    assert (mask & sp_m) == sp_m
 
 
 # Invariant: Bitemporal ISO timestamp parsing is strictly monotonic for valid orderings

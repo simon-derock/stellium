@@ -119,7 +119,7 @@ def benchmark_queries(client: GraphClient) -> dict[str, Any]:
     }
 
     # 4. Multi-hop
-    r4 = client.run_multihop(venue_fragment="Stadium", date_fragment="2012")
+    r4 = client.run_multihop(venue_fragment="Stadium", year=2012)
     benchmarks["get_event_by_venue_date"] = {
         "status": "PASS",
         "latency_ms": round(r4["latency_ms"], 2),

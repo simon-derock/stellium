@@ -55,7 +55,7 @@ class Chunk(BaseModel):
     prev_chunk_id: str | None = None  # uint16 index pointer as string
     next_chunk_id: str | None = None
     infobox: ParsedInbox | None = None  # Only on chunk_index==0
-    filter_mask: int = 0  # Roaring bitmask flags for year/season/sport
+    filter_mask: int = 0  # Packed year and season flags; sport remains corpus-derived text
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +127,7 @@ class PipelineResult(BaseModel):
     # Agentic only — empty for rag/graphrag
     agentic_trace: dict[str, Any] | None = None
     model_name: str = ""
+    provider: str = ""
 
 
 class CompareResult(BaseModel):

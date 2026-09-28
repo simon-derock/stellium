@@ -49,14 +49,14 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 ├──────────────────────────┬──────────────────────────┬──────────────────┤
 │    LOCAL RETRIEVAL      │    TIGERGRAPH SAVANNA    │   REACT AGENT    │
 │   Packed Integer Masks  │   Native TigerVector HNSW│  Bounded Tool Loop│
-│   BM25Plus Inverted Index│   Compiled GSQL Queries  │  Evidence Critic │
-│   Reciprocal Rank Fusion │   Graph Topological Edges│  Backtracking    │
+│   BM25Plus Inverted Index│   Compiled GSQL Queries  │  Observation Review│
+│   Reciprocal Rank Fusion │   Graph Topological Edges│  Tool Strategy Pivot│
 │ Optional Cross-Encoder  │   Compiled GSQL Queries │  Grounded Trace  │
 └──────────────────────────┴──────────────────────────┴──────────────────┘
 ```
 
 ### 1. Local Retrieval Coprocessor
-- **Integer category masks**: Packed year, season, and selected sport flags support bitwise filtering alongside BM25 scoring.
+- **Packed year/season masks**: Integer masks filter requested year and season facets before candidate selection; sport names remain corpus-derived text.
 - **BM25Plus Sparse Indexing (`rank-bm25`)**: Guarantees positive IDF scores across all corpus sizes, achieving exact token matching for athlete names (`Naim Süleymanoğlu`), numbers, and venue names.
 - **Reciprocal Rank Fusion (RRF)**: Merges dense TigerVector semantic similarity ranks with sparse BM25 scores using $RRF(d)=\sum_{m\in\{dense,sparse\}}\frac{1}{60+r_m(d)}$.
 - **Cross-Encoder Precision Reranker**: MiniLM-L6 cross-encoder scoring top-30 fused candidates down to high-precision top-1 and top-2 passages.
@@ -74,10 +74,10 @@ Retrieval-Augmented Generation (RAG) retrieves text chunks. GraphRAG adds relati
 ### 4. Resilient Session-Locked Multi-Provider LLM Router
 - **Strict Compliance with Hackathon Binding Rulings**: Guarantees the **exact same model** is used across planner, tool dispatcher, and synthesis within a single pipeline execution.
 - **Cloudflare Workers AI Primary**: FP8-optimized `@cf/meta/llama-3.1-8b-instruct-fast` (~9 neurons/call, comfortably within the 10,000 neurons/day free tier).
-- **Run-Level Failover**: Run-level fallback to Gemini 2.0 Flash and Mistral Large with exponential backoff on HTTP 429 rate limits.
+- **Provider Selection**: Cloudflare is the default; Gemini and Mistral can be selected for a fresh run. Retries remain pinned to the selected provider/model for that run.
 
 ### 5. Judge-Safe Security Guardrails
-- **Zero False-Positive Guarantee**: Natural Olympic questions are never blocked by aggressive keyword matching.
+- **Conservative Query Guardrails**: Structural command and jailbreak defenses are tested against the public question suite and adversarial inputs.
 - **Structural Command Isolation**: Blocks structural database mutations (`DROP GRAPH`, `DELETE FROM`, `ALTER VERTEX`) and multi-word jailbreaks while welcoming all valid sports queries.
 - **Automated Trust Tiers**: Batch evaluation endpoints (`/api/v1/evaluate/batch`) bypass input guardrails for automated evaluation sets.
 
@@ -100,7 +100,7 @@ flowchart TD
     GSQL -->|"Observation"| Agent
     Dense -->|"Observation"| Agent
     Sparse -->|"Observation"| Agent
-    Agent -->|"Final answer"| Output["Answer + trace + Snapshot DTO"]
+    Agent -->|"Final answer"| Output["Answer + agentic trace"]
     RAG --> Output
     GraphRAG --> Output
 ```
@@ -114,12 +114,24 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 | Dimension | Pipeline 1: Baseline Vector RAG | Pipeline 2: Hybrid GraphRAG | Pipeline 3: Autonomous Agentic GraphRAG (Stellium) |
 | :--- | :--- | :--- | :--- |
 | **Retrieval Strategy** | Vanilla TigerVector HNSW top-5 | Fixed 1-2 hop graph expansion + vector | **Dynamic tool dispatch (GSQL + BM25 + Vector + RRF)** |
-| **Tool Calling** | None (Single vector retrieval) | Fixed sequence | **Autonomous (Evidence Critic + Backtracking)** |
+| **Tool Calling** | None (Single vector retrieval) | Fixed retrieval flow | **Bounded cyclic ReAct; reviews each observation and can pivot tools** |
 | **Aggregations** | LLM over retrieved passages | Graph plus retrieved passages | Compiled GSQL accumulators when the agent selects the matching tool |
 | **Temporal Chains** | Passage retrieval | Graph expansion | `PRECEDES`/`SUCCEEDS` traversal when applicable |
 | **Token Cost** | Measured per run | Measured per run | Deterministic tools consume 0 LLM tokens; LLM calls are reported per run |
 | **Latency** | Measure with the evaluation runner | Measure with the evaluation runner | Live end-to-end GSQL example: 38.59 ms; includes network overhead |
 | **Investigation Trace** | None | Fixed subgraph triples | **Full 10-field Agentic Trace (Judges Spec)** |
+
+### Latest measured public baseline
+
+The latest completed live three-pipeline run used Cloudflare Workers AI (`@cf/meta/llama-3.1-8b-instruct-fast`) across all 100 public questions. Exact Match (EM) is strict normalized string equality; these figures are a diagnostic baseline, not a claim that the 98% target has been reached.
+
+| Pipeline | Exact Match | Token F1 | Mean latency | Mean LLM tokens |
+| :--- | ---: | ---: | ---: | ---: |
+| RAG | 5% (5/100) | 0.065 | 981 ms | 134 |
+| GraphRAG | 34% (34/100) | 0.354 | 1,487 ms | 728 |
+| Agentic GraphRAG | 80% (80/100) | 0.807 | 2,895 ms | 3,907 |
+
+Agentic EM by question type was 21/21 aggregation, 17/22 temporal, 10/10 superlative, 17/28 multi-hop, and 15/19 lookup. The audited local output is `results/public_results_20260928_v3.jsonl` (ignored by Git). A later 100-question Agentic-only run after a venue/date correction scored 84% EM and 0.852 token F1; it is not a new three-pipeline comparison, and it predates the current aggregate-action validation and answer-verification changes. The evaluator now checkpoints every completed question and supports `--resume` after provider interruption.
 
 ---
 
@@ -160,6 +172,13 @@ uv run python -m src.evaluate \
   --dataset hackathon-resources/questions/eval_public.jsonl \
   --pipeline all \
   --output results/public_results.jsonl
+
+# Resume completed rows after a provider or network interruption
+uv run python -m src.evaluate \
+  --dataset hackathon-resources/questions/eval_public.jsonl \
+  --pipeline all \
+  --output results/public_results.jsonl \
+  --resume
 
 # Run the autonomous agent on hidden questions
 uv run python -m src.evaluate \
@@ -255,13 +274,13 @@ $$
 S(f)=\alpha\,Auth(s)+\beta\,e^{-\lambda(t_{now}-t_{valid\_from})}\,\mathbf{1}[superseded\_by(f)=\varnothing].
 $$
 
-The category mask uses integer bitwise operations. The intersection of requested year, season, and sport masks is:
+The packed mask applies the requested year and season facets independently:
 
 $$
-M(q)=M_{year}(y)\mathbin{\&}M_{season}(s)\mathbin{\&}M_{sport}(p).
+M(q)=M_{year}(y)\mathbin{\&}M_{season}(s).
 $$
 
-In code, a chunk is retained when its stored mask intersects the combined query mask; masks are packed integer fields, not a separate Roaring bitmap allocation.
+In code, requested year and season groups are checked independently, so a chunk must match every requested facet. Masks are packed integer fields; sport names are not encoded in a static taxonomy.
 
 ### Complexity, Memory, and Runtime Profile
 

@@ -33,12 +33,21 @@ def test_infobox_extraction() -> None:
     infobox = parse_infobox(SAMPLE_TEXT)
     assert infobox.year == 2012
     assert infobox.season == "Summer"
+    assert infobox.gender == "Men"
     assert infobox.venue == "Eton Dorney"
     assert infobox.competitor_count == 24
     assert infobox.nation_count == 12
     assert infobox.prev_year == 2008
     assert infobox.next_year == 2016
     assert infobox.gold_noc == "HUN"
+
+
+def test_infobox_gender_uses_explicit_event_title_qualifier() -> None:
+    parsed = parse_infobox(
+        "[Infobox Olympic event]\n  event: 100 metres",
+        title="Athletics at the 2012 Summer Olympics – Women's 100 metres",
+    )
+    assert parsed.gender == "Women"
 
 
 def test_split_athlete_names() -> None:

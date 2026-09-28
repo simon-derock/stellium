@@ -1,4 +1,4 @@
-# High-speed local coprocessor: Roaring Bitmasks + BM25 + RRF + Cross-Encoder reranker.
+# Local retrieval coprocessor: packed category masks, BM25Plus, RRF, and optional reranking.
 # Runs entirely in Python memory — no network calls.
 # Complements TigerVector HNSW which handles dense semantic search.
 from __future__ import annotations
@@ -13,7 +13,7 @@ from src.models import Chunk
 
 # ---------------------------------------------------------------------------
 # Filter Mask Bit Layout
-# Bit positions for rapid Roaring Bitmask pre-filtering.
+# Bit positions for compact year/season filtering.
 # Each document gets a filter_mask uint32 built during ingestion.
 # ---------------------------------------------------------------------------
 
@@ -25,25 +25,12 @@ _YEAR_COUNT = 20
 # Season bits: bit 20 = Summer, bit 21 = Winter
 _BIT_SUMMER = 20
 _BIT_WINTER = 21
-
-# Sport bits: 22-31 (top 10 most frequent sports for fast filtering)
-# Remaining sports use OR of multiple bits or fall through to text scan.
-_SPORT_BITS: dict[str, int] = {
-    "athletics": 22,
-    "swimming": 23,
-    "gymnastics": 24,
-    "cycling": 25,
-    "rowing": 26,
-    "shooting": 27,
-    "weightlifting": 28,
-    "wrestling": 29,
-    "boxing": 30,
-    "judo": 31,
-}
+_YEAR_BITS = (1 << _YEAR_COUNT) - 1
+_SEASON_BITS = (1 << _BIT_SUMMER) | (1 << _BIT_WINTER)
 
 
-def build_filter_mask(year: int | None, season: str | None, sport: str | None) -> int:
-    # Build a uint32 filter mask for a chunk based on its Olympic event metadata.
+def build_filter_mask(year: int | None, season: str | None) -> int:
+    # Build a uint32 year/season mask; sport names remain corpus-derived text, never a fixed list.
     mask = 0
     if year is not None:
         idx = (year - _YEAR_BASE) // _YEAR_STEP
@@ -53,11 +40,6 @@ def build_filter_mask(year: int | None, season: str | None, sport: str | None) -
         mask |= 1 << _BIT_SUMMER
     elif season == "Winter":
         mask |= 1 << _BIT_WINTER
-    if sport:
-        sport_lower = sport.lower()
-        for key, bit in _SPORT_BITS.items():
-            if key in sport_lower:
-                mask |= 1 << bit
     return mask
 
 
@@ -76,15 +58,6 @@ def season_mask(season: str) -> int:
     return 0
 
 
-def sport_mask(sport: str) -> int:
-    sport_lower = sport.lower()
-    mask = 0
-    for key, bit in _SPORT_BITS.items():
-        if key in sport_lower:
-            mask |= 1 << bit
-    return mask
-
-
 # ---------------------------------------------------------------------------
 # BM25 Sparse Index
 # ---------------------------------------------------------------------------
@@ -92,8 +65,7 @@ def sport_mask(sport: str) -> int:
 
 @dataclass
 class BM25Index:
-    # Inverted BM25 index over normalized chunk tokens.
-    # Sub-millisecond exact token matching for names, codes, numbers.
+    # BM25Plus scoring over normalized chunk tokens.
     _chunks: list[Chunk] = field(default_factory=list)
     _bm25: BM25Plus | None = None
 
@@ -138,11 +110,17 @@ class BM25Index:
                 reverse=True,
             )[:top_k]
         else:
+            year_filter = filter_mask & _YEAR_BITS
+            season_filter = filter_mask & _SEASON_BITS
+            if not year_filter and not season_filter:
+                return []
             indexed = sorted(
                 (
                     (i, s)
                     for i, s in enumerate(scores)
-                    if s > 0 and (self._chunks[i].filter_mask & filter_mask) != 0
+                    if s > 0
+                    and (not year_filter or self._chunks[i].filter_mask & year_filter)
+                    and (not season_filter or self._chunks[i].filter_mask & season_filter)
                 ),
                 key=lambda x: x[1],
                 reverse=True,

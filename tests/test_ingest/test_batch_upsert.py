@@ -120,6 +120,7 @@ def test_chunking_with_filter_mask() -> None:
     # Infobox sport should be populated from title
     ib = parse_infobox(doc.text, title=doc.title)
     assert ib.sport == "Swimming"
+    assert ib.gender == "Women"
     assert "Sport: Swimming" in chunks[0].text
 
 
@@ -198,6 +199,7 @@ def test_prepare_ingestion_plan(tmp_path: Path) -> None:
     assert plan.total_documents == 1
     assert plan.total_chunks >= 1
     assert plan.total_events == 1
+    assert plan.event_batches[0].records[0][1]["gender"] == "Men"
     assert plan.total_venues == 1
     assert len(plan.document_batches) == 1
     assert len(plan.chunk_batches) >= 1

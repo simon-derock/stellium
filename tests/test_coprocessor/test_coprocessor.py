@@ -4,26 +4,22 @@ from src.coprocessor import (
     build_filter_mask,
     reciprocal_rank_fusion,
     season_mask,
-    sport_mask,
     year_mask,
 )
 from src.models import Chunk
 
 
 def test_bitmask_operations() -> None:
-    mask_2012_summer_athletics = build_filter_mask(year=2012, season="Summer", sport="Athletics")
+    mask_2012_summer = build_filter_mask(year=2012, season="Summer")
     # Check that individual bitmasks match
     y_mask = year_mask(2012)
     s_mask = season_mask("Summer")
-    sp_mask = sport_mask("Athletics")
-
-    assert (mask_2012_summer_athletics & y_mask) != 0
-    assert (mask_2012_summer_athletics & s_mask) != 0
-    assert (mask_2012_summer_athletics & sp_mask) != 0
+    assert (mask_2012_summer & y_mask) != 0
+    assert (mask_2012_summer & s_mask) != 0
 
     # Winter should not match
     w_mask = season_mask("Winter")
-    assert (mask_2012_summer_athletics & w_mask) == 0
+    assert (mask_2012_summer & w_mask) == 0
 
 
 def test_bm25_search() -> None:
@@ -55,6 +51,64 @@ def test_bm25_search() -> None:
     marathon_results = bm25.search("Wanjiru marathon", top_k=5)
     assert len(marathon_results) > 0
     assert marathon_results[0][0].chunk_id == "c2"
+
+
+def test_bm25_search_filtered_requires_each_requested_facet() -> None:
+    shared_text = "Olympic event results and competitors"
+    chunks = [
+        Chunk(
+            chunk_id="2012-summer",
+            doc_id="2012-summer",
+            chunk_index=0,
+            section_title="Event",
+            text=shared_text,
+            raw_text=shared_text,
+            filter_mask=build_filter_mask(2012, "Summer"),
+        ),
+        Chunk(
+            chunk_id="2012-winter",
+            doc_id="2012-winter",
+            chunk_index=0,
+            section_title="Event",
+            text=shared_text,
+            raw_text=shared_text,
+            filter_mask=build_filter_mask(2012, "Winter"),
+        ),
+        Chunk(
+            chunk_id="2008-summer",
+            doc_id="2008-summer",
+            chunk_index=0,
+            section_title="Event",
+            text=shared_text,
+            raw_text=shared_text,
+            filter_mask=build_filter_mask(2008, "Summer"),
+        ),
+    ]
+    bm25 = BM25Index()
+    bm25.build(chunks)
+
+    results = bm25.search_filtered(
+        "Olympic event",
+        build_filter_mask(2012, "Summer"),
+        top_k=10,
+    )
+
+    assert [chunk.chunk_id for chunk, _ in results] == ["2012-summer"]
+
+
+def test_bm25_search_filtered_rejects_unknown_nonzero_mask() -> None:
+    chunk = Chunk(
+        chunk_id="c1",
+        doc_id="d1",
+        chunk_index=0,
+        section_title="Event",
+        text="Olympic event results",
+        raw_text="Olympic event results",
+    )
+    bm25 = BM25Index()
+    bm25.build([chunk])
+
+    assert bm25.search_filtered("Olympic event", 1 << 31) == []
 
 
 def test_rrf_fusion() -> None:
