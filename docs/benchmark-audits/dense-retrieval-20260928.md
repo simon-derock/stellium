@@ -10,7 +10,7 @@ The old RAG Exact Match result (5/100) is consequently not a valid assessment of
 
 ## Verification gap closed
 
-The previous live verifier searched with an all-zero vector and marked the vector query successful whenever the call returned without raising, even when it returned zero chunks. The verifier now requires an aligned Jina query vector and fails when the search returns no candidates. Ingestion now checks TigerGraph's accepted-record count so a zero/partial upsert cannot be reported as a successful full batch. Live data was not modified during this audit.
+The previous live verifier searched with an all-zero vector and marked the vector query successful whenever the call returned without raising, even when it returned zero chunks. The verifier now requires an aligned Jina query vector and fails when the search returns no candidates. Ingestion checks TigerGraph's accepted-record count so a zero/partial upsert cannot be reported as a successful full batch. The local passage cache now records model, adapter task, dimensions, and a source-text fingerprint; entries without matching provenance are regenerated. Full corpus ingestion refuses missing vectors. Live data was not modified during this audit.
 
 ## Reproduction
 
@@ -25,7 +25,6 @@ The run used the dataset SHA-256 `abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cd
 
 ## Next work
 
-1. Audit the cached chunk vectors for model, task, corpus-content, and dimension provenance; invalidate vectors whose provenance cannot be established.
-2. Generate or reuse vectors from the exact indexed Jina model and passage adapter, then verify that TigerGraph accepts every vector upsert.
-3. Verify live vector availability with the nonzero-result health check and rerun dense Recall@k/MRR.
-4. Compare dense-only, BM25-only, and RRF retrieval on the same public set before running answer generation.
+1. Rebuild or reuse vectors only through the provenance-aware cache and exact indexed Jina model/passage adapter; confirm TigerGraph accepts every vector upsert.
+2. Verify live vector availability with the nonzero-result health check and rerun dense Recall@k/MRR.
+3. Compare dense-only, BM25-only, and RRF retrieval on the same public set before running answer generation.

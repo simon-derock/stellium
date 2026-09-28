@@ -232,7 +232,7 @@ def test_prepare_ingestion_plan(tmp_path: Path) -> None:
     assert "embedding" not in first_chunk_record[1]
 
 
-# Test prepare_ingestion_plan with unconfigured embedding client (zero-vector fallback)
+# Missing embedding credentials fail closed during corpus preparation.
 def test_prepare_ingestion_plan_unconfigured_embeddings(tmp_path: Path) -> None:
     p = tmp_path / "corpus_unconfigured.jsonl"
     sample_line = (
@@ -246,15 +246,13 @@ def test_prepare_ingestion_plan_unconfigured_embeddings(tmp_path: Path) -> None:
 
     # Unconfigured client (empty api_key)
     unconfigured_client = JinaEmbeddingClient(api_key="", dimension=1024)
-    plan = prepare_ingestion_plan(p, batch_size=5, embedding_client=unconfigured_client)
-
-    assert len(plan.chunk_batches) >= 1
-    for batch in plan.chunk_batches:
-        for chunk_id, attrs in batch.records:
-            assert "embedding" in attrs
-            assert len(attrs["embedding"]) == 1024
-            # Unconfigured client produces 0.0 fallback vector
-            assert all(v == 0.0 for v in attrs["embedding"])
+    with pytest.raises(RuntimeError, match="JINA_API_KEY is required"):
+        prepare_ingestion_plan(
+            p,
+            batch_size=5,
+            embedding_client=unconfigured_client,
+            cache_path=tmp_path / "empty_cache.jsonl",
+        )
 
 
 # Test prepare_ingestion_plan with configured mock embeddings
@@ -280,6 +278,33 @@ def test_prepare_ingestion_plan_mock_embeddings(tmp_path: Path) -> None:
     first_chunk = plan.chunk_batches[0].records[0]
     assert "embedding" in first_chunk[1]
     assert first_chunk[1]["embedding"] == expected_vector
+
+
+def test_embedding_cache_requires_matching_source_text(tmp_path: Path) -> None:
+    corpus_path = tmp_path / "cache_corpus.jsonl"
+    original = (
+        '{"doc_id":"Q350","wikidata_qid":"Q350","wikipedia_pageid":350,'
+        '"title":"Archery at the 2016 Summer Olympics",'
+        '"url":"https://en.wikipedia.org/wiki/archery",'
+        '"text":"[Infobox Olympic event]\\n games: 2016 Summer\\n event: archery\\n\\nFinals.",'
+        '"approx_tokens":20}\n'
+    )
+    corpus_path.write_text(original, encoding="utf-8")
+    cache_path = tmp_path / "provenance_cache.jsonl"
+    client = JinaEmbeddingClient(api_key="mock-key", dimension=1024)
+    client.embed_passages = lambda texts, late_chunking=False: [[0.5] * 1024 for _ in texts]  # type: ignore[method-assign]
+    prepare_ingestion_plan(
+        corpus_path,
+        embedding_client=client,
+        cache_path=cache_path,
+    )
+
+    same_source = prepare_ingestion_plan(corpus_path, cache_path=cache_path)
+    assert "embedding" in same_source.chunk_batches[0].records[0][1]
+
+    corpus_path.write_text(original.replace("Finals.", "Updated results."), encoding="utf-8")
+    changed_source = prepare_ingestion_plan(corpus_path, cache_path=cache_path)
+    assert "embedding" not in changed_source.chunk_batches[0].records[0][1]
 
 
 def test_prepare_ingestion_plan_rejects_embedding_cardinality_mismatch(

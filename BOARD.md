@@ -26,7 +26,7 @@
 | **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **DONE** | `agent/003/langgraph-agent` (merged) | 41 passed | `c2e232b` |
 | **TASK-011** | Pure ReAct Agent Harness, Dynamic LLM Linking, Disk Cache & 100-Test Suite | `master-agent-001` | **DONE** | `main` | 100 passed | `51b189a` |
 | **TASK-012** | Clean Benchmark Integrity, Exact Embedding Alignment & Failure-Led Accuracy Work | `master-agent-001` | **IN PROGRESS** | `main` | 168 passed, 3 skipped | `1c305ba`, `f7d2aba`, `38a764c` |
-| **TASK-013** | Restore and Verify Live TigerVector Evidence Retrieval | `master-agent-001` | **IN PROGRESS** | `main` | 168 passed, 3 skipped | pending |
+| **TASK-013** | Restore and Verify Live TigerVector Evidence Retrieval | `master-agent-001` | **IN PROGRESS** | `main` | 172 passed, 3 skipped | pending |
 
 ---
 
@@ -56,6 +56,6 @@
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Restore Dense Evidence Retrieval**: The live TigerVector audit on 2026-09-28 returned zero chunks for all 100 public queries at top-30; an inspected live Chunk vertex had no `embedding` value. Audit the embedding cache and ingestion/upsert receipts, populate the corpus vectors with the indexed Jina model, and require a positive live vector-search check before calling the index ready.
+1. **Restore Dense Evidence Retrieval**: The live TigerVector audit on 2026-09-28 returned zero chunks for all 100 public queries at top-30; an inspected live Chunk vertex had no `embedding` value. Embedding generation/upsert now validates model, passage task, dimensions, nonzero finite vectors, source-text fingerprints, and TigerGraph accepted counts. Rebuild the corpus vectors, then require positive live vector-search results before calling the index ready.
 2. **Measure Retrieval Before Generation**: Re-run dense recall/MRR and compare dense-only, BM25-only, and RRF on the same public questions. Keep per-question rankings and corpus/dataset/model fingerprints; use the results to tune chunk/evidence selection rather than introducing unrelated retrieval methods.
 3. **Clean Answer Baseline and Submission**: After retrieval is healthy, run the leak-free three pipelines, classify answer errors by stage, and iterate on repeated failure classes. Then finish completeness/evidence metrics, hidden Agentic output, live graph dashboard and premium frontend, architecture artifacts, demo, and writeup. No clean answer baseline or 98% result exists yet.

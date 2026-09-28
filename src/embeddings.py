@@ -277,6 +277,8 @@ class JinaEmbeddingClient:
                         raise EmbeddingRequestError(
                             "Jina embedding API returned a non-finite or non-numeric vector"
                         )
+                    if not any(value != 0 for value in vector):
+                        raise EmbeddingRequestError("Jina embedding API returned a zero vector")
                     ordered[index] = [float(value) for value in vector]
                 if any(vector is None for vector in ordered):
                     raise EmbeddingRequestError("Jina embedding API omitted a vector record")

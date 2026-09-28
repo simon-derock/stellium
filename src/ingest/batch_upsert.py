@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import logging
 import math
@@ -14,7 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from src.coprocessor import build_filter_mask
-from src.embeddings import JinaEmbeddingClient
+from src.embeddings import (
+    GRAPH_EMBEDDING_DIMENSION,
+    GRAPH_EMBEDDING_MODEL,
+    JinaEmbeddingClient,
+)
 from src.graph import GraphClient, connect
 from src.graph.mock import create_mock_graph_client
 from src.ingest import (
@@ -28,17 +33,19 @@ from src.models import Chunk
 logger = logging.getLogger(__name__)
 
 DEFAULT_CACHE_PATH = Path("data/chunk_embeddings_cache.jsonl")
-_GRAPH_EMBEDDING_DIMENSION = 1024
+_EMBEDDING_TASK = "retrieval.passage"
 
 
 def _validated_embedding(values: Any) -> list[float] | None:
     # Only reuse vectors that match the deployed TigerGraph schema exactly.
-    if not isinstance(values, list) or len(values) != _GRAPH_EMBEDDING_DIMENSION:
+    if not isinstance(values, list) or len(values) != GRAPH_EMBEDDING_DIMENSION:
         return None
     if any(
         isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value)
         for value in values
     ):
+        return None
+    if not any(value != 0 for value in values):
         return None
     return [float(value) for value in values]
 
@@ -57,8 +64,12 @@ def _require_upsert_count(entity: str, expected: int, accepted: int) -> None:
         )
 
 
-def load_chunk_embeddings_cache(cache_path: Path = DEFAULT_CACHE_PATH) -> dict[str, list[float]]:
-    # Loads persistent disk cache mapping chunk_id to its 1024-dim embedding vector.
+def load_chunk_embeddings_cache(
+    cache_path: Path,
+    expected_texts: dict[str, str],
+    model: str = GRAPH_EMBEDDING_MODEL,
+) -> dict[str, list[float]]:
+    # Loads only cache vectors whose model, task, dimension, and source text match.
     cache: dict[str, list[float]] = {}
     if not cache_path.exists():
         return cache
@@ -71,8 +82,19 @@ def load_chunk_embeddings_cache(cache_path: Path = DEFAULT_CACHE_PATH) -> dict[s
                         item = json.loads(line_str)
                         cid = item.get("chunk_id")
                         emb = item.get("embedding")
+                        expected_text = expected_texts.get(cid) if isinstance(cid, str) else None
                         validated = _validated_embedding(emb)
-                        if isinstance(cid, str) and cid and validated is not None:
+                        if (
+                            isinstance(cid, str)
+                            and cid
+                            and expected_text is not None
+                            and item.get("model") == model
+                            and item.get("dimension") == GRAPH_EMBEDDING_DIMENSION
+                            and item.get("task") == _EMBEDDING_TASK
+                            and item.get("text_sha256")
+                            == hashlib.sha256(expected_text.encode("utf-8")).hexdigest()
+                            and validated is not None
+                        ):
                             cache[cid] = validated
                     except Exception:
                         continue
@@ -83,23 +105,35 @@ def load_chunk_embeddings_cache(cache_path: Path = DEFAULT_CACHE_PATH) -> dict[s
 
 def save_chunk_embeddings_batch(
     records: list[tuple[str, list[float]]],
-    cache_path: Path = DEFAULT_CACHE_PATH,
+    cache_path: Path,
+    source_texts: dict[str, str],
+    model: str = GRAPH_EMBEDDING_MODEL,
 ) -> None:
-    # Appends and flushes a batch of chunk_id and embedding pairs to disk cache.
-    validated_records: list[tuple[str, list[float]]] = []
+    # Appends validated vectors with provenance to reject stale cache entries.
+    validated_records: list[dict[str, Any]] = []
     for cid, embedding in records:
         validated = _validated_embedding(embedding)
-        if not cid or validated is None:
+        source_text = source_texts.get(cid)
+        if not cid or source_text is None or validated is None:
             raise ValueError(
                 f"Invalid embedding cache record for chunk {cid!r}: "
-                f"expected {_GRAPH_EMBEDDING_DIMENSION} finite numeric values"
+                f"expected {GRAPH_EMBEDDING_DIMENSION} finite nonzero values and source text"
             )
-        validated_records.append((cid, validated))
+        validated_records.append(
+            {
+                "chunk_id": cid,
+                "embedding": validated,
+                "model": model,
+                "dimension": GRAPH_EMBEDDING_DIMENSION,
+                "task": _EMBEDDING_TASK,
+                "text_sha256": hashlib.sha256(source_text.encode("utf-8")).hexdigest(),
+            }
+        )
 
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     with open(cache_path, "a", encoding="utf-8") as f:
-        for cid, emb in validated_records:
-            f.write(json.dumps({"chunk_id": cid, "embedding": emb}) + "\n")
+        for record in validated_records:
+            f.write(json.dumps(record) + "\n")
         f.flush()
 
 
@@ -253,8 +287,21 @@ def prepare_ingestion_plan(
 
     venue_records = [(v_id, {"name": name}) for v_id, name in venue_dict.items()]
 
-    # Generate or load embeddings for chunk vertices with persistent disk checkpoint caching
-    cached_embeddings = load_chunk_embeddings_cache(cache_path)
+    # Generate or reuse only passage vectors bound to this exact chunk text and model.
+    source_texts = {chunk.chunk_id: chunk.text for chunk in all_chunks}
+    if embedding_client is not None and (
+        embedding_client.model != GRAPH_EMBEDDING_MODEL
+        or embedding_client.dimension != GRAPH_EMBEDDING_DIMENSION
+    ):
+        raise ValueError(
+            "Corpus passage embeddings must match the TigerGraph index: "
+            f"{GRAPH_EMBEDDING_MODEL} at {GRAPH_EMBEDDING_DIMENSION} dimensions"
+        )
+    cached_embeddings = load_chunk_embeddings_cache(
+        cache_path,
+        expected_texts=source_texts,
+        model=embedding_client.model if embedding_client else GRAPH_EMBEDDING_MODEL,
+    )
     if embedding_client is not None:
         missing_chunks = [c for c in all_chunks if c.chunk_id not in cached_embeddings]
         if missing_chunks:
@@ -275,7 +322,12 @@ def prepare_ingestion_plan(
                         f"{len(sub_embs)} vectors for {len(sub_batch)} chunks"
                     )
                 new_pairs = [(c.chunk_id, emb) for c, emb in zip(sub_batch, sub_embs)]
-                save_chunk_embeddings_batch(new_pairs, cache_path)
+                save_chunk_embeddings_batch(
+                    new_pairs,
+                    cache_path,
+                    source_texts=source_texts,
+                    model=embedding_client.model,
+                )
                 for cid, emb in new_pairs:
                     cached_embeddings[cid] = emb
                 current_batch = idx // b_size + 1
@@ -558,6 +610,16 @@ def main() -> None:
                 print(f"  - {err}")
             sys.exit(1)
         return
+
+    missing_vector_count = sum(
+        "embedding" not in attrs for batch in plan.chunk_batches for _, attrs in batch.records
+    )
+    if missing_vector_count:
+        print(
+            f"ERROR: {missing_vector_count} chunks have no verified vector. "
+            "Use --embed to generate indexed-model vectors before full corpus ingestion."
+        )
+        sys.exit(1)
 
     if args.mock:
         print("[Stream 1] Executing batches into high-fidelity mock graph...")

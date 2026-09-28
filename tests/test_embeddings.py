@@ -102,6 +102,20 @@ def test_embed_rejects_invalid_vector_shape() -> None:
         client.embed_query("question")
 
 
+def test_embed_rejects_zero_vector() -> None:
+    client = JinaEmbeddingClient(api_key="mock-key", dimension=2)
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.json.return_value = {"data": [{"index": 0, "embedding": [0.0, 0.0]}]}
+
+    with (
+        patch("httpx.Client.post", return_value=response),
+        pytest.raises(RuntimeError, match="zero vector"),
+    ):
+        client.embed_query("question")
+
+
 def test_embed_raises_after_transient_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     client = JinaEmbeddingClient(api_key="mock-key", dimension=2, max_retries=2)
     response = MagicMock()
