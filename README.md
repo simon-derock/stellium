@@ -123,9 +123,9 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 
 These are three independent benchmark pipelines, not sequential phases. BM25Plus/RRF is enabled through the Agentic `hybrid_search` tool; it is deliberately absent from the vector-only RAG baseline and is not currently called by the fixed GraphRAG pipeline.
 
-### Historical public run data
+### Historical public run data (not a current clean benchmark)
 
-**Benchmark integrity notice:** a later audit found that the Agentic system prompt contained fully worked examples copied from public questions `pub-001` and `pub-002`, including their answers. The Agentic figures below (and the 84% Agentic-only run below) are therefore contaminated by benchmark leakage and are not valid clean accuracy measurements. The RAG and fixed GraphRAG arms do not use that prompt, but their historical scores still need a reproducible rerun for a publishable comparison. The copied examples have been removed, and a regression check now prevents public question text from being added to the Agentic prompt. Exact Match (EM) is strict normalized string equality; no 98% result has been established.
+**Do not read this table as Stellium's current accuracy or a valid head-to-head result.** It is retained as historical diagnostic data. A later audit found that the Agentic system prompt contained fully worked examples copied from public questions `pub-001` and `pub-002`, including their answers, so its score is contaminated by benchmark leakage. The RAG and fixed GraphRAG arms did not use that prompt, but those historical scores also need a reproducible rerun before they can support a current comparison. The copied examples have been removed and a regression check now prevents public question text from being added to the Agentic prompt. Exact Match (EM) is strict normalized string equality. No clean post-fix three-pipeline score or 98% result has been established; the latest clean run attempt stopped before question 1 because the provider daily quota was exhausted.
 
 | Pipeline | Exact Match | Token F1 | Mean latency | Mean LLM tokens |
 | :--- | ---: | ---: | ---: | ---: |
@@ -266,41 +266,43 @@ stellium/
 
 ### Retrieval and Reasoning Formulations
 
-Dense and sparse rankings are fused by Reciprocal Rank Fusion. The rankers are TigerVector HNSW and BM25Plus, with $k=60$:
+Dense and sparse rankings are fused by Reciprocal Rank Fusion (RRF). The rankers are TigerVector HNSW and BM25Plus, with `k = 60`:
 
-$$
-RRF(d)=\sum_{m\in\mathcal{M}}\frac{1}{k+r_m(d)},\qquad
-\mathcal{M}=\{Dense\ HNSW,Sparse\ BM25Plus\},\quad k=60.
-$$
+```text
+RRF(d) = sum over rankers m of 1 / (k + rank_m(d))
+rankers = {Dense HNSW, Sparse BM25Plus}; k = 60
+```
 
-The sparse ranker uses BM25Plus with document-length normalization and an additive $\delta$ term. Here $avgdl$ is average document length:
+The sparse ranker uses BM25Plus with document-length normalization and an additive `delta` term. `avgdl` is the average document length:
 
-$$
-Score_{BM25+}(D,Q)=\sum_{q_i\in Q}IDF(q_i)
-\left[\frac{f(q_i,D)(k_1+1)}{f(q_i,D)+k_1\left(1-b+b\frac{|D|}{avgdl}\right)}+\delta\right],
-\quad k_1=1.5,\quad b=0.75,\quad \delta=1.0.
-$$
+```text
+Score_BM25Plus(D, Q) = sum over query terms q_i of:
+  IDF(q_i) * [ f(q_i,D)*(k1+1) / (f(q_i,D) + k1*(1-b+b*|D|/avgdl)) + delta ]
+k1 = 1.5; b = 0.75; delta = 1.0
+```
 
-Evaluation normalizes answer strings before exact match and computes token overlap for F1. Let $T_{\hat{y}}$ and $T_{y^*}$ be token multisets:
+Evaluation normalizes answer strings before exact match and computes token overlap for F1. `y_hat` is the generated answer, `y_star` is the reference answer, and `T(x)` is the token multiset of `x`:
 
-$$
-EM=\mathbf{1}[norm(\hat{y})=norm(y^*)],\quad
-P=\frac{|T_{\hat{y}}\cap T_{y^*}|}{|T_{\hat{y}}|},\quad
-R=\frac{|T_{\hat{y}}\cap T_{y^*}|}{|T_{y^*}|},\quad
-F_1=\frac{2PR}{P+R}.
-$$
+```text
+EM        = 1 when normalize(y_hat) == normalize(y_star), otherwise 0
+Precision = |T(y_hat) intersect T(y_star)| / |T(y_hat)|
+Recall    = |T(y_hat) intersect T(y_star)| / |T(y_star)|
+F1        = 2 * Precision * Recall / (Precision + Recall)
+```
 
-The bitemporal module resolves conflicts by source authority, then validity timestamps, and reports competing versions when unresolved. This conceptual score describes authority and recency:
+The bitemporal module resolves conflicts by source authority, then validity timestamps, and reports competing versions when unresolved. This conceptual score describes authority and recency; the implementation uses ordered comparisons rather than evaluating the formula:
 
-$$
-S(f)=\alpha\,Auth(s)+\beta\,e^{-\lambda(t_{now}-t_{valid\_from})}\,\mathbf{1}[superseded\_by(f)=\varnothing].
-$$
+```text
+S(f) = alpha * authority(source)
+     + beta * exp(-lambda * (now - valid_from))
+       * 1[ superseded_by(f) is empty ]
+```
 
-The packed mask applies the requested year and season facets independently:
+The packed mask applies requested year and season facets independently:
 
-$$
-M(q)=M_{year}(y)\mathbin{\&}M_{season}(s).
-$$
+```text
+mask(q) = year_mask(q) AND season_mask(q)
+```
 
 In code, requested year and season groups are checked independently, so a chunk must match every requested facet. Masks are packed integer fields; sport names are not encoded in a static taxonomy.
 
