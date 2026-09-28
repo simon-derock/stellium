@@ -312,6 +312,19 @@ class JinaEmbeddingClient:
                     continue
 
                 if response.status_code >= 400:
+                    if response.status_code == 403:
+                        try:
+                            provider_error = response.json()
+                        except ValueError:
+                            provider_error = {}
+                        if (
+                            isinstance(provider_error, dict)
+                            and provider_error.get("code") == "AUTHZ_INSUFFICIENT_BALANCE"
+                        ):
+                            raise EmbeddingRequestError(
+                                "Jina API account balance is insufficient (HTTP 403); "
+                                "add account balance or configure an eligible API key"
+                            )
                     raise EmbeddingRequestError(
                         f"Jina embedding API rejected the request with HTTP {response.status_code}"
                     )

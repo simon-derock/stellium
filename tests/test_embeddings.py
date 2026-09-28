@@ -144,6 +144,20 @@ def test_embed_raises_after_transient_failures(monkeypatch: pytest.MonkeyPatch) 
         client.embed_query("question")
 
 
+def test_embed_reports_insufficient_jina_balance() -> None:
+    client = JinaEmbeddingClient(api_key="mock-key", dimension=2)
+    response = MagicMock()
+    response.status_code = 403
+    response.headers = {}
+    response.json.return_value = {"code": "AUTHZ_INSUFFICIENT_BALANCE"}
+
+    with (
+        patch("httpx.Client.post", return_value=response),
+        pytest.raises(RuntimeError, match="account balance is insufficient"),
+    ):
+        client.embed_query("question")
+
+
 # Test rate limit 429 retry logic with backoff
 def test_embed_retry_on_429(monkeypatch: pytest.MonkeyPatch) -> None:
     client = JinaEmbeddingClient(api_key="mock-key", dimension=1024)
