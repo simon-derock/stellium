@@ -20,6 +20,20 @@ def test_rate_limiter_throttling() -> None:
     assert elapsed >= 0.045
 
 
+def test_rate_limiter_waits_for_token_window_when_next_batch_exceeds_budget() -> None:
+    limiter = RateLimiter(min_interval_s=0)
+    limiter.remaining_tokens = 100
+    limiter.token_reset_at = time.monotonic() + 30
+
+    with patch("src.embeddings.time.sleep") as sleep:
+        limiter.wait_turn(estimated_tokens=200)
+
+    assert sleep.call_count == 1
+    assert sleep.call_args.args[0] >= 29.9
+    assert limiter.remaining_tokens == 99_800
+    assert limiter.token_reset_at is not None
+
+
 # Test client creation from environment with various naming variants
 def test_client_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     # Test lowercase user variant

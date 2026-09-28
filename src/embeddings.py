@@ -25,6 +25,8 @@ GRAPH_EMBEDDING_MODEL = "jina-embeddings-v5-text-small"
 GRAPH_EMBEDDING_DIMENSION = 1024
 _DEFAULT_MODEL = GRAPH_EMBEDDING_MODEL
 _DEFAULT_DIMENSION = GRAPH_EMBEDDING_DIMENSION
+_JINA_TOKEN_WINDOW_S = 60.0
+_JINA_FREE_TPM = 100_000
 
 # Supported Task Adapters for modern Jina LoRA (v3, v4, v5)
 TaskType = Literal[
@@ -60,6 +62,24 @@ def _retry_after_seconds(value: str | None) -> float | None:
             return None
 
 
+def _rate_reset_seconds(value: str | None) -> float | None:
+    # Parses provider reset headers as either delta-seconds or Unix timestamps.
+    if not value:
+        return None
+    try:
+        parsed = float(value)
+    except ValueError:
+        return _retry_after_seconds(value)
+    if parsed >= 1_000_000_000:
+        return max(0.0, parsed - time.time())
+    return max(0.0, parsed)
+
+
+def _estimate_input_tokens(texts: list[str]) -> int:
+    # A conservative character-based estimate for pacing; provider headers remain authoritative.
+    return sum(max(1, (len(text) + 2) // 3) for text in texts)
+
+
 # ---------------------------------------------------------------------------
 # Adaptive Rate Limiter & Token Bucket
 # ---------------------------------------------------------------------------
@@ -73,21 +93,35 @@ class AdaptiveRateLimiter:
         self.min_interval_s = min_interval_s if min_interval_s is not None else (60.0 / target_rpm)
         self.last_call_time = 0.0
         self.remaining_requests: int = 100
-        self.remaining_tokens: int = 100000
+        self.remaining_tokens: int = _JINA_FREE_TPM
+        self.token_reset_at: float | None = None
 
-    def wait_turn(self) -> None:
+    def wait_turn(self, estimated_tokens: int = 0) -> None:
         now = time.monotonic()
         elapsed = now - self.last_call_time
 
-        # If upstream reported near-exhaustion, dynamically throttle
-        sleep_needed = self.min_interval_s
+        # Apply request pacing and wait for the documented token window when the next batch
+        # would exceed the provider's remaining token budget.
+        sleep_needed = max(0.0, self.min_interval_s - elapsed)
         if self.remaining_requests < 5:
             sleep_needed = max(sleep_needed, 2.0)
-        elif self.remaining_tokens < 10000:
-            sleep_needed = max(sleep_needed, 1.5)
+        if self.remaining_tokens < estimated_tokens:
+            reset_wait = (
+                max(0.0, self.token_reset_at - now)
+                if self.token_reset_at is not None
+                else _JINA_TOKEN_WINDOW_S
+            )
+            sleep_needed = max(sleep_needed, reset_wait)
 
-        if elapsed < sleep_needed:
-            time.sleep(sleep_needed - elapsed)
+        if sleep_needed > 0:
+            time.sleep(sleep_needed)
+        if self.remaining_tokens < estimated_tokens:
+            self.remaining_tokens = _JINA_FREE_TPM
+            self.token_reset_at = None
+        if estimated_tokens:
+            self.remaining_tokens = max(0, self.remaining_tokens - estimated_tokens)
+            if self.token_reset_at is None:
+                self.token_reset_at = time.monotonic() + _JINA_TOKEN_WINDOW_S
         self.last_call_time = time.monotonic()
 
     def update_from_headers(self, headers: httpx.Headers) -> None:
@@ -103,6 +137,13 @@ class AdaptiveRateLimiter:
         if tok_rem is not None:
             try:
                 self.remaining_tokens = int(tok_rem)
+                reset_header = headers.get("x-ratelimit-reset-tokens-minute") or headers.get(
+                    "x-ratelimit-reset-tokens"
+                )
+                reset_seconds = _rate_reset_seconds(reset_header)
+                self.token_reset_at = time.monotonic() + (
+                    reset_seconds if reset_seconds is not None else _JINA_TOKEN_WINDOW_S
+                )
             except ValueError:
                 pass
 
@@ -232,7 +273,8 @@ class JinaEmbeddingClient:
         for attempt in range(1, self.max_retries + 1):
             try:
                 # Throttle request rate
-                self._limiter.wait_turn()
+                estimated_tokens = _estimate_input_tokens(batch)
+                self._limiter.wait_turn(estimated_tokens)
 
                 with httpx.Client(timeout=self.timeout_s) as client:
                     response = client.post(_JINA_API_URL, headers=headers, json=payload)
@@ -244,8 +286,17 @@ class JinaEmbeddingClient:
                 if response.status_code == 429:
                     sleep_time = _retry_after_seconds(response.headers.get("retry-after"))
                     if sleep_time is None:
-                        sleep_time = backoff
-                    last_error = EmbeddingRequestError("Jina embedding API rate limit (HTTP 429)")
+                        reset_header = response.headers.get(
+                            "x-ratelimit-reset-tokens-minute"
+                        ) or response.headers.get("x-ratelimit-reset-tokens")
+                        sleep_time = _rate_reset_seconds(reset_header) or _JINA_TOKEN_WINDOW_S
+                    self._limiter.remaining_tokens = 0
+                    self._limiter.token_reset_at = time.monotonic() + sleep_time
+                    last_error = EmbeddingRequestError(
+                        "Jina embedding API rate limit (HTTP 429; "
+                        f"retry_after_s={sleep_time:.1f}; "
+                        f"remaining_tokens={self._limiter.remaining_tokens})"
+                    )
                     if attempt < self.max_retries:
                         time.sleep(max(sleep_time, backoff))
                     backoff *= 2.0
@@ -310,5 +361,6 @@ class JinaEmbeddingClient:
                 backoff *= 2.0
 
         raise EmbeddingRequestError(
-            f"Jina embedding request failed after {self.max_retries} attempts"
+            f"Jina embedding request failed after {self.max_retries} attempts; "
+            f"last error: {last_error}"
         ) from last_error
