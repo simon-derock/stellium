@@ -272,7 +272,12 @@ def test_prepare_ingestion_plan_mock_embeddings(tmp_path: Path) -> None:
     expected_vector = [0.42] * 1024
     mock_client.embed_passages = lambda texts, late_chunking=False: [expected_vector for _ in texts]  # type: ignore[method-assign]
 
-    plan = prepare_ingestion_plan(p, batch_size=5, embedding_client=mock_client)
+    plan = prepare_ingestion_plan(
+        p,
+        batch_size=5,
+        embedding_client=mock_client,
+        cache_path=tmp_path / "mock_embeddings.jsonl",
+    )
 
     assert len(plan.chunk_batches) >= 1
     first_chunk = plan.chunk_batches[0].records[0]
