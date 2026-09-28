@@ -149,7 +149,7 @@ class MockTigerGraphConnection:
             ev_year = int(attrs.get("year", 0))
             ev_comp = int(attrs.get("competitor_count", 0))
 
-            if sport and sport not in ev_sport:
+            if sport and sport != ev_sport:
                 continue
             if target_year and ev_year != target_year:
                 continue
@@ -191,6 +191,7 @@ class MockTigerGraphConnection:
     def _query_get_preceding_event(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         sport = str(params.get("sport", "")).strip().lower()
         frag = str(params.get("event_name_fragment", "")).strip().lower()
+        gender = str(params.get("gender", "")).strip().lower()
         cur_year = int(params.get("current_year", params.get("year", 0)))
 
         events_store = self.vertices.get("Event", {})
@@ -203,7 +204,9 @@ class MockTigerGraphConnection:
             ev_name = str(attrs.get("name", "")).strip().lower()
             ev_year = int(attrs.get("year", 0))
 
-            if sport and sport not in ev_sport:
+            if sport and sport != ev_sport:
+                continue
+            if gender and gender != str(attrs.get("gender", "")).strip().lower():
                 continue
             if frag and frag not in ev_name:
                 continue
@@ -238,11 +241,14 @@ class MockTigerGraphConnection:
                 }
             ]
 
+        if not prev_events:
+            return [{"prev_events": [], "gold_athletes": [], "gold_doc_ids": []}]
+
         return [
             {
-                "prev_events": prev_events or ["Athletics 20km walk 2012"],
-                "gold_athletes": gold_athletes or ["Chen Ding"],
-                "gold_doc_ids": gold_doc_ids or ["Q1050909"],
+                "prev_events": prev_events,
+                "gold_athletes": gold_athletes,
+                "gold_doc_ids": gold_doc_ids,
             }
         ]
 
@@ -263,7 +269,7 @@ class MockTigerGraphConnection:
             ev_season = str(attrs.get("season", "")).strip().lower()
             ev_comp = int(attrs.get("competitor_count", 0))
 
-            if sport and sport not in ev_sport:
+            if sport and sport != ev_sport:
                 continue
             if target_year and ev_year != target_year:
                 continue
@@ -352,11 +358,14 @@ class MockTigerGraphConnection:
                 }
             ]
 
+        if not events_out:
+            return [{"events": [], "gold_athletes": [], "gold_doc_ids": []}]
+
         return [
             {
-                "events": events_out or ["Weightlifting 60kg"],
-                "gold_athletes": athletes_out or ["Naim Süleymanoğlu"],
-                "gold_doc_ids": gold_ids or ["Q25239316"],
+                "events": events_out,
+                "gold_athletes": athletes_out,
+                "gold_doc_ids": gold_ids,
             }
         ]
 
@@ -377,12 +386,16 @@ class MockTigerGraphConnection:
             name = str(attrs.get("name", "")).lower()
             ev_year = int(attrs.get("year", 0))
             ev_sport = str(attrs.get("sport", "")).lower()
+            ev_gender = str(attrs.get("gender", "")).lower()
 
             if frag and frag not in name:
                 continue
             if target_year and ev_year != target_year:
                 continue
-            if sport and sport not in ev_sport:
+            if sport and sport != ev_sport:
+                continue
+            gender = str(params.get("gender", "")).strip().lower()
+            if gender and gender != ev_gender:
                 continue
 
             ev_names.append(str(attrs.get("name", event_id)))
@@ -412,14 +425,26 @@ class MockTigerGraphConnection:
                 }
             ]
 
+        if not ev_names:
+            return [
+                {
+                    "events": [],
+                    "competitor_counts": [],
+                    "nation_counts": [],
+                    "gold_athletes": [],
+                    "venues": [],
+                    "gold_doc_ids": [],
+                }
+            ]
+
         return [
             {
-                "events": ev_names or ["Men's foil"],
-                "competitor_counts": comp_counts or [68],
-                "nation_counts": nat_counts or [26],
-                "gold_athletes": athletes or ["Stefano Cerioni"],
-                "venues": venues or ["Fencing Gymnasium"],
-                "gold_doc_ids": gold_ids or ["Q12345"],
+                "events": ev_names,
+                "competitor_counts": comp_counts,
+                "nation_counts": nat_counts,
+                "gold_athletes": athletes,
+                "venues": venues,
+                "gold_doc_ids": gold_ids,
             }
         ]
 

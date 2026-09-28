@@ -342,9 +342,23 @@ async def test_agentic_temporal_does_not_select_first_of_ambiguous_events() -> N
 async def test_agentic_multihop_does_not_select_first_of_ambiguous_events() -> None:
     graph = create_mock_graph_client()
     multihop_result = {
-        "events": ["Women's skeet", "Men's 10 metre running target"],
-        "gold_athletes": ["Zemfira Meftahatdinova", "Yang Ling"],
-        "gold_doc_ids": ["Q1", "Q2"],
+        "events": [
+            "Women's skeet",
+            "Men's 10 metre running target",
+            "Candidate 3",
+            "Candidate 4",
+            "Candidate 5",
+            "Candidate 6",
+        ],
+        "gold_athletes": [
+            "Zemfira Meftahatdinova",
+            "Yang Ling",
+            "Athlete 3",
+            "Athlete 4",
+            "Athlete 5",
+            "Athlete 6",
+        ],
+        "gold_doc_ids": ["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"],
     }
     pipeline = AgenticPipeline(
         graph=graph,
@@ -386,6 +400,9 @@ async def test_agentic_multihop_does_not_select_first_of_ambiguous_events() -> N
         year=2000,
     )
     assert chat.await_count == 2
+    observation_messages = chat.await_args_list[1].args[0]
+    assert "Candidate 6" in observation_messages[-1]["content"]
+    assert "Athlete 6" in observation_messages[-1]["content"]
 
 
 def test_parse_react_response_direct_json_schema() -> None:

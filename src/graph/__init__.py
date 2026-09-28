@@ -277,7 +277,7 @@ CREATE OR REPLACE QUERY get_event_aggregates (
 
     Events = {Event.*};
     Matched = SELECT e FROM Events:e
-              WHERE (sport == "" OR e.sport == sport)
+              WHERE (sport == "" OR lower(e.sport) == lower(sport))
                 AND (target_year == 0 OR e.year == target_year)
                 AND (min_competitors == 0 OR e.competitor_count >= min_competitors)
                 AND (max_competitors == 0 OR e.competitor_count <= max_competitors)
@@ -305,9 +305,9 @@ CREATE OR REPLACE QUERY get_preceding_event (
 
     Events = {Event.*};
     Current = SELECT e FROM Events:e
-              WHERE (sport == "" OR e.sport == sport)
+              WHERE (sport == "" OR lower(e.sport) == lower(sport))
                 AND (gender == "" OR e.gender == gender)
-                AND (event_name_fragment == "" OR e.name LIKE "%" + event_name_fragment + "%")
+                AND (event_name_fragment == "" OR lower(e.name) LIKE "%" + lower(event_name_fragment) + "%")
                 AND e.year == current_year;
 
     PriorEvents = SELECT prior FROM Current:curr -(PRECEDES:p)- Event:prior
@@ -339,16 +339,16 @@ CREATE OR REPLACE QUERY get_superlative_event (
     Events = {Event.*};
     IF order_by == "desc" THEN
         Filtered = SELECT e FROM Events:e
-                   WHERE (sport == "" OR e.sport == sport)
+                   WHERE (sport == "" OR lower(e.sport) == lower(sport))
                      AND (target_year == 0 OR e.year == target_year)
-                     AND (season == "" OR e.season == season)
+                     AND (season == "" OR lower(e.season) == lower(season))
                    ORDER BY e.competitor_count DESC
                    LIMIT result_limit;
     ELSE
         Filtered = SELECT e FROM Events:e
-                   WHERE (sport == "" OR e.sport == sport)
+                   WHERE (sport == "" OR lower(e.sport) == lower(sport))
                      AND (target_year == 0 OR e.year == target_year)
-                     AND (season == "" OR e.season == season)
+                     AND (season == "" OR lower(e.season) == lower(season))
                    ORDER BY e.competitor_count ASC
                    LIMIT result_limit;
     END;
@@ -378,9 +378,9 @@ CREATE OR REPLACE QUERY get_event_by_venue_date (
 
     Events = {Event.*};
     Matched = SELECT e FROM Events:e -(HELD_AT:h)- Venue:v
-              WHERE (venue_name_fragment == "" OR v.name LIKE "%" + venue_name_fragment + "%")
+              WHERE (venue_name_fragment == "" OR lower(v.name) LIKE "%" + lower(venue_name_fragment) + "%")
                 AND (target_year == 0 OR e.year == target_year)
-                AND (target_date_fragment == "" OR h.start_date LIKE "%" + target_date_fragment + "%")
+                AND (target_date_fragment == "" OR lower(h.start_date) LIKE "%" + lower(target_date_fragment) + "%")
               ACCUM @@event_names += e.name, @@gold_athletes += e.gold_athlete;
 
     Docs = SELECT doc FROM Matched:e -(DOCUMENTED_IN:d)- Document:doc
@@ -409,9 +409,9 @@ CREATE OR REPLACE QUERY get_event_attribute (
 
     Events = {Event.*};
     Matched = SELECT e FROM Events:e
-              WHERE (event_name_fragment == "" OR e.name LIKE "%" + event_name_fragment + "%")
+              WHERE (event_name_fragment == "" OR lower(e.name) LIKE "%" + lower(event_name_fragment) + "%")
                 AND (target_year == 0 OR e.year == target_year)
-                AND (sport == "" OR e.sport == sport)
+                AND (sport == "" OR lower(e.sport) == lower(sport))
                 AND (gender == "" OR e.gender == gender);
 
     x = SELECT e FROM Matched:e

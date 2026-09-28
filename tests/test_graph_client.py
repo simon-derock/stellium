@@ -21,6 +21,8 @@ def test_graph_schema_setup_and_query_installation() -> None:
     assert "VECTOR ATTRIBUTE" in ddl_statements[1]
     assert "CONFLICTS_WITH" in ddl_statements[2]
     assert any("e.gender == gender" in statement for statement in ddl_statements)
+    assert any("lower(e.name) LIKE" in statement for statement in ddl_statements)
+    assert any("lower(e.sport) == lower(sport)" in statement for statement in ddl_statements)
     assert "INSTALL QUERY" in ddl_statements[-1]
 
 

@@ -96,6 +96,81 @@ def test_mock_multihop_filters_event_year_and_yearless_edge_date() -> None:
     assert result["gold_athletes"] == ["Athlete A"]
 
 
+def test_mock_multihop_matches_corpus_month_first_date_fragment() -> None:
+    conn = MockTigerGraphConnection()
+    conn.upsertVertex(
+        "Event",
+        "swimming-2004",
+        {
+            "name": "Men's 400 metre individual medley",
+            "year": 2004,
+            "gold_athlete": "Michael Phelps",
+        },
+    )
+    conn.upsertVertex("Venue", "aquatic-centre", {"name": "Olympic Aquatic Centre"})
+    conn.upsertEdge(
+        "Event",
+        "swimming-2004",
+        "HELD_AT",
+        "Venue",
+        "aquatic-centre",
+        {"start_date": "August 14, 2004 (heats & final)"},
+    )
+
+    result = conn.runInstalledQuery(
+        "get_event_by_venue_date",
+        {
+            "venue_name_fragment": "Olympic Aquatic Centre",
+            "target_date_fragment": "August 14",
+            "target_year": 2004,
+        },
+    )[0]
+
+    assert result["events"] == ["Men's 400 metre individual medley"]
+    assert result["gold_athletes"] == ["Michael Phelps"]
+
+
+def test_mock_temporal_matches_event_name_and_sport_case_insensitively() -> None:
+    conn = MockTigerGraphConnection()
+    conn.upsertVertex(
+        "Event",
+        "current",
+        {
+            "name": "Nordic combined at the 2014 Winter Olympics – Individual normal hill/10 km",
+            "year": 2014,
+            "sport": "Nordic combined",
+            "gender": "Men",
+        },
+    )
+    conn.upsertVertex(
+        "Event",
+        "prior",
+        {
+            "name": "Nordic combined at the 2010 Winter Olympics – Individual normal hill/10 km",
+            "year": 2010,
+            "sport": "Nordic combined",
+            "gender": "Men",
+            "gold_athlete": "Jason Lamy Chappuis",
+        },
+    )
+    conn.upsertEdge("Event", "current", "PRECEDES", "Event", "prior")
+
+    result = conn.runInstalledQuery(
+        "get_preceding_event",
+        {
+            "sport": "NORDIC COMBINED",
+            "gender": "Men",
+            "event_name_fragment": "individual normal hill/10 km",
+            "current_year": 2014,
+        },
+    )[0]
+
+    assert result["prev_events"] == [
+        "Nordic combined at the 2010 Winter Olympics – Individual normal hill/10 km"
+    ]
+    assert result["gold_athletes"] == ["Jason Lamy Chappuis"]
+
+
 # Test installed query simulation for event aggregates
 def test_mock_query_event_aggregates() -> None:
     conn = MockTigerGraphConnection()

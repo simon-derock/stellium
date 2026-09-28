@@ -61,7 +61,7 @@ Your mission is to investigate complex sports queries autonomously by planning r
    Traverse HELD_AT edges to find Olympic events and gold medalists held at a specific venue and/or date.
    Parameters:
      - venue_name_fragment: string (e.g. "National Stadium", "Ice Center", or "")
-     - target_date_fragment: string (date only, e.g. "16 August"; omit the year because it is stored on Event)
+     - target_date_fragment: string (copy the date's month/day order from the question or evidence; e.g. "August 14" or "16 August"; omit the year because it is stored on Event)
      - target_year: integer (Olympic edition year, e.g. 2008; use 0 only when the year is unknown)
 
 5. gsql_lookup:
@@ -105,6 +105,7 @@ When you receive the Observation, you must reflect on the result:
 - If the evidence definitively answers the question: Call finish or output Final Answer directly.
 - If the result is empty, ambiguous, or incomplete: Adapt strategy (e.g. switch from structured GSQL to hybrid_search or vector_search) and call the next action.
 - If a graph query returns multiple candidate events, never assume the first is correct. Refine the query with all distinguishing qualifiers from the original question or gather evidence to select the matching event.
+- For venue/date retrieval, copy the date fragment in the same order and wording used in the question or corpus. The corpus contains both forms such as "August 14" and "16 August"; do not translate one order into the other. Include date qualifiers such as "heats & final" when present in the question.
 - Use gsql_aggregate only when the question asks how many events match criteria. Use gsql_lookup for an attribute (including the number of nations or competitors) of one named event.
 
 To conclude, you may either call the finish tool or output:
@@ -143,6 +144,22 @@ Action Input: {"query": "Italy flag bearer closing ceremony 2006 Winter Olympics
 Observation: {"chunks": [{"text": "...Armin Zöggeler carried the Italian flag at the closing ceremony of the 2006 Winter Olympics in Turin...", "doc_id": "Q2112"}]}
 Thought: The chunk confirms Armin Zöggeler carried the flag for Italy at the 2006 closing ceremony.
 Final Answer: Armin Zöggeler
+
+Example 4 (Attribute Lookup for One Named Event):
+User: How many nations competed in the named event?
+Thought: This asks for one event's nation_count, not a count of matching events. Keep the event-title discriminator separate from sport, year, and gender.
+Action: gsql_lookup
+Action Input: {"event_name_fragment":"distinctive event-title phrase","target_year":2000,"sport":"Example sport","gender":"Men","attribute":"nation_count"}
+Observation: {"events":["Example sport at the 2000 Summer Olympics – Men's example event"],"nation_counts":[12],"requested_attribute":"nation_count","requested_value":12}
+Thought: The graph returned one matching event and its requested nation_count. I will copy the value exactly.
+Final Answer: 12
+
+### EVENT ATTRIBUTE ROUTING AND RETRY:
+- `gsql_aggregate` answers how many events satisfy event-level predicates; it does not return one event's nation_count or competitor_count.
+- For a single event attribute, use `gsql_lookup`; put only the event discriminator in `event_name_fragment`. Pass sport, year, and gender in their own parameters.
+- If lookup returns no event, shorten the title fragment while preserving the event-defining discipline, gender, or class. Do not move sport/year words into the title fragment.
+- When lookup returns exactly one event and a non-empty `requested_value`, copy that value exactly. Never estimate an attribute from the number of events or competitors returned by an aggregate.
+- Event title and sport matching is case-insensitive; still use a short contiguous phrase from the event title so the match stays specific.
 
 ### STRICT ANSWERING RULES:
 1. ONLY provide facts verified in tool observations. Do NOT hallucinate.
@@ -427,9 +444,9 @@ class AgenticPipeline:
                 year = int(tool_args.get("target_year", tool_args.get("year", 0)))
                 res = self.graph.run_multihop(venue_fragment=venue, date_fragment=date, year=year)
                 result = {
-                    "events": res.get("events", [])[:5],
-                    "gold_athletes": res.get("gold_athletes", [])[:5],
-                    "gold_doc_ids": res.get("gold_doc_ids", [])[:5],
+                    "events": res.get("events", []),
+                    "gold_athletes": res.get("gold_athletes", []),
+                    "gold_doc_ids": res.get("gold_doc_ids", []),
                 }
                 citations = res.get("gold_doc_ids", [])[:5]
                 for doc_id in citations:

@@ -133,6 +133,8 @@ The latest completed live three-pipeline run used Cloudflare Workers AI (`@cf/me
 
 Agentic EM by question type was 21/21 aggregation, 17/22 temporal, 10/10 superlative, 17/28 multi-hop, and 15/19 lookup. The audited local output is `results/public_results_20260928_v3.jsonl` (ignored by Git). A later 100-question Agentic-only run after a venue/date correction scored 84% EM and 0.852 token F1; it is not a new three-pipeline comparison, and it predates the current aggregate-action validation and answer-verification changes. The evaluator now checkpoints every completed question and supports `--resume` after provider interruption.
 
+Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. A fresh full benchmark has not completed yet, so these changes do not alter the measured figures above.
+
 ---
 
 ## 🛠️ Quickstart
