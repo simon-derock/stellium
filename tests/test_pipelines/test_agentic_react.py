@@ -157,6 +157,67 @@ Action Input: {"answer": "Adapted Answer", "confidence": 0.85, "citations": ["do
 
 
 @pytest.mark.asyncio
+async def test_agentic_reuses_observation_for_repeated_identical_tool_action() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    first_action = LLMCallResult(
+        content="Thought: Search structured event data.\nAction: gsql_lookup\nAction Input: "
+        '{"event_name_fragment":"synthetic event","target_year":2020,"sport":"Example",'
+        '"attribute":"nation_count"}',
+        input_tokens=80,
+        output_tokens=30,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+    repeated_action = LLMCallResult(
+        content="Thought: Repeat the same lookup.\nAction: gsql_lookup\nAction Input: "
+        '{"attribute":"nation_count","sport":"Example","target_year":2020,'
+        '"event_name_fragment":"synthetic event"}',
+        input_tokens=80,
+        output_tokens=30,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+    finish = LLMCallResult(
+        content="Thought: Finish after reviewing the result.\nAction: finish\nAction Input: "
+        '{"answer":"Not found in corpus","confidence":0.0,"citations":[]}',
+        input_tokens=70,
+        output_tokens=20,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+    empty_lookup: dict[str, list[str]] = {
+        "events": [],
+        "competitor_counts": [],
+        "nation_counts": [],
+        "gold_athletes": [],
+        "venues": [],
+        "gold_doc_ids": [],
+    }
+
+    with (
+        patch.object(graph, "run_lookup", return_value=empty_lookup) as lookup,
+        patch.object(LockedLLMSession, "chat", side_effect=[first_action, repeated_action, finish]),
+    ):
+        result = await pipeline.run("repeated-action", "Find an attribute for a synthetic event.")
+
+    assert result.agentic_trace is not None
+    calls = result.agentic_trace["tools_called"]
+    lookup.assert_called_once()
+    assert [call["tool_name"] for call in calls] == ["gsql_lookup", "gsql_lookup"]
+    assert result.answer == "Not found in corpus"
+    assert "reused its cached observation" in calls[1]["output_summary"]
+    assert calls[1]["latency_ms"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_agentic_lookup_returns_requested_nation_count_from_unique_event() -> None:
     graph = create_mock_graph_client()
     lookup_result = {

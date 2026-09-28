@@ -520,9 +520,9 @@ flowchart LR
 ## 1. Bounded Cyclic ReAct Loop
 **Current implementation: bounded cyclic ReAct, not LangGraph.** `AgentState`, `EvidenceItem`, and `ToolAuditCall` are defined in `src/models/__init__.py`. The loop in `src/pipelines/agentic.py` sends the question and prior tool observations to the LLM, validates/parses the next action, executes it, records telemetry, and repeats until an explicit finish, a deterministic fast stop, a direct answer, or the maximum iteration count.
 
-**Current gaps:** there is no separately implemented evidence-critic node or specialist-agent set; the next ReAct decision serves as the current evidence review. Confidence values are code-assigned and not calibrated. Chunk-window expansion is available in the coprocessor but not exposed as an agent action.
+**Current gaps:** there is no separately implemented evidence-critic node or specialist-agent set; the next ReAct decision serves as the current evidence review. Exact repeated tool actions with canonicalized arguments reuse a cached observation, but semantic no-new-evidence detection is not implemented. Confidence values are code-assigned and not calibrated. Chunk-window expansion is available in the coprocessor but not exposed as an agent action.
 
-**Target improvements:** keep the loop flexible and bounded; add typed tool argument validation, a deduplicated evidence ledger, repeated-action/no-new-evidence detection, specialist capabilities with explicit contracts, evidence-supported stopping, and calibration based on measured validation outcomes. Do not introduce heuristic question-text routing or hard-coded answer paths.
+**Target improvements:** keep the loop flexible and bounded; add typed tool argument validation, a deduplicated evidence ledger, semantic no-new-evidence detection, specialist capabilities with explicit contracts, evidence-supported stopping, and calibration based on measured validation outcomes. Do not introduce heuristic question-text routing or hard-coded answer paths.
 [/ORCHESTRA:AGENT_HARNESS]
 
 ---

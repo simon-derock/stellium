@@ -104,6 +104,7 @@ Action Input: <JSON formatted parameters matching the tool schema>
 When you receive the Observation, you must reflect on the result:
 - If the evidence definitively answers the question: Call finish or output Final Answer directly.
 - If the result is empty, ambiguous, or incomplete: Adapt strategy (e.g. switch from structured GSQL to hybrid_search or vector_search) and call the next action.
+- Do not repeat a tool call with identical parameters; change the query or choose another tool to seek new evidence.
 - If a graph query returns multiple candidate events, never assume the first is correct. Refine the query with all distinguishing qualifiers from the original question or gather evidence to select the matching event.
 - For venue/date retrieval, copy the date fragment in the same order and wording used in the question or corpus. The corpus contains both forms such as "August 14" and "16 August"; do not translate one order into the other. Include date qualifiers such as "heats & final" when present in the question.
 - Use gsql_aggregate only when the question asks how many events match criteria. Use gsql_lookup for an attribute (including the number of nations or competitors) of one named event.
@@ -537,6 +538,7 @@ class AgenticPipeline:
         scratchpad = ""
         current_strategy = "initial_reasoning"
         prev_tool_category: str | None = None
+        tool_cache: dict[str, tuple[dict[str, Any], list[str]]] = {}
 
         for iteration in range(1, self.max_iterations + 1):
             t_call = time.perf_counter()
@@ -597,9 +599,23 @@ class AgenticPipeline:
             state.strategy_history.append(action_name)
             current_strategy = action_name
 
-            tool_obs, step_citations, tool_lat = await self._execute_tool(
-                action_name, action_input, state.evidence
+            cache_key = (
+                f"{action_name}:{json.dumps(action_input, sort_keys=True, separators=(',', ':'))}"
             )
+            cached_result = tool_cache.get(cache_key)
+            if cached_result is not None:
+                prior_observation, step_citations = cached_result
+                tool_obs = {
+                    "notice": "Identical action reused its cached observation; no new tool call ran.",
+                    "previous_observation": prior_observation,
+                }
+                tool_lat = 0.0
+            else:
+                tool_obs, step_citations, tool_lat = await self._execute_tool(
+                    action_name, action_input, state.evidence
+                )
+                if "error" not in tool_obs:
+                    tool_cache[cache_key] = (tool_obs, step_citations)
 
             # Audit record
             state.tool_history.append(
@@ -620,34 +636,43 @@ class AgenticPipeline:
                 state.confidence_score = float(action_input.get("confidence", 0.95))
                 break
 
-            if (
-                action_name == "gsql_temporal"
-                and len(tool_obs.get("prev_events", [])) == 1
-                and len(tool_obs.get("gold_athletes", [])) == 1
-                and tool_obs["gold_athletes"][0]
-            ):
-                athletes = tool_obs["gold_athletes"]
-                state.final_answer = athletes[0]
-                state.confidence_score = 0.98
-                state.stopping_reason = "Deterministic GSQL PRECEDES edge traversal verified"
-                break
+            if action_name == "gsql_temporal":
+                prev_events = tool_obs.get("prev_events", [])
+                athletes = tool_obs.get("gold_athletes", [])
+                if (
+                    isinstance(prev_events, list)
+                    and len(prev_events) == 1
+                    and isinstance(athletes, list)
+                    and len(athletes) == 1
+                    and athletes[0]
+                ):
+                    state.final_answer = athletes[0]
+                    state.confidence_score = 0.98
+                    state.stopping_reason = "Deterministic GSQL PRECEDES edge traversal verified"
+                    break
 
-            if action_name == "gsql_superlative" and tool_obs.get("events"):
-                state.final_answer = tool_obs["events"][0]
-                state.confidence_score = 0.98
-                state.stopping_reason = "Deterministic GSQL superlative ranking verified"
-                break
+            if action_name == "gsql_superlative":
+                events = tool_obs.get("events", [])
+                if isinstance(events, list) and events:
+                    state.final_answer = events[0]
+                    state.confidence_score = 0.98
+                    state.stopping_reason = "Deterministic GSQL superlative ranking verified"
+                    break
 
-            if (
-                action_name == "gsql_multihop"
-                and len(tool_obs.get("events", [])) == 1
-                and len(tool_obs.get("gold_athletes", [])) == 1
-                and tool_obs["gold_athletes"][0]
-            ):
-                state.final_answer = tool_obs["gold_athletes"][0]
-                state.confidence_score = 0.97
-                state.stopping_reason = "Deterministic GSQL HELD_AT multi-hop verified"
-                break
+            if action_name == "gsql_multihop":
+                events = tool_obs.get("events", [])
+                athletes = tool_obs.get("gold_athletes", [])
+                if (
+                    isinstance(events, list)
+                    and len(events) == 1
+                    and isinstance(athletes, list)
+                    and len(athletes) == 1
+                    and athletes[0]
+                ):
+                    state.final_answer = athletes[0]
+                    state.confidence_score = 0.97
+                    state.stopping_reason = "Deterministic GSQL HELD_AT multi-hop verified"
+                    break
 
             if (
                 action_name == "gsql_lookup"
