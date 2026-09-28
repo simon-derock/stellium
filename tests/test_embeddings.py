@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.embeddings import JinaEmbeddingClient, RateLimiter
+from src.embeddings import JinaEmbeddingClient, RateLimiter, _retry_after_seconds
 
 
 # Test RateLimiter enforces minimum delay between successive calls
@@ -131,8 +131,9 @@ def test_embed_raises_after_transient_failures(monkeypatch: pytest.MonkeyPatch) 
 
 
 # Test rate limit 429 retry logic with backoff
-def test_embed_retry_on_429() -> None:
+def test_embed_retry_on_429(monkeypatch: pytest.MonkeyPatch) -> None:
     client = JinaEmbeddingClient(api_key="mock-key", dimension=1024)
+    monkeypatch.setattr("src.embeddings.time.sleep", lambda _: None)
 
     mock_429 = MagicMock()
     mock_429.status_code = 429
@@ -146,6 +147,12 @@ def test_embed_retry_on_429() -> None:
         res = client.embed_query("Test query")
         assert len(res) == 1024
         assert res[0] == 0.1
+
+
+def test_retry_after_accepts_seconds_and_http_date() -> None:
+    assert _retry_after_seconds("12.5") == 12.5
+    assert _retry_after_seconds("invalid") is None
+    assert (_retry_after_seconds("Wed, 21 Oct 2099 07:28:00 GMT") or 0) > 0
 
 
 # Test arbitrary new Jina embedding models can be configured dynamically

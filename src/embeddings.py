@@ -8,6 +8,8 @@ import math
 import os
 import time
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any, Literal
 
 import httpx
@@ -40,6 +42,22 @@ EmbeddingType = Literal["float", "base64", "binary", "ubinary"]
 class EmbeddingRequestError(RuntimeError):
     # Signals that a live embedding request failed instead of returning usable vectors.
     pass
+
+
+def _retry_after_seconds(value: str | None) -> float | None:
+    # Parses both delta-seconds and HTTP-date Retry-After values.
+    if not value:
+        return None
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        try:
+            retry_at = parsedate_to_datetime(value)
+            if retry_at.tzinfo is None:
+                retry_at = retry_at.replace(tzinfo=UTC)
+            return max(0.0, (retry_at - datetime.now(UTC)).total_seconds())
+        except (TypeError, ValueError, OverflowError):
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -109,7 +127,7 @@ class JinaEmbeddingClient:
     normalized: bool = True
     truncate: bool = True
     embedding_type: EmbeddingType = "float"
-    max_retries: int = 5
+    max_retries: int = 8
     _limiter: AdaptiveRateLimiter = field(default_factory=AdaptiveRateLimiter)
 
     @classmethod
@@ -224,8 +242,9 @@ class JinaEmbeddingClient:
 
                 # Handle HTTP 429 rate limit with upstream retry-after
                 if response.status_code == 429:
-                    retry_header = response.headers.get("retry-after")
-                    sleep_time = float(retry_header) if retry_header else backoff
+                    sleep_time = _retry_after_seconds(response.headers.get("retry-after"))
+                    if sleep_time is None:
+                        sleep_time = backoff
                     last_error = EmbeddingRequestError("Jina embedding API rate limit (HTTP 429)")
                     if attempt < self.max_retries:
                         time.sleep(max(sleep_time, backoff))
