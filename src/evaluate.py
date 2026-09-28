@@ -17,7 +17,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from src.coprocessor import Coprocessor
-from src.embeddings import JinaEmbeddingClient
+from src.embeddings import GRAPH_EMBEDDING_DIMENSION, GRAPH_EMBEDDING_MODEL, JinaEmbeddingClient
 from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import normalize
 from src.ingest import load_all_chunks
@@ -212,9 +212,18 @@ class EvaluationHarness:
                 )
             if not os.environ.get("TG_HOST"):
                 raise RuntimeError("Live evaluation requires TG_HOST; use_mock is for tests only")
-            if not JinaEmbeddingClient.from_env().is_configured:
+            embedding_client = JinaEmbeddingClient.from_env()
+            if not embedding_client.is_configured:
                 raise RuntimeError(
                     "Live evaluation requires the Jina API key used by the indexed embeddings"
+                )
+            if (
+                embedding_client.model != GRAPH_EMBEDDING_MODEL
+                or embedding_client.dimension != GRAPH_EMBEDDING_DIMENSION
+            ):
+                raise RuntimeError(
+                    "Live evaluation query embeddings must match the TigerGraph index: "
+                    f"{GRAPH_EMBEDDING_MODEL} at {GRAPH_EMBEDDING_DIMENSION} dimensions"
                 )
 
         self.corpus_path = corpus_path

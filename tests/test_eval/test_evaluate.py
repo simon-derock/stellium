@@ -128,6 +128,29 @@ def test_live_evaluation_does_not_replace_graph_failure_with_mock(
         EvaluationHarness(corpus_path="missing-corpus.jsonl")
 
 
+@pytest.mark.parametrize(
+    ("setting", "value"),
+    [
+        ("JINA_EMBEDDING_MODEL", "jina-embeddings-v4"),
+        ("EMBEDDING_DIMENSION", "768"),
+    ],
+)
+def test_live_evaluation_rejects_embedding_index_mismatch(
+    monkeypatch: pytest.MonkeyPatch, setting: str, value: str
+) -> None:
+    monkeypatch.setattr(evaluate_module, "load_dotenv", lambda: None)
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-token")
+    monkeypatch.setenv("TG_HOST", "https://graph.invalid")
+    monkeypatch.setenv("JINA_API_KEY", "test-jina-key")
+    monkeypatch.setenv("JINA_EMBEDDING_MODEL", "jina-embeddings-v5-text-small")
+    monkeypatch.setenv("EMBEDDING_DIMENSION", "1024")
+    monkeypatch.setenv(setting, value)
+
+    with pytest.raises(RuntimeError, match="must match the TigerGraph index"):
+        EvaluationHarness(corpus_path="missing-corpus.jsonl")
+
+
 @pytest.mark.asyncio
 async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.llm import LLMCallResult, LockedLLMSession

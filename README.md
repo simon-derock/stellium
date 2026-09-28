@@ -123,7 +123,7 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 
 These are three independent benchmark pipelines, not sequential phases. BM25Plus/RRF is enabled through the Agentic `hybrid_search` tool; it is deliberately absent from the vector-only RAG baseline and is not currently called by the fixed GraphRAG pipeline.
 
-### Latest measured public baseline
+### Historical public run data
 
 **Benchmark integrity notice:** a later audit found that the Agentic system prompt contained fully worked examples copied from public questions `pub-001` and `pub-002`, including their answers. The Agentic figures below (and the 84% Agentic-only run below) are therefore contaminated by benchmark leakage and are not valid clean accuracy measurements. The RAG and fixed GraphRAG arms do not use that prompt, but their historical scores still need a reproducible rerun for a publishable comparison. The copied examples have been removed, and a regression check now prevents public question text from being added to the Agentic prompt. Exact Match (EM) is strict normalized string equality; no 98% result has been established.
 

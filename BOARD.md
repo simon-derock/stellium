@@ -25,6 +25,7 @@
 | **TASK-009** | FastAPI Backend & Interactive GraphSurface Frontend UI | `master-agent-001` | **DONE** | `main` | 26 passed | `daec8f6` |
 | **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **DONE** | `agent/003/langgraph-agent` (merged) | 41 passed | `c2e232b` |
 | **TASK-011** | Pure ReAct Agent Harness, Dynamic LLM Linking, Disk Cache & 100-Test Suite | `master-agent-001` | **DONE** | `main` | 100 passed | `51b189a` |
+| **TASK-012** | Clean Benchmark Integrity, Exact Embedding Alignment & Failure-Led Accuracy Work | `master-agent-001` | **IN PROGRESS** | `main` | 158 passed, 3 skipped | `1c305ba` + working changes |
 
 ---
 
@@ -43,17 +44,17 @@
 ## 4. Architectural Decision Log
 
 1. **Deterministic Metadata Header Injection vs. Synthetic Questions**: Rejected synthetic question generation to eliminate semantic drift, save 15,000 API calls, and maintain strict corpus grounding.
-2. **High-Speed Coprocessor Integration**: TigerGraph Savanna handles Graph topology, HNSW vector search, and GSQL aggregations; local coprocessor handles Roaring Bitmasks, BM25, and RRF for $<1\,\text{ms}$ hybrid search.
-3. **Doubly Linked Chunk Pointers**: Chunks carry `prev_chunk_id` and `next_chunk_id` (`uint16` offsets); Olympic events carry `prev_event_id` and `next_event_id` (`PRECEDES` / `SUCCEEDS` edges) to resolve boundary overlaps and temporal sequences.
+2. **High-Speed Coprocessor Integration**: TigerGraph Savanna handles graph topology, HNSW vector search, and GSQL aggregations; the local coprocessor handles BM25Plus, packed year/season integer masks, and RRF. Runtime claims require measured scope and must not imply the full BM25 scan is sub-millisecond.
+3. **Doubly Linked Chunk Pointers**: Chunks carry `prev_chunk_id` and `next_chunk_id` IDs; Olympic events carry `prev_event_id` and `next_event_id` (`PRECEDES` / `SUCCEEDS` edges) to resolve boundary overlaps and temporal sequences.
 4. **Pragmatic 3-Layer Guardrails**: Medium/simple regex scanning for database commands and prompt injections, parameterized GSQL calls, and output API key leak redaction without over-restricting evaluation test sets.
 5. **No Docstrings in Python Code**: Use `#` comments exclusively across all Python files per project specification.
-6. **Lunarbit Visualizer Integration**: Direct backend serialization from TigerGraph traversed subgraphs to `Snapshot`, `GraphNode`, and `GraphEdge` DTOs rendered via `GraphSurface.tsx`.
+6. **Lunarbit Visualizer Integration Target**: The sample files under `samples/frontend/` are the visual reference. Live query-derived graph serialization and a maintained React frontend remain incomplete.
 7. **Round 2 Bitemporal Schema & Conflict Resolution**: 4-step conflict resolution engine comparing source authority and timestamps, with dual reporting of bounded confidence intervals on ties and agentic trace logging.
 
 ---
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Step 1 (TigerGraph Savanna Deployment)**: COMPLETED by agent-002: Live schema deployed, 1024-dim HNSW vector space active, 6 GSQL stored queries compiled and verified.
-2. **Step 2 (Corpus Ingestion)**: COMPLETED by agent-001: 2,951 documents, 22,016 chunks, 2,210 events, 316 venues, and 29,662 edges batch upserted into live TigerGraph Savanna cluster in 24.88s (0 errors).
-3. **Step 3 (Final Hackathon Submission)**: Verify live cloud queries, generate visual artifacts, and finalize Devpost/GitHub submission pack.
+1. **Clean Benchmark Rebaseline**: Rerun all 100 public questions across RAG, GraphRAG, and Agentic after the prompt-leak fix. Earlier Agentic scores are invalid as clean accuracy evidence because the prompt included the exact `pub-001` and `pub-002` questions and answers.
+2. **Accuracy Iteration**: Audit per-question retrieval, graph results, citations, and answer errors from the clean run; make general fixes and measure the same benchmark again. Current Cloudflare generation requests are blocked by daily quota error 4006; no clean end-to-end score exists yet.
+3. **Submission Completion**: Produce the hidden Agentic output, live graph dashboard and premium frontend, architecture artifacts, demo, and metrics/writeup after the benchmark and hosted app are verified.

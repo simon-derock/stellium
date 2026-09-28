@@ -18,8 +18,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _JINA_API_URL = "https://api.jina.ai/v1/embeddings"
-_DEFAULT_MODEL = "jina-embeddings-v5-text-small"
-_DEFAULT_DIMENSION = 1024  # Matches TigerGraph Savanna HNSW vector attribute
+GRAPH_EMBEDDING_MODEL = "jina-embeddings-v5-text-small"
+GRAPH_EMBEDDING_DIMENSION = 1024
+_DEFAULT_MODEL = GRAPH_EMBEDDING_MODEL
+_DEFAULT_DIMENSION = GRAPH_EMBEDDING_DIMENSION
 
 # Supported Task Adapters for modern Jina LoRA (v3, v4, v5)
 TaskType = Literal[
@@ -115,7 +117,11 @@ class JinaEmbeddingClient:
             or ""
         ).strip()
 
-        model = os.environ.get("EMBEDDING_MODEL") or _DEFAULT_MODEL
+        model = (
+            os.environ.get("JINA_EMBEDDING_MODEL")
+            or os.environ.get("EMBEDDING_MODEL")
+            or _DEFAULT_MODEL
+        )
         raw_dim = os.environ.get("EMBEDDING_DIMENSION")
         dimension = int(raw_dim) if raw_dim and raw_dim.isdigit() else _DEFAULT_DIMENSION
 

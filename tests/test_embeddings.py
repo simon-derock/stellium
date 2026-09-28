@@ -109,3 +109,6 @@ def test_custom_jina_models(monkeypatch: pytest.MonkeyPatch) -> None:
     client_env = JinaEmbeddingClient.from_env()
     assert client_env.model == "jina-embeddings-v4"
     assert client_env.dimension == 1024
+
+    monkeypatch.setenv("JINA_EMBEDDING_MODEL", "jina-embeddings-v5-text-small")
+    assert JinaEmbeddingClient.from_env().model == "jina-embeddings-v5-text-small"

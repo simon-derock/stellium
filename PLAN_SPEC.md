@@ -641,7 +641,7 @@ class SnapshotDTO(BaseModel):
 
 [ORCHESTRA:AGENT:002]
 ## Stream 2: High-Speed Hybrid Coprocessor
-Current baseline has BM25Plus scoring, packed integer masks, RRF, and an optional cross-encoder. Remaining work: remove the fixed sport-name bit map, benchmark the 22,016-chunk corpus, and report latency/recall without unsupported sub-millisecond claims.
+Current baseline has BM25Plus scoring, packed year/season integer masks, RRF, and an optional cross-encoder. The current implementation has no fixed sport-name bit map; sport matching remains corpus-derived. Remaining work: benchmark the 22,016-chunk corpus end-to-end and report latency/recall without unsupported sub-millisecond claims.
 [/ORCHESTRA:AGENT:002]
 
 ---
@@ -837,7 +837,7 @@ These rulings are HARD CONSTRAINTS that override any prior assumptions.
 ### Rule 1: Dynamic Agentic Behavior and No Answer Hardcoding
 - Ruling: "Deterministic-first is fine, as long as the agentic mode is genuinely agentic and nothing is hard-coded for the public 100. Report 0-token answers honestly."
 - Current implementation uses a cyclic ReAct LLM loop with dynamic tool selection and parameterized GSQL. Keep it free of question-ID answers, heuristic query classifiers, and static sport/entity lists.
-- The coprocessor's current fixed sport-bit mapping violates the static-list rule and must be removed or replaced with corpus-derived metadata before claiming full compliance.
+- The current coprocessor encodes year and season in packed integer masks and does not encode sport names in a static bit map. Keep sport/entity matching corpus-derived and re-audit any taxonomy optimization against the no-static-list rule.
 
 ### Rule 2: Benchmark Runs Follow the Supplied Hackathon Instructions
 - Public: run all three pipelines on all 100 visible questions.
