@@ -176,7 +176,8 @@ class JinaEmbeddingClient:
         # Reads configuration from environment variables.
         # Checks standard Jina key variants + model overrides.
         key = (
-            os.environ.get("JINA_API_KEY")
+            os.environ.get("EMBEDDING_KEY")
+            or os.environ.get("JINA_API_KEY")
             or os.environ.get("jina_embedding_api_key")
             or os.environ.get("JINA_EMBEDDING_API_KEY")
             or ""

@@ -22,6 +22,7 @@ async def test_query_embeddings_fail_closed_without_index_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("JINA_API_KEY", raising=False)
+    monkeypatch.delenv("EMBEDDING_KEY", raising=False)
     monkeypatch.delenv("jina_embedding_api_key", raising=False)
     monkeypatch.delenv("JINA_EMBEDDING_API_KEY", raising=False)
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account")

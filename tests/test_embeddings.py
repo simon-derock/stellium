@@ -36,7 +36,15 @@ def test_rate_limiter_waits_for_token_window_when_next_batch_exceeds_budget() ->
 
 # Test client creation from environment with various naming variants
 def test_client_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Explicit generic key takes precedence over legacy provider-specific aliases.
+    monkeypatch.setenv("EMBEDDING_KEY", "new-embedding-key")
+    monkeypatch.setenv("JINA_API_KEY", "legacy-jina-key")
+    client = JinaEmbeddingClient.from_env()
+    assert client.api_key == "new-embedding-key"
+
     # Test lowercase user variant
+    monkeypatch.delenv("EMBEDDING_KEY", raising=False)
+    monkeypatch.delenv("JINA_API_KEY", raising=False)
     monkeypatch.setenv("jina_embedding_api_key", "test-jina-key-123")
     client = JinaEmbeddingClient.from_env()
     assert client.api_key == "test-jina-key-123"

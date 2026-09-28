@@ -3,6 +3,7 @@
 # Complements TigerVector HNSW which handles dense semantic search.
 from __future__ import annotations
 
+import heapq
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
@@ -33,6 +34,15 @@ def _tokenize(text: str) -> list[str]:
     # Apply the same Unicode and punctuation normalization to corpus text and queries.
     normalized = normalize(text).lower()
     return "".join(char if char.isalnum() else " " for char in normalized).split()
+
+
+def _top_positive_scores(
+    indexed_scores: Iterable[tuple[int, float]], top_k: int
+) -> list[tuple[int, float]]:
+    # Select top-k in O(N log K) while preserving source order for tied scores.
+    if top_k <= 0:
+        return []
+    return heapq.nlargest(top_k, indexed_scores, key=lambda item: item[1])
 
 
 def build_filter_mask(year: int | None, season: str | None) -> int:
@@ -90,12 +100,9 @@ class BM25Index:
             return []
         tokens = _tokenize(query)
         scores = self._bm25.get_scores(tokens)
-        # Get indices of top_k non-zero scores
-        indexed = sorted(
-            ((i, s) for i, s in enumerate(scores) if s > 0),
-            key=lambda x: x[1],
-            reverse=True,
-        )[:top_k]
+        indexed = _top_positive_scores(
+            ((i, float(score)) for i, score in enumerate(scores) if score > 0), top_k
+        )
         return [(self._chunks[i], float(s)) for i, s in indexed]
 
     def search_filtered(
@@ -104,33 +111,30 @@ class BM25Index:
         filter_mask: int,
         top_k: int = 50,
     ) -> list[tuple[Chunk, float]]:
-        # Bitmask pre-filter then BM25. O(N) filter is still fast for 2,951 docs.
+        # Score all chunks, then apply packed-mask filtering during bounded top-k selection.
         if self._bm25 is None or not self._chunks:
             return []
         tokens = _tokenize(query)
         scores = self._bm25.get_scores(tokens)
         if filter_mask == 0:
-            indexed = sorted(
-                ((i, s) for i, s in enumerate(scores) if s > 0),
-                key=lambda x: x[1],
-                reverse=True,
-            )[:top_k]
+            indexed = _top_positive_scores(
+                ((i, float(score)) for i, score in enumerate(scores) if score > 0), top_k
+            )
         else:
             year_filter = filter_mask & _YEAR_BITS
             season_filter = filter_mask & _SEASON_BITS
             if not year_filter and not season_filter:
                 return []
-            indexed = sorted(
+            indexed = _top_positive_scores(
                 (
-                    (i, s)
-                    for i, s in enumerate(scores)
-                    if s > 0
+                    (i, float(score))
+                    for i, score in enumerate(scores)
+                    if score > 0
                     and (not year_filter or self._chunks[i].filter_mask & year_filter)
                     and (not season_filter or self._chunks[i].filter_mask & season_filter)
                 ),
-                key=lambda x: x[1],
-                reverse=True,
-            )[:top_k]
+                top_k,
+            )
         return [(self._chunks[i], float(s)) for i, s in indexed]
 
 
