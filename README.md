@@ -137,18 +137,18 @@ Historical Agentic category counts were 21/21 aggregation, 17/22 temporal, 10/10
 
 Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. These changes have not yet been scored in a fresh full benchmark: the current Cloudflare account returns HTTP 429 with provider error 4006 (daily neuron allocation exhausted). The client now stops immediately on this non-recoverable quota response instead of retrying it five times.
 
-A separate live dense-retrieval audit on 2026-09-28 used aligned Jina v5 1024-dimensional query embeddings for all 100 public questions. TigerVector returned **zero chunks for every question**, with zero hit/recall/MRR through top-30. The graph has 22,016 Chunk vertices and the schema declares the HNSW vector attribute, but an inspected Chunk vertex had no stored `embedding` value. This points to missing or unsearchable vector data, so the old 5% RAG score cannot be used to judge embedding relevance. Ingestion now rejects unverifiable cache entries and fails when TigerGraph accepts only part of an upsert. See [the retrieval audit](docs/benchmark-audits/dense-retrieval-20260928.md) and run `uv run python -m scripts.evaluate_dense_retrieval` to reproduce the live retrieval check.
+A separate live dense-retrieval audit on 2026-09-28 used aligned Jina v5 1024-dimensional query embeddings for all 100 public questions. TigerVector returned **zero chunks for every question**, with zero hit/recall/MRR through top-30. The graph has 22,016 Chunk vertices and the schema declares the HNSW vector attribute, but an inspected Chunk vertex had no stored `embedding` value. This means the historical 5% RAG score cannot diagnose embedding relevance. A provenance-checked rebuild cached 12,929/22,016 vectors but stopped before upsert when Jina returned HTTP 403 `AUTHZ_INSUFFICIENT_BALANCE`. Therefore, live dense retrieval and a clean RAG score remain unverified. Ingestion rejects unverifiable cache entries and fails when TigerGraph accepts fewer records than requested. See [the dense retrieval audit](docs/benchmark-audits/dense-retrieval-20260928.md), [the sparse audit](docs/benchmark-audits/sparse-retrieval-20260929.md), and run `uv run python -m scripts.evaluate_dense_retrieval` after a complete vector upsert.
 
 ### Sparse Retrieval Ablation
 
-On the 100 public questions and 22,016 chunks, BM25Plus candidate retrieval was compared using the previous whitespace tokenizer and a general punctuation-normalizing tokenizer. The ranking unit is a chunk; a hit means its document ID appears in the question's `gold_doc_ids`. This measures retrieval coverage only, not answer accuracy or hybrid-search quality.
+On the 100 public questions and 22,016 chunks, BM25Plus candidate retrieval was compared using the previous whitespace tokenizer and the production punctuation-normalizing tokenizer. BM25 ranks chunks; metrics deduplicate document IDs before applying document cutoffs. **Hit rate@k** is the share of questions with at least one gold document retrieved. **Document recall@k** is the average fraction of each question's gold documents retrieved. This measures document coverage only, not answer-bearing chunk recall, answer accuracy, or hybrid-search quality.
 
-| BM25Plus tokenization | Recall@5 | Recall@10 | Recall@30 | MRR@30 |
-| :--- | ---: | ---: | ---: | ---: |
-| Previous whitespace split | 81% | 90% | 95% | 0.571 |
-| Punctuation normalized | **87%** | **95%** | **96%** | **0.681** |
+| BM25Plus tokenization | Hit rate@5 | Hit rate@10 | Hit rate@30 | Document recall@5 | Document recall@30 | Document MRR@30 |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Previous whitespace split | 81% | 90% | 95% | 55.9% | 83.3% | 0.5733 |
+| Punctuation normalized | **88%** | **95%** | **96%** | **62.8%** | **84.8%** | **0.6824** |
 
-The new tokenizer improved top-5 candidate recall by 6 percentage points and MRR by 0.110 on this fixed set. The question and corpus SHA-256 fingerprints are recorded by the reproducible runner; repeat the comparison with:
+On this fixed set, punctuation normalization improves hit rate@5 by 7 percentage points and document MRR@30 by 0.109. Superlative questions have only 45.9% mean gold-document recall@30, despite 80% hit rate@30; their multi-document evidence requires structured graph candidate retrieval and aggregation. The runner records question and corpus SHA-256 fingerprints and per-question rankings. Reproduce with:
 
 ```bash
 uv run python scripts/evaluate_sparse_retrieval.py \
