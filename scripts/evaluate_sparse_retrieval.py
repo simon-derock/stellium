@@ -36,7 +36,7 @@ def _evaluate(
 ) -> dict[str, Any]:
     index = BM25Plus([tokenize(chunk.raw_text) for chunk in chunks])
     max_k = max(cutoffs)
-    ranks: list[tuple[str, int | None]] = []
+    results: list[dict[str, Any]] = []
 
     for question in questions:
         scores = index.get_scores(tokenize(question["question"]))
@@ -45,40 +45,75 @@ def _evaluate(
             ((chunk_index, float(score)) for chunk_index, score in enumerate(scores) if score > 0),
             key=lambda item: item[1],
         )
-        gold = set(question.get("gold_doc_ids", []))
-        rank = next(
-            (
-                candidate_rank
-                for candidate_rank, (chunk_index, _) in enumerate(candidates, start=1)
-                if chunks[chunk_index].doc_id in gold
-            ),
-            None,
+        gold = set(question.get("gold_doc_ids") or [])
+        ranked_docs = list(
+            dict.fromkeys(chunks[chunk_index].doc_id for chunk_index, _ in candidates)
         )
-        ranks.append((str(question.get("qtype", "unknown")), rank))
-
-    by_type: dict[str, list[int | None]] = defaultdict(list)
-    for qtype, rank in ranks:
-        by_type[qtype].append(rank)
-
-    def summarize(group: list[int | None]) -> dict[str, Any]:
-        result: dict[str, Any] = {
-            f"recall@{cutoff}": sum(rank is not None and rank <= cutoff for rank in group)
-            / len(group)
-            for cutoff in cutoffs
-        }
-        result[f"mrr@{max_k}"] = sum(1 / rank if rank is not None else 0 for rank in group) / len(
-            group
+        first_gold_rank = next(
+            (rank for rank, doc_id in enumerate(ranked_docs, start=1) if doc_id in gold), None
         )
-        result["questions"] = len(group)
-        return result
+        results.append(
+            {
+                "qid": str(question.get("qid", "unknown")),
+                "qtype": str(question.get("qtype", "unknown")),
+                "gold_doc_ids": gold,
+                "ranked_chunk_doc_ids": [
+                    chunks[chunk_index].doc_id for chunk_index, _ in candidates
+                ],
+                "ranked_unique_doc_ids": ranked_docs,
+                "first_gold_doc_rank": first_gold_rank,
+            }
+        )
+
+    by_type: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for result in results:
+        by_type[result["qtype"]].append(result)
+
+    def summarize(group: list[dict[str, Any]]) -> dict[str, Any]:
+        metrics: dict[str, Any] = {"questions": len(group)}
+        for cutoff in cutoffs:
+            hit_count = 0
+            recall_sum = 0.0
+            reciprocal_rank_sum = 0.0
+            for result in group:
+                top_docs = set(result["ranked_unique_doc_ids"][:cutoff])
+                gold = result["gold_doc_ids"]
+                hit_count += bool(top_docs & gold)
+                recall_sum += len(top_docs & gold) / len(gold) if gold else 0.0
+                rank = result["first_gold_doc_rank"]
+                reciprocal_rank_sum += 1 / rank if rank is not None and rank <= cutoff else 0.0
+            metrics[f"hit_rate@{cutoff}"] = hit_count / len(group)
+            metrics[f"doc_recall@{cutoff}"] = recall_sum / len(group)
+            metrics[f"doc_mrr@{cutoff}"] = reciprocal_rank_sum / len(group)
+        return metrics
 
     return {
-        "overall": summarize([rank for _, rank in ranks]),
+        "overall": summarize(results),
         "by_question_type": {qtype: summarize(group) for qtype, group in sorted(by_type.items())},
+        "per_question": [
+            {
+                "qid": result["qid"],
+                "qtype": result["qtype"],
+                "gold_doc_ids": sorted(result["gold_doc_ids"]),
+                "top_ranked_chunk_doc_ids": result["ranked_chunk_doc_ids"][:max_k],
+                "top_ranked_unique_doc_ids": result["ranked_unique_doc_ids"][:max_k],
+                "first_gold_doc_rank": result["first_gold_doc_rank"],
+                "doc_recall_by_cutoff": {
+                    str(cutoff): (
+                        len(set(result["ranked_unique_doc_ids"][:cutoff]) & result["gold_doc_ids"])
+                        / len(result["gold_doc_ids"])
+                        if result["gold_doc_ids"]
+                        else 0.0
+                    )
+                    for cutoff in cutoffs
+                },
+            }
+            for result in results
+        ],
         "misses_at_k": [
-            str(questions[index]["qid"])
-            for index, (_, rank) in enumerate(ranks)
-            if rank is None or rank > max_k
+            result["qid"]
+            for result in results
+            if not set(result["ranked_unique_doc_ids"][:max_k]) & result["gold_doc_ids"]
         ],
     }
 
@@ -114,7 +149,9 @@ def main() -> None:
         "corpus_sha256": _sha256(args.corpus),
         "question_count": len(questions),
         "chunk_count": len(chunks),
-        "retrieval_unit": "ranked chunks; a hit means chunk.doc_id is in gold_doc_ids",
+        "retrieval_unit": (
+            "BM25 ranks chunks; metrics deduplicate their document IDs before doc-level cutoffs"
+        ),
         "cutoffs": list(cutoffs),
         "methods": {
             name: _evaluate(chunks, questions, tokenize, cutoffs)
