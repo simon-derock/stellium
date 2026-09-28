@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from dotenv import load_dotenv
 
+from src.embeddings import JinaEmbeddingClient
 from src.graph import GraphClient, connect
 from src.graph.mock import create_mock_graph_client
 from src.graph.verify_live import (
@@ -17,10 +18,13 @@ from src.graph.verify_live import (
     verify_queries,
     verify_schema,
 )
+from src.models import EvalQuestion
 
 load_dotenv()
 
-_HAS_LIVE_CREDS = bool(os.environ.get("TG_HOST") and os.environ.get("TG_SECRET"))
+_HAS_LIVE_CREDS = bool(
+    os.environ.get("TG_HOST") and os.environ.get("TG_SECRET") and os.environ.get("JINA_API_KEY")
+)
 _RUN_LIVE_TESTS = _HAS_LIVE_CREDS and os.environ.get("TG_RUN_LIVE_TESTS") == "1"
 
 
@@ -96,7 +100,7 @@ def test_mock_verify_queries() -> None:
 def test_mock_benchmark_queries() -> None:
     # Test benchmark execution with mock graph adapter.
     client = create_mock_graph_client()
-    bench = benchmark_queries(client)
+    bench = benchmark_queries(client, query_vector=[0.1] * 1024)
 
     assert "get_event_aggregates" in bench
     assert "get_preceding_event" in bench
@@ -108,6 +112,7 @@ def test_mock_benchmark_queries() -> None:
     for qname, data in bench.items():
         assert data["status"] == "PASS"
         assert data["latency_ms"] >= 0.0
+    assert bench["vector_search_chunks"]["result_count"] > 0
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +148,10 @@ def test_live_tigergraph_compiled_queries() -> None:
     # Verifies that all 6 compiled queries execute with sub-second latency on live Savanna.
     conn = connect()
     client = GraphClient(conn=conn)
-    bench = benchmark_queries(client)
+    embedding_client = JinaEmbeddingClient.from_env()
+    with open("hackathon-resources/questions/eval_public.jsonl", encoding="utf-8") as source:
+        question = EvalQuestion.model_validate_json(next(source))
+    bench = benchmark_queries(client, embedding_client.embed_query(question.question))
 
     for qname in [
         "get_event_aggregates",
@@ -155,3 +163,4 @@ def test_live_tigergraph_compiled_queries() -> None:
     ]:
         assert qname in bench
         assert bench[qname]["status"] == "PASS"
+    assert bench["vector_search_chunks"]["result_count"] > 0

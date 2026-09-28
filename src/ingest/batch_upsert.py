@@ -50,6 +50,13 @@ def partition_items[T](items: list[T], batch_size: int) -> list[list[T]]:
     return [items[i : i + batch_size] for i in range(0, len(items), batch_size)]
 
 
+def _require_upsert_count(entity: str, expected: int, accepted: int) -> None:
+    if accepted != expected:
+        raise RuntimeError(
+            f"TigerGraph accepted {accepted} of {expected} {entity} records in the batch"
+        )
+
+
 def load_chunk_embeddings_cache(cache_path: Path = DEFAULT_CACHE_PATH) -> dict[str, list[float]]:
     # Loads persistent disk cache mapping chunk_id to its 1024-dim embedding vector.
     cache: dict[str, list[float]] = {}
@@ -384,7 +391,8 @@ def execute_ingestion(
     for b in all_vertex_batches:
         for attempt in range(max_retries):
             try:
-                client.conn.upsertVertices(b.vertex_type, b.records)
+                accepted = client.conn.upsertVertices(b.vertex_type, b.records)
+                _require_upsert_count(b.vertex_type, len(b.records), accepted)
                 stats.total_vertices_upserted += len(b.records)
                 stats.batches_processed += 1
                 break
@@ -405,7 +413,10 @@ def execute_ingestion(
     for eb in all_edge_batches:
         for attempt in range(max_retries):
             try:
-                client.conn.upsertEdges(eb.source_type, eb.edge_type, eb.target_type, eb.records)
+                accepted = client.conn.upsertEdges(
+                    eb.source_type, eb.edge_type, eb.target_type, eb.records
+                )
+                _require_upsert_count(eb.edge_type, len(eb.records), accepted)
                 stats.total_edges_upserted += len(eb.records)
                 stats.batches_processed += 1
                 break
@@ -510,18 +521,19 @@ def main() -> None:
             if (args.mock or args.dry_run)
             else GraphClient(conn=connect())
         )
-        t0 = time.perf_counter()
-        stats = IngestionStats(dry_run=args.dry_run)
-        if not args.dry_run:
-            for b in plan.chunk_batches:
-                client.conn.upsertVertices(b.vertex_type, b.records)
-                stats.total_vertices_upserted += len(b.records)
-                stats.batches_processed += 1
-        stats.elapsed_seconds = time.perf_counter() - t0
+        embedding_plan = IngestionPlan(
+            chunk_batches=plan.chunk_batches,
+            total_chunks=plan.total_chunks,
+        )
+        stats = execute_ingestion(client, embedding_plan, dry_run=args.dry_run)
         print(
             f"[Stream 1] Chunk embedding upsert complete in {stats.elapsed_seconds:.2f}s "
             f"(Chunk vertices: {stats.total_vertices_upserted}, Batches: {stats.batches_processed})"
         )
+        if stats.errors:
+            for err in stats.errors:
+                print(f"  - {err}")
+            sys.exit(1)
         return
 
     if args.events_only:

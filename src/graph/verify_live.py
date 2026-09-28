@@ -9,7 +9,13 @@ from typing import Any
 
 from dotenv import load_dotenv
 
+from src.embeddings import (
+    GRAPH_EMBEDDING_DIMENSION,
+    GRAPH_EMBEDDING_MODEL,
+    JinaEmbeddingClient,
+)
 from src.graph import GraphClient, connect
+from src.models import EvalQuestion
 
 load_dotenv()
 
@@ -88,7 +94,7 @@ def verify_queries(client: GraphClient) -> dict[str, Any]:
     }
 
 
-def benchmark_queries(client: GraphClient) -> dict[str, Any]:
+def benchmark_queries(client: GraphClient, query_vector: list[float]) -> dict[str, Any]:
     # Benchmarks each of the 6 compiled queries and records latency metrics.
     benchmarks: dict[str, dict[str, Any]] = {}
 
@@ -134,13 +140,12 @@ def benchmark_queries(client: GraphClient) -> dict[str, Any]:
         "result": r5,
     }
 
-    # 6. Vector search
-    zero_vec = [0.0] * 1024
+    # 6. Vector search uses a valid aligned query embedding and requires actual hits.
     t0 = time.perf_counter()
-    r6 = client.vector_search(zero_vec, top_k=2)
+    r6 = client.vector_search(query_vector, top_k=2)
     lat6 = (time.perf_counter() - t0) * 1000
     benchmarks["vector_search_chunks"] = {
-        "status": "PASS",
+        "status": "PASS" if r6 else "FAIL",
         "latency_ms": round(lat6, 2),
         "result_count": len(r6),
     }
@@ -202,9 +207,24 @@ def main() -> int:
     # Run benchmarks
     if not args.skip_benchmarks:
         print("\n--- 4. Query Execution Benchmarks ---")
-        bench = benchmark_queries(client)
+        embedding_client = JinaEmbeddingClient.from_env()
+        if (
+            not embedding_client.is_configured
+            or embedding_client.model != GRAPH_EMBEDDING_MODEL
+            or embedding_client.dimension != GRAPH_EMBEDDING_DIMENSION
+        ):
+            print("ERROR: A matching Jina query embedding configuration is required.")
+            return 1
+        dataset_path = "hackathon-resources/questions/eval_public.jsonl"
+        with open(dataset_path, encoding="utf-8") as question_file:
+            first_question = EvalQuestion.model_validate_json(next(question_file))
+        query_vector = embedding_client.embed_query(first_question.question)
+        bench = benchmark_queries(client, query_vector)
         for qname, bdata in bench.items():
             print(f"  {qname:<25}: latency={bdata['latency_ms']:>6.2f}ms  status={bdata['status']}")
+        if any(data["status"] != "PASS" for data in bench.values()):
+            print("ERROR: At least one compiled query verification failed.")
+            return 1
 
     print("\nSUCCESS: All TigerGraph Savanna live checks passed 100% green.")
     return 0

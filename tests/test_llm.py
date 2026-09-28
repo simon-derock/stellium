@@ -17,6 +17,29 @@ from src.llm import (
 )
 
 
+@pytest.mark.asyncio
+async def test_query_embeddings_fail_closed_without_index_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("JINA_API_KEY", raising=False)
+    monkeypatch.delenv("jina_embedding_api_key", raising=False)
+    monkeypatch.delenv("JINA_EMBEDDING_API_KEY", raising=False)
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-token")
+
+    with pytest.raises(RuntimeError, match="JINA_API_KEY is required"):
+        await make_session("cloudflare").embed(["query"])
+
+
+@pytest.mark.asyncio
+async def test_query_embeddings_reject_dimension_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("JINA_API_KEY", "mock-jina-key")
+    monkeypatch.setenv("EMBEDDING_DIMENSION", "768")
+
+    with pytest.raises(RuntimeError, match="must match the TigerGraph index"):
+        await make_session("cloudflare").embed(["query"])
+
+
 # Test session factory initialization and model assignment
 def test_make_session_defaults() -> None:
     session = make_session("cloudflare")

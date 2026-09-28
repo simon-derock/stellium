@@ -37,19 +37,13 @@ def test_client_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert unconf_client.is_configured is False
 
 
-# Test offline fallback returns dimension-compliant zero vectors without crashing
-def test_offline_fallback_zero_vectors() -> None:
+# Unconfigured embeddings fail closed instead of feeding zero vectors to retrieval.
+def test_unconfigured_client_rejects_embedding_requests() -> None:
     client = JinaEmbeddingClient(api_key="", dimension=1024)
-    passages = ["Test passage 1", "Test passage 2"]
-    vectors = client.embed_passages(passages)
-    assert len(vectors) == 2
-    assert len(vectors[0]) == 1024
-    assert len(vectors[1]) == 1024
-    assert all(v == 0.0 for v in vectors[0])
-
-    query_vec = client.embed_query("Who won gold in 2012?")
-    assert len(query_vec) == 1024
-    assert all(v == 0.0 for v in query_vec)
+    with pytest.raises(RuntimeError, match="JINA_API_KEY is required"):
+        client.embed_passages(["Passage"])
+    with pytest.raises(RuntimeError, match="JINA_API_KEY is required"):
+        client.embed_query("Question")
 
 
 # Test mock HTTP response parsing for batch passages
@@ -72,6 +66,54 @@ def test_embed_passages_mock() -> None:
         assert len(res[0]) == 1024
         assert res[0][0] == 0.5
         assert res[1][0] == 0.8
+
+
+def test_embed_queries_batches_and_preserves_input_order() -> None:
+    client = JinaEmbeddingClient(api_key="mock-key", dimension=2, batch_size=2)
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.json.return_value = {
+        "data": [
+            {"index": 1, "embedding": [0.2, 0.3]},
+            {"index": 0, "embedding": [0.4, 0.5]},
+        ]
+    }
+
+    with patch("httpx.Client.post", return_value=response) as post:
+        vectors = client.embed_queries(["first", "second"])
+
+    assert vectors == [[0.4, 0.5], [0.2, 0.3]]
+    assert post.call_args.kwargs["json"]["task"] == "retrieval.query"
+    assert post.call_args.kwargs["json"]["input"] == ["first", "second"]
+
+
+def test_embed_rejects_invalid_vector_shape() -> None:
+    client = JinaEmbeddingClient(api_key="mock-key", dimension=2)
+    response = MagicMock()
+    response.status_code = 200
+    response.headers = {}
+    response.json.return_value = {"data": [{"index": 0, "embedding": [0.2]}]}
+
+    with (
+        patch("httpx.Client.post", return_value=response),
+        pytest.raises(RuntimeError, match="invalid vector record"),
+    ):
+        client.embed_query("question")
+
+
+def test_embed_raises_after_transient_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    client = JinaEmbeddingClient(api_key="mock-key", dimension=2, max_retries=2)
+    response = MagicMock()
+    response.status_code = 503
+    response.headers = {}
+    monkeypatch.setattr("src.embeddings.time.sleep", lambda _: None)
+
+    with (
+        patch("httpx.Client.post", return_value=response),
+        pytest.raises(RuntimeError, match="failed after 2 attempts"),
+    ):
+        client.embed_query("question")
 
 
 # Test rate limit 429 retry logic with backoff

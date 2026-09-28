@@ -20,7 +20,6 @@ import httpx
 CLOUDFLARE_PRIMARY_MODEL = (
     os.environ.get("CLOUDFLARE_MODEL") or "@cf/meta/llama-3.1-8b-instruct-fast"
 )
-CLOUDFLARE_EMBEDDING_MODEL = "@cf/baai/bge-m3"  # 1024-dim, 8k context
 CLOUDFLARE_BASE_URL = "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/run"
 CLOUDFLARE_OPENAI_URL = (
     "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1/chat/completions"
@@ -151,41 +150,6 @@ async def _call_cloudflare(
         provider="cloudflare",
         latency_ms=latency_ms,
     )
-
-
-async def _embed_cloudflare(
-    texts: list[str],
-    client: httpx.AsyncClient | None = None,
-) -> list[list[float]]:
-    account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
-    api_token = os.environ.get("CLOUDFLARE_API_TOKEN")
-
-    if not account_id or not api_token:
-        # High-dimension normalized pseudo-semantic vector for offline testing
-        import hashlib
-
-        vectors: list[list[float]] = []
-        for text in texts:
-            h = hashlib.sha256(text.encode("utf-8")).digest()
-            vec = [(float(b) / 128.0 - 1.0) for b in (h * 32)[:1024]]
-            norm = sum(x * x for x in vec) ** 0.5 or 1.0
-            vectors.append([x / norm for x in vec])
-        return vectors
-
-    url = CLOUDFLARE_BASE_URL.format(account_id=account_id) + f"/{CLOUDFLARE_EMBEDDING_MODEL}"
-    payload = {"text": texts}
-    headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
-
-    active_client = client or httpx.AsyncClient(timeout=30.0)
-    own_client = client is None
-    try:
-        resp = await active_client.post(url, json=payload, headers=headers)
-        resp.raise_for_status()
-        data = resp.json()
-        return [item["embedding"] for item in data["result"]["data"]]
-    finally:
-        if own_client:
-            await active_client.aclose()
 
 
 # ---------------------------------------------------------------------------
@@ -371,21 +335,21 @@ class LockedLLMSession:
     async def embed(self, texts: list[str]) -> list[list[float]]:
         # Uniform embedding model across all pipelines & agents using JinaEmbeddingClient.
         # Matches the 1024-dim HNSW vector index space in TigerGraph Savanna.
-        from src.embeddings import JinaEmbeddingClient
+        from src.embeddings import (
+            GRAPH_EMBEDDING_DIMENSION,
+            GRAPH_EMBEDDING_MODEL,
+            JinaEmbeddingClient,
+        )
 
         jina = JinaEmbeddingClient.from_env()
-        if jina.is_configured:
-            # Generate query embeddings with retrieval.query LoRA adapter
-            return [jina.embed_query(t) for t in texts]
-
-        # Secondary fallback if Cloudflare is explicitly configured
-        account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
-        api_token = os.environ.get("CLOUDFLARE_API_TOKEN")
-        if account_id and api_token:
-            return await _embed_cloudflare(texts, self._client)
-
-        # Deterministic offline fallback
-        return await _embed_cloudflare(texts, self._client)
+        if not jina.is_configured:
+            raise RuntimeError("JINA_API_KEY is required for the TigerGraph embedding space")
+        if jina.model != GRAPH_EMBEDDING_MODEL or jina.dimension != GRAPH_EMBEDDING_DIMENSION:
+            raise RuntimeError(
+                "Query embeddings must match the TigerGraph index: "
+                f"{GRAPH_EMBEDDING_MODEL} at {GRAPH_EMBEDDING_DIMENSION} dimensions"
+            )
+        return jina.embed_queries(texts)
 
 
 def make_session(provider: str = "cloudflare") -> LockedLLMSession:

@@ -183,6 +183,24 @@ def test_execute_ingestion_into_mock() -> None:
     assert mock_conn.vertices["Event"]["ev_1"]["year"] == 2012
 
 
+def test_execute_ingestion_records_partial_vertex_upsert_as_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = create_mock_graph_client()
+    monkeypatch.setattr(client.conn, "upsertVertices", lambda *_args, **_kwargs: 0)
+    plan = IngestionPlan(
+        chunk_batches=[VertexBatch("Chunk", [("c1", {"embedding": [0.1] * 1024})])],
+        total_chunks=1,
+    )
+
+    stats = execute_ingestion(client, plan, max_retries=1)
+
+    assert stats.total_vertices_upserted == 0
+    assert stats.errors == [
+        "Vertex batch Chunk failed: TigerGraph accepted 0 of 1 Chunk records in the batch"
+    ]
+
+
 # Test prepare_ingestion_plan with temporary corpus file
 def test_prepare_ingestion_plan(tmp_path: Path) -> None:
     p = tmp_path / "corpus_sample.jsonl"

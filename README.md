@@ -137,6 +137,8 @@ Historical Agentic category counts were 21/21 aggregation, 17/22 temporal, 10/10
 
 Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. These changes have not yet been scored in a fresh full benchmark: the current Cloudflare account returns HTTP 429 with provider error 4006 (daily neuron allocation exhausted). The client now stops immediately on this non-recoverable quota response instead of retrying it five times.
 
+A separate live dense-retrieval audit on 2026-09-28 used aligned Jina v5 1024-dimensional query embeddings for all 100 public questions. TigerVector returned **zero chunks for every question**, with zero hit/recall/MRR through top-30. The graph has 22,016 Chunk vertices and the schema declares the HNSW vector attribute, but an inspected Chunk vertex had no stored `embedding` value. This points to missing or unsearchable vector data, so the old 5% RAG score cannot be used to judge embedding relevance. See [the retrieval audit](docs/benchmark-audits/dense-retrieval-20260928.md) and run `uv run python -m scripts.evaluate_dense_retrieval` to reproduce the live retrieval check.
+
 ### Sparse Retrieval Ablation
 
 On the 100 public questions and 22,016 chunks, BM25Plus candidate retrieval was compared using the previous whitespace tokenizer and a general punctuation-normalizing tokenizer. The ranking unit is a chunk; a hit means its document ID appears in the question's `gold_doc_ids`. This measures retrieval coverage only, not answer accuracy or hybrid-search quality.

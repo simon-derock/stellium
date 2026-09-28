@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 from dataclasses import dataclass, field
@@ -34,6 +35,11 @@ TaskType = Literal[
 
 # Supported Embedding Types
 EmbeddingType = Literal["float", "base64", "binary", "ubinary"]
+
+
+class EmbeddingRequestError(RuntimeError):
+    # Signals that a live embedding request failed instead of returning usable vectors.
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -150,8 +156,11 @@ class JinaEmbeddingClient:
 
     def embed_query(self, query: str) -> list[float]:
         # Generates L2-normalized embedding for search query with retrieval.query adapter.
-        res = self._embed_batch_orchestrator([query], task="retrieval.query", late_chunking=False)
-        return res[0] if res else [0.0] * self.dimension
+        return self.embed_queries([query])[0]
+
+    def embed_queries(self, queries: list[str]) -> list[list[float]]:
+        # Embeds queries in bounded batches using the same adapter as single-query search.
+        return self._embed_batch_orchestrator(queries, task="retrieval.query", late_chunking=False)
 
     def embed_text_matching(self, texts: list[str]) -> list[list[float]]:
         # Encodes sentences for symmetric semantic textual similarity or clustering.
@@ -163,9 +172,10 @@ class JinaEmbeddingClient:
         if not texts:
             return []
 
-        # Offline fallback returns zero-vectors with exact dimension to keep pipelines resilient
         if not self.is_configured:
-            return [[0.0] * self.dimension for _ in texts]
+            raise EmbeddingRequestError(
+                "JINA_API_KEY is required to generate corpus-aligned vectors"
+            )
 
         results: list[list[float]] = []
 
@@ -199,6 +209,7 @@ class JinaEmbeddingClient:
         }
 
         backoff = 1.5
+        last_error: Exception | None = None
 
         for attempt in range(1, self.max_retries + 1):
             try:
@@ -215,22 +226,68 @@ class JinaEmbeddingClient:
                 if response.status_code == 429:
                     retry_header = response.headers.get("retry-after")
                     sleep_time = float(retry_header) if retry_header else backoff
-                    time.sleep(max(sleep_time, backoff))
+                    last_error = EmbeddingRequestError("Jina embedding API rate limit (HTTP 429)")
+                    if attempt < self.max_retries:
+                        time.sleep(max(sleep_time, backoff))
                     backoff *= 2.0
                     continue
 
-                response.raise_for_status()
+                if response.status_code >= 500:
+                    last_error = EmbeddingRequestError(
+                        f"Jina embedding API returned HTTP {response.status_code}"
+                    )
+                    if attempt < self.max_retries:
+                        time.sleep(backoff)
+                    backoff *= 2.0
+                    continue
+
+                if response.status_code >= 400:
+                    raise EmbeddingRequestError(
+                        f"Jina embedding API rejected the request with HTTP {response.status_code}"
+                    )
+
                 data = response.json()
                 items = data.get("data", [])
-                # Maintain original input ordering
-                sorted_items = sorted(items, key=lambda x: int(x.get("index", 0)))
-                return [item["embedding"] for item in sorted_items]
+                if not isinstance(items, list) or len(items) != len(batch):
+                    raise EmbeddingRequestError(
+                        "Jina embedding API returned an unexpected number of vectors"
+                    )
+                ordered: list[list[float] | None] = [None] * len(batch)
+                for item in items:
+                    index = item.get("index")
+                    vector = item.get("embedding")
+                    if (
+                        not isinstance(index, int)
+                        or isinstance(index, bool)
+                        or index < 0
+                        or index >= len(batch)
+                        or ordered[index] is not None
+                        or not isinstance(vector, list)
+                        or len(vector) != self.dimension
+                    ):
+                        raise EmbeddingRequestError(
+                            "Jina embedding API returned an invalid vector record"
+                        )
+                    if any(
+                        isinstance(value, bool)
+                        or not isinstance(value, (int, float))
+                        or not math.isfinite(value)
+                        for value in vector
+                    ):
+                        raise EmbeddingRequestError(
+                            "Jina embedding API returned a non-finite or non-numeric vector"
+                        )
+                    ordered[index] = [float(value) for value in vector]
+                if any(vector is None for vector in ordered):
+                    raise EmbeddingRequestError("Jina embedding API omitted a vector record")
+                return [vector for vector in ordered if vector is not None]
 
-            except (httpx.HTTPError, httpx.TimeoutException, KeyError):
-                if attempt == self.max_retries:
-                    break
-                time.sleep(backoff)
+            except (httpx.TransportError, httpx.TimeoutException) as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    time.sleep(backoff)
                 backoff *= 2.0
 
-        # Graceful degradation on exhausted retries
-        return [[0.0] * self.dimension for _ in batch]
+        raise EmbeddingRequestError(
+            f"Jina embedding request failed after {self.max_retries} attempts"
+        ) from last_error
