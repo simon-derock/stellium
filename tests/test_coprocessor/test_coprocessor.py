@@ -53,6 +53,33 @@ def test_bm25_search() -> None:
     assert marathon_results[0][0].chunk_id == "c2"
 
 
+def test_bm25_search_normalizes_punctuation_symmetrically() -> None:
+    chunks = [
+        Chunk(
+            chunk_id="distractor#0",
+            doc_id="distractor",
+            chunk_index=0,
+            section_title="Canoeing",
+            text="Canoe sprint event",
+            raw_text="Canoe sprint event",
+        ),
+        Chunk(
+            chunk_id="target#0",
+            doc_id="target",
+            chunk_index=0,
+            section_title="Sailing",
+            text="Sailing RS:X Olympic event",
+            raw_text="Sailing RS:X Olympic event",
+        ),
+    ]
+    bm25 = BM25Index()
+    bm25.build(chunks)
+
+    results = bm25.search("sailing—RS:X", top_k=2)
+
+    assert results[0][0].doc_id == "target"
+
+
 def test_bm25_search_filtered_requires_each_requested_facet() -> None:
     shared_text = "Olympic event results and competitors"
     chunks = [

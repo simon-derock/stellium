@@ -29,6 +29,12 @@ _YEAR_BITS = (1 << _YEAR_COUNT) - 1
 _SEASON_BITS = (1 << _BIT_SUMMER) | (1 << _BIT_WINTER)
 
 
+def _tokenize(text: str) -> list[str]:
+    # Apply the same Unicode and punctuation normalization to corpus text and queries.
+    normalized = normalize(text).lower()
+    return "".join(char if char.isalnum() else " " for char in normalized).split()
+
+
 def build_filter_mask(year: int | None, season: str | None) -> int:
     # Build a uint32 year/season mask; sport names remain corpus-derived text, never a fixed list.
     mask = 0
@@ -74,15 +80,15 @@ class BM25Index:
         if not self._chunks:
             self._bm25 = None
             return
-        # Tokenize normalized raw text (no metadata header to avoid over-weighting).
-        tokenized = [normalize(c.raw_text).lower().split() for c in self._chunks]
+        # Tokenize raw text consistently with queries, without metadata headers.
+        tokenized = [_tokenize(c.raw_text) for c in self._chunks]
         self._bm25 = BM25Plus(tokenized)
 
     def search(self, query: str, top_k: int = 50) -> list[tuple[Chunk, float]]:
         # Returns top_k (chunk, bm25_score) pairs, descending by score.
         if self._bm25 is None or not self._chunks:
             return []
-        tokens = normalize(query).lower().split()
+        tokens = _tokenize(query)
         scores = self._bm25.get_scores(tokens)
         # Get indices of top_k non-zero scores
         indexed = sorted(
@@ -101,7 +107,7 @@ class BM25Index:
         # Bitmask pre-filter then BM25. O(N) filter is still fast for 2,951 docs.
         if self._bm25 is None or not self._chunks:
             return []
-        tokens = normalize(query).lower().split()
+        tokens = _tokenize(query)
         scores = self._bm25.get_scores(tokens)
         if filter_mask == 0:
             indexed = sorted(

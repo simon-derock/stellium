@@ -111,15 +111,17 @@ flowchart TD
 
 Stellium runs a side-by-side benchmark comparing three distinct retrieval pipelines over the **100 public and 50 hidden questions**:
 
-| Dimension | Pipeline 1: Baseline Vector RAG | Pipeline 2: Hybrid GraphRAG | Pipeline 3: Autonomous Agentic GraphRAG (Stellium) |
+| Dimension | Pipeline 1: Baseline Vector RAG | Pipeline 2: Fixed GraphRAG | Pipeline 3: Autonomous Agentic GraphRAG (Stellium) |
 | :--- | :--- | :--- | :--- |
-| **Retrieval Strategy** | Vanilla TigerVector HNSW top-5 | Fixed 1-2 hop graph expansion + vector | **Dynamic tool dispatch (GSQL + BM25 + Vector + RRF)** |
+| **Retrieval Strategy** | Vanilla TigerVector HNSW top-5 | Fixed GSQL lookup/venue traversal + TigerVector HNSW top-3 | **Dynamic tool dispatch (GSQL + BM25Plus/RRF + TigerVector)** |
 | **Tool Calling** | None (Single vector retrieval) | Fixed retrieval flow | **Bounded cyclic ReAct; reviews each observation and can pivot tools** |
 | **Aggregations** | LLM over retrieved passages | Graph plus retrieved passages | Compiled GSQL accumulators when the agent selects the matching tool |
 | **Temporal Chains** | Passage retrieval | Graph expansion | `PRECEDES`/`SUCCEEDS` traversal when applicable |
 | **Token Cost** | Measured per run | Measured per run | Deterministic tools consume 0 LLM tokens; LLM calls are reported per run |
 | **Latency** | Measure with the evaluation runner | Measure with the evaluation runner | Live end-to-end GSQL example: 38.59 ms; includes network overhead |
 | **Investigation Trace** | None | Fixed subgraph triples | **Full 10-field Agentic Trace (Judges Spec)** |
+
+These are three independent benchmark pipelines, not sequential phases. BM25Plus/RRF is enabled through the Agentic `hybrid_search` tool; it is deliberately absent from the vector-only RAG baseline and is not currently called by the fixed GraphRAG pipeline.
 
 ### Latest measured public baseline
 
@@ -134,6 +136,24 @@ The latest completed live three-pipeline run used Cloudflare Workers AI (`@cf/me
 Agentic EM by question type was 21/21 aggregation, 17/22 temporal, 10/10 superlative, 17/28 multi-hop, and 15/19 lookup. The audited local output is `results/public_results_20260928_v3.jsonl` (ignored by Git). A later 100-question Agentic-only run after a venue/date correction scored 84% EM and 0.852 token F1; it is not a new three-pipeline comparison, and it predates the current aggregate-action validation and answer-verification changes. The evaluator now checkpoints every completed question and supports `--resume` after provider interruption.
 
 Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. A fresh full benchmark has not completed yet, so these changes do not alter the measured figures above.
+
+### Sparse Retrieval Ablation
+
+On the 100 public questions and 22,016 chunks, BM25Plus candidate retrieval was compared using the previous whitespace tokenizer and a general punctuation-normalizing tokenizer. The ranking unit is a chunk; a hit means its document ID appears in the question's `gold_doc_ids`. This measures retrieval coverage only, not answer accuracy or hybrid-search quality.
+
+| BM25Plus tokenization | Recall@5 | Recall@10 | Recall@30 | MRR@30 |
+| :--- | ---: | ---: | ---: | ---: |
+| Previous whitespace split | 81% | 90% | 95% | 0.571 |
+| Punctuation normalized | **87%** | **95%** | **96%** | **0.681** |
+
+The new tokenizer improved top-5 candidate recall by 6 percentage points and MRR by 0.110 on this fixed set. The question and corpus SHA-256 fingerprints are recorded by the reproducible runner; repeat the comparison with:
+
+```bash
+uv run python scripts/evaluate_sparse_retrieval.py \
+  --dataset hackathon-resources/questions/eval_public.jsonl \
+  --corpus hackathon-resources/corpus/corpus.jsonl \
+  --output results/sparse_retrieval_ablation.json
+```
 
 ---
 

@@ -542,6 +542,7 @@ flowchart LR
   - Token F1-score
   - Gold Document Recall@k, Precision@k, MRR (Mean Reciprocal Rank)
   - Wall-clock latency and provider-reported prompt/completion/total LLM tokens
+- BM25 tokenization ablation on the 100 public questions / 22,016 chunks: punctuation-normalized tokens improved sparse chunk Recall@5 from 81% to 87%, Recall@10 from 90% to 95%, Recall@30 from 95% to 96%, and MRR@30 from 0.571 to 0.681 versus the prior whitespace split. This is retrieval coverage, not answer EM; `scripts/evaluate_sparse_retrieval.py` records dataset and corpus hashes and reproduces the comparison.
 - `context_tokens` is currently estimated from text length; it is not a tokenizer-measured context count.
 - Missing measurement work: completeness, citation precision/recall, groundedness, p50/p95/p99 latency, neuron/accounting breakdowns, and confidence calibration.
 - Missing: answer completeness, groundedness/faithfulness, and a reviewed semantic grading protocol. RAGAS is a possible optional evaluator, not currently integrated or required by the supplied guidebook.
