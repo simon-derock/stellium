@@ -2,6 +2,8 @@
 # Verifies Thought-Action-Observation loop, tool dispatch, strategy adaptation, and trace logging.
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -9,7 +11,19 @@ import pytest
 from src.coprocessor import Coprocessor
 from src.graph.mock import create_mock_graph_client
 from src.llm import LLMCallResult, LockedLLMSession
-from src.pipelines.agentic import AgenticPipeline, parse_react_response
+from src.pipelines.agentic import _REACT_SYSTEM_PROMPT, AgenticPipeline, parse_react_response
+
+
+def test_react_prompt_does_not_contain_public_benchmark_questions() -> None:
+    dataset = (
+        Path(__file__).resolve().parents[2] / "hackathon-resources/questions/eval_public.jsonl"
+    )
+    prompt = _REACT_SYSTEM_PROMPT.casefold()
+
+    for line in dataset.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            question = json.loads(line)["question"].casefold()
+            assert question not in prompt
 
 
 def test_parse_react_response_action_and_input() -> None:

@@ -1,7 +1,6 @@
 # Resilient multi-provider LLM router with session-level model lock.
 # Binding rule: same model everywhere within a single pipeline run.
-# Fallback only triggers when a provider is completely unreachable (not on 429).
-# On 429: exponential backoff on the SAME locked model.
+# Provider and model stay fixed for each run; retries never mix models mid-run.
 from __future__ import annotations
 
 import asyncio
@@ -30,6 +29,11 @@ CLOUDFLARE_OPENAI_URL = (
 # Fallback providers (run-level selection, never mid-run mixing)
 GEMINI_MODEL = "gemini-2.0-flash"
 MISTRAL_MODEL = "mistral-small-latest"
+
+
+class ProviderQuotaExceededError(RuntimeError):
+    # Signals a provider quota response that cannot recover through short backoff retries.
+    pass
 
 
 class LLMCallResult:
@@ -290,8 +294,8 @@ async def _call_mistral(
 
 class LockedLLMSession:
     # A single pipeline run uses ONE model throughout.
-    # On 429: retry with exponential backoff on the SAME model.
-    # On provider failure after max retries: raise RuntimeError (caller re-queues with fallback).
+    # Retry transient throttling and gateway errors on the SAME model; do not retry exhausted quota.
+    # Propagate provider failures after bounded retry handling.
 
     def __init__(self, provider: str = "cloudflare", model: str = CLOUDFLARE_PRIMARY_MODEL) -> None:
         self.provider = provider
@@ -333,7 +337,22 @@ class LockedLLMSession:
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
             except httpx.HTTPStatusError as e:
-                # Rate limit or edge gateway saturation: backoff and retry on SAME model
+                if self.provider == "cloudflare" and e.response.status_code == 429:
+                    try:
+                        payload = e.response.json()
+                    except ValueError:
+                        payload = {}
+                    errors = payload.get("errors", []) if isinstance(payload, dict) else []
+                    if not isinstance(errors, list):
+                        errors = []
+                    if any(
+                        isinstance(error, dict) and error.get("code") == 4006 for error in errors
+                    ):
+                        raise ProviderQuotaExceededError(
+                            "Cloudflare Workers AI daily neuron allocation is exhausted "
+                            "(provider error 4006); retry after the quota resets."
+                        ) from e
+                # Transient rate limit or edge gateway saturation: retry on the SAME model.
                 if e.response.status_code in (429, 500, 502, 503, 504, 524):
                     retry_header = e.response.headers.get("retry-after")
                     wait = (

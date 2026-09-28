@@ -93,6 +93,41 @@ def test_evaluation_harness_loads_environment_before_backend_selection(
     assert calls == [True]
 
 
+def test_live_evaluation_fails_closed_without_provider_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(evaluate_module, "load_dotenv", lambda: None)
+    for name in (
+        "CLOUDFLARE_ACCOUNT_ID",
+        "CLOUDFLARE_API_TOKEN",
+        "TG_HOST",
+        "JINA_API_KEY",
+        "jina_embedding_api_key",
+        "JINA_EMBEDDING_API_KEY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    with pytest.raises(RuntimeError, match="CLOUDFLARE_ACCOUNT_ID"):
+        EvaluationHarness(corpus_path="missing-corpus.jsonl")
+
+
+def test_live_evaluation_does_not_replace_graph_failure_with_mock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(evaluate_module, "load_dotenv", lambda: None)
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-token")
+    monkeypatch.setenv("TG_HOST", "https://graph.invalid")
+    monkeypatch.setenv("JINA_API_KEY", "test-jina-key")
+
+    def fail_connect() -> object:
+        raise ConnectionError("test connection failure")
+
+    monkeypatch.setattr(evaluate_module, "connect", fail_connect)
+    with pytest.raises(ConnectionError, match="test connection failure"):
+        EvaluationHarness(corpus_path="missing-corpus.jsonl")
+
+
 @pytest.mark.asyncio
 async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.llm import LLMCallResult, LockedLLMSession

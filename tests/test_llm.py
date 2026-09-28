@@ -2,7 +2,7 @@
 # Strictly zero triple-quote docstrings per project coding standards.
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -12,6 +12,7 @@ from src.llm import (
     GEMINI_MODEL,
     MISTRAL_MODEL,
     LockedLLMSession,
+    ProviderQuotaExceededError,
     make_session,
 )
 
@@ -134,6 +135,37 @@ async def test_cloudflare_transient_error_retry(monkeypatch: pytest.MonkeyPatch)
         res = await session.chat(messages, max_retries=3)
         assert res.content == "Chen Ding"
         assert res.input_tokens == 30
+
+
+@pytest.mark.asyncio
+async def test_cloudflare_daily_neuron_quota_error_fails_without_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account-id")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-api-token")
+    request = httpx.Request("POST", "https://api.cloudflare.com")
+    quota_body = {
+        "success": False,
+        "errors": [
+            {
+                "code": 4006,
+                "message": "daily neuron quota exceeded",
+            }
+        ],
+    }
+    openai_response = httpx.Response(429, json=quota_body, request=request)
+    native_response = httpx.Response(429, json=quota_body, request=request)
+    session = LockedLLMSession(provider="cloudflare")
+
+    with (
+        patch("httpx.AsyncClient.post", side_effect=[openai_response, native_response]) as post,
+        patch("src.llm.asyncio.sleep", new_callable=AsyncMock) as sleep,
+        pytest.raises(ProviderQuotaExceededError, match="allocation is exhausted"),
+    ):
+        await session.chat([{"role": "user", "content": "question"}], max_retries=5)
+
+    assert post.await_count == 2
+    sleep.assert_not_awaited()
 
 
 @pytest.mark.asyncio

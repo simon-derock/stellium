@@ -17,6 +17,7 @@ from typing import Any
 from dotenv import load_dotenv
 
 from src.coprocessor import Coprocessor
+from src.embeddings import JinaEmbeddingClient
 from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import normalize
 from src.ingest import load_all_chunks
@@ -194,6 +195,28 @@ class EvaluationHarness:
     ) -> None:
         # Load local credentials before selecting the graph client or creating LLM sessions.
         load_dotenv()
+        if not use_mock:
+            provider_credentials = {
+                "cloudflare": ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"),
+                "gemini": ("GEMINI_API_KEY",),
+                "mistral": ("MISTRAL_API_KEY",),
+            }
+            required_credentials = provider_credentials[provider]
+            missing_credentials = [
+                name for name in required_credentials if not os.environ.get(name)
+            ]
+            if missing_credentials:
+                names = ", ".join(missing_credentials)
+                raise RuntimeError(
+                    f"Live evaluation requires credentials for provider {provider}: {names}"
+                )
+            if not os.environ.get("TG_HOST"):
+                raise RuntimeError("Live evaluation requires TG_HOST; use_mock is for tests only")
+            if not JinaEmbeddingClient.from_env().is_configured:
+                raise RuntimeError(
+                    "Live evaluation requires the Jina API key used by the indexed embeddings"
+                )
+
         self.corpus_path = corpus_path
         self.provider = provider
         self.session_factory = session_factory or make_session
@@ -211,23 +234,11 @@ class EvaluationHarness:
                 file=sys.stderr,
             )
 
-        # Graph client setup (offline mock or live TigerGraph cluster)
-        has_tg = (
-            bool(os.environ.get("TG_HOST"))
-            and not bool(os.environ.get("TG_USE_MOCK"))
-            and not use_mock
-        )
-        if has_tg:
-            try:
-                self.graph = GraphClient(conn=connect())
-            except Exception as e:
-                print(
-                    f"Warning: Live TigerGraph connection failed ({e}), using mock graph",
-                    file=sys.stderr,
-                )
-                self.graph = self._make_mock_graph()
-        else:
+        # Offline mocks are opt-in for tests; evaluation never silently scores a mock graph.
+        if use_mock:
             self.graph = self._make_mock_graph()
+        else:
+            self.graph = GraphClient(conn=connect())
 
     def _make_mock_graph(self) -> GraphClient:
         # High-fidelity offline mock graph client for deterministic offline testing

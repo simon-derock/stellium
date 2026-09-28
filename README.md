@@ -125,7 +125,7 @@ These are three independent benchmark pipelines, not sequential phases. BM25Plus
 
 ### Latest measured public baseline
 
-The latest completed live three-pipeline run used Cloudflare Workers AI (`@cf/meta/llama-3.1-8b-instruct-fast`) across all 100 public questions. Exact Match (EM) is strict normalized string equality; these figures are a diagnostic baseline, not a claim that the 98% target has been reached.
+**Benchmark integrity notice:** a later audit found that the Agentic system prompt contained fully worked examples copied from public questions `pub-001` and `pub-002`, including their answers. The Agentic figures below (and the 84% Agentic-only run below) are therefore contaminated by benchmark leakage and are not valid clean accuracy measurements. The RAG and fixed GraphRAG arms do not use that prompt, but their historical scores still need a reproducible rerun for a publishable comparison. The copied examples have been removed, and a regression check now prevents public question text from being added to the Agentic prompt. Exact Match (EM) is strict normalized string equality; no 98% result has been established.
 
 | Pipeline | Exact Match | Token F1 | Mean latency | Mean LLM tokens |
 | :--- | ---: | ---: | ---: | ---: |
@@ -133,9 +133,9 @@ The latest completed live three-pipeline run used Cloudflare Workers AI (`@cf/me
 | GraphRAG | 34% (34/100) | 0.354 | 1,487 ms | 728 |
 | Agentic GraphRAG | 80% (80/100) | 0.807 | 2,895 ms | 3,907 |
 
-Agentic EM by question type was 21/21 aggregation, 17/22 temporal, 10/10 superlative, 17/28 multi-hop, and 15/19 lookup. The audited local output is `results/public_results_20260928_v3.jsonl` (ignored by Git). A later 100-question Agentic-only run after a venue/date correction scored 84% EM and 0.852 token F1; it is not a new three-pipeline comparison, and it predates the current aggregate-action validation and answer-verification changes. The evaluator now checkpoints every completed question and supports `--resume` after provider interruption.
+Historical Agentic category counts were 21/21 aggregation, 17/22 temporal, 10/10 superlative, 17/28 multi-hop, and 15/19 lookup. The local output `results/public_results_20260928_v3.jsonl` is ignored by Git. A later 100-question Agentic-only run reported 84% EM and 0.852 token F1; it is also contaminated and predates current aggregate-action validation and answer-verification changes. The evaluator checkpoints every completed question and supports `--resume` after provider interruption.
 
-Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. A fresh full benchmark has not completed yet, so these changes do not alter the measured figures above.
+Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. These changes have not yet been scored in a fresh full benchmark: the current Cloudflare account returns HTTP 429 with provider error 4006 (daily neuron allocation exhausted). The client now stops immediately on this non-recoverable quota response instead of retrying it five times.
 
 ### Sparse Retrieval Ablation
 
