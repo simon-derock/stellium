@@ -25,8 +25,9 @@
 | **TASK-009** | FastAPI Backend & Interactive GraphSurface Frontend UI | `master-agent-001` | **DONE** | `main` | 26 passed | `daec8f6` |
 | **TASK-010** | Round 2 Prep: Bitemporal Schema, Architecture Diagrams & Final Submission | `agent-003` | **DONE** | `agent/003/langgraph-agent` (merged) | 41 passed | `c2e232b` |
 | **TASK-011** | Pure ReAct Agent Harness, Dynamic LLM Linking, Disk Cache & 100-Test Suite | `master-agent-001` | **DONE** | `main` | 100 passed | `51b189a` |
-| **TASK-012** | Clean Benchmark Integrity, Exact Embedding Alignment & Failure-Led Accuracy Work | `master-agent-001` | **IN PROGRESS** | `main` | 168 passed, 3 skipped | `1c305ba`, `f7d2aba`, `38a764c` |
-| **TASK-013** | Restore and Verify Live TigerVector Evidence Retrieval | `master-agent-001` | **IN PROGRESS** | `main` | 172 passed, 3 skipped | pending |
+| **TASK-012** | Clean Benchmark Integrity, Exact Embedding Alignment & Failure-Led Accuracy Work | `master-agent-001` | **IN PROGRESS** | `main` | 175 passed, 3 skipped | `1c305ba`, `f7d2aba`, `38a764c`, `ff6ea21`, `df167dd`, `aa9de94` |
+| **TASK-013** | Restore and Verify Live TigerVector Evidence Retrieval | `master-agent-001` | **BLOCKED: JINA BALANCE** | `main` | 175 passed, 3 skipped | `86922c1`, `bf29e57` |
+| **TASK-014** | Correct Sparse Retrieval Metrics and Audit Public Gold-Document Coverage | `master-agent-001` | **DONE** | `main` | 175 passed, 3 skipped | `502df22` |
 
 ---
 
@@ -56,6 +57,6 @@
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Restore Dense Evidence Retrieval**: The live TigerVector audit on 2026-09-28 returned zero chunks for all 100 public queries at top-30; an inspected live Chunk vertex had no `embedding` value. Embedding generation/upsert now validates model, passage task, dimensions, nonzero finite vectors, source-text fingerprints, and TigerGraph accepted counts. Rebuild the corpus vectors, then require positive live vector-search results before calling the index ready.
-2. **Measure Retrieval Before Generation**: Re-run dense recall/MRR and compare dense-only, BM25-only, and RRF on the same public questions. Keep per-question rankings and corpus/dataset/model fingerprints; use the results to tune chunk/evidence selection rather than introducing unrelated retrieval methods.
+1. **Unblock and Restore Dense Evidence Retrieval**: The live TigerVector audit on 2026-09-28 returned zero chunks for all 100 public queries at top-30; an inspected live Chunk vertex had no `embedding` value. The resume-safe, provenance-checked regeneration cached 12,929/22,016 vectors but stopped when Jina returned HTTP 403 `AUTHZ_INSUFFICIENT_BALANCE`. No full upsert occurred. After an eligible balance/key is available, resume from cache, verify all 22,016 vectors, require TigerGraph accepted counts, and rerun positive live vector search before calling the index ready.
+2. **Measure Retrieval Before Generation**: Completed a local 100-question sparse audit. Production BM25Plus reaches 88% gold-document hit@5, 96% hit@30, 62.8% mean document recall@5, 84.8% recall@30, and 0.6824 document MRR@30. Prior reports mislabeled hit rate as recall and are superseded by `docs/benchmark-audits/sparse-retrieval-20260929.md`. After dense is restored, compare dense-only, BM25-only, and RRF on identical public questions, keeping per-question rankings and fingerprints.
 3. **Clean Answer Baseline and Submission**: After retrieval is healthy, run the leak-free three pipelines, classify answer errors by stage, and iterate on repeated failure classes. Then finish completeness/evidence metrics, hidden Agentic output, live graph dashboard and premium frontend, architecture artifacts, demo, and writeup. No clean answer baseline or 98% result exists yet.
