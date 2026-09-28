@@ -621,7 +621,14 @@ class GraphClient:
 
         output: list[tuple[str, float]] = []
         for chunk in chunks_data:
-            cid = chunk.get("chunk_id", "")
+            attributes = chunk.get("attributes", {})
+            cid = (
+                chunk.get("chunk_id")
+                or attributes.get("TopChunks.chunk_id", "")
+                or chunk.get("v_id", "")
+            )
+            if not cid:
+                continue
             dist = distances.get(cid, 1.0)
             score = 1.0 - float(dist)  # cosine similarity from distance
             output.append((cid, score))

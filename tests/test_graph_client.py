@@ -104,13 +104,21 @@ def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
 def test_vector_search_converts_distance_to_similarity() -> None:
     connection = MagicMock()
     connection.runInstalledQuery.return_value = [
-        {"TopChunks": [{"chunk_id": "Q1#0"}, {"chunk_id": "Q2#1"}]},
-        {"@@distances": {"Q1#0": 0.2}},
+        {
+            "TopChunks": [
+                {
+                    "v_id": "Q1#0",
+                    "attributes": {"TopChunks.chunk_id": "Q1#0"},
+                },
+                {"chunk_id": "Q2#1"},
+            ]
+        },
+        {"@@distances": {"Q1#0": 0.2, "Q2#1": 0.7}},
     ]
     client = GraphClient(conn=connection)
 
     results = client.vector_search([0.1] * 1024, top_k=2)
 
     assert results[0] == ("Q1#0", 0.8)
-    assert results[1] == ("Q2#1", 0.0)
+    assert results[1] == ("Q2#1", 0.30000000000000004)
     assert connection.runInstalledQuery.call_args.kwargs["params"]["top_k"] == 2
