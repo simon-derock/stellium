@@ -23,6 +23,7 @@ def test_graph_schema_setup_and_query_installation() -> None:
     assert any("e.gender == gender" in statement for statement in ddl_statements)
     assert any("lower(e.name) LIKE" in statement for statement in ddl_statements)
     assert any("lower(e.sport) == lower(sport)" in statement for statement in ddl_statements)
+    assert any("-(PRECEDES:p)-> Event:prior" in statement for statement in ddl_statements)
     assert "INSTALL QUERY" in ddl_statements[-1]
 
 

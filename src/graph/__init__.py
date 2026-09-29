@@ -310,7 +310,7 @@ CREATE OR REPLACE QUERY get_preceding_event (
                 AND (event_name_fragment == "" OR lower(e.name) LIKE "%" + lower(event_name_fragment) + "%")
                 AND e.year == current_year;
 
-    PriorEvents = SELECT prior FROM Current:curr -(PRECEDES:p)- Event:prior
+    PriorEvents = SELECT prior FROM Current:curr -(PRECEDES:p)-> Event:prior
                   ACCUM @@prev_event_names += prior.name,
                         @@gold_athletes += prior.gold_athlete;
 
