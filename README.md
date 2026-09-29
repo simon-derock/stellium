@@ -123,21 +123,19 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 
 These are three independent benchmark pipelines, not sequential phases. BM25Plus/RRF is enabled through the Agentic `hybrid_search` tool; it is deliberately absent from the vector-only RAG baseline and is not currently called by the fixed GraphRAG pipeline.
 
-### Historical public run data (not a current clean benchmark)
+### Latest public benchmark (2026-09-29)
 
-**Do not read this table as Stellium's current accuracy or a valid head-to-head result.** It is retained as historical diagnostic data. A later audit found that the Agentic system prompt contained fully worked examples copied from public questions `pub-001` and `pub-002`, including their answers, so its score is contaminated by benchmark leakage. The RAG and fixed GraphRAG arms did not use that prompt, but those historical scores also need a reproducible rerun before they can support a current comparison. The copied examples have been removed and a regression check now prevents public question text from being added to the Agentic prompt. Exact Match (EM) is strict normalized string equality. No clean post-fix three-pipeline score or 98% result has been established; the latest clean run attempt stopped before question 1 because the provider daily quota was exhausted.
+This is the current end-to-end, three-pipeline run over all 100 public questions. The copied Agentic examples that caused leakage in earlier runs were removed; the prompt regression test verifies the prompt does not contain public question text. All three pipelines used Cloudflare Workers AI `@cf/meta/llama-3.1-8b-instruct-fast`. EM is strict normalized exact match; token F1 is lexical overlap and should be read alongside EM and evidence metrics. The 98% accuracy objective remains a target, not an achieved result.
 
-| Pipeline | Exact Match | Token F1 | Mean latency | Mean LLM tokens |
-| :--- | ---: | ---: | ---: | ---: |
-| RAG | 5% (5/100) | 0.065 | 981 ms | 134 |
-| GraphRAG | 34% (34/100) | 0.354 | 1,487 ms | 728 |
-| Agentic GraphRAG | 80% (80/100) | 0.807 | 2,895 ms | 3,907 |
+| Pipeline | Exact Match | Token F1 | Mean latency | Mean LLM tokens | Mean document MRR |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| RAG | 43% (43/100) | 0.453 | 1,213 ms | 2,423 | 0.564 |
+| GraphRAG | 35% (35/100) | 0.395 | 1,657 ms | 2,084 | 0.502 |
+| Agentic GraphRAG | **60% (60/100)** | **0.619** | 3,446 ms | 5,114 | **0.737** |
 
-Historical Agentic category counts were 21/21 aggregation, 17/22 temporal, 10/10 superlative, 17/28 multi-hop, and 15/19 lookup. The local output `results/public_results_20260928_v3.jsonl` is ignored by Git. A later 100-question Agentic-only run reported 84% EM and 0.852 token F1; it is also contaminated and predates current aggregate-action validation and answer-verification changes. The evaluator checkpoints every completed question and supports `--resume` after provider interruption.
+Agentic exact match by question type: aggregation 19/21 (90%), temporal 2/22 (9%), superlative 10/10 (100%), multi-hop 18/28 (64%), and lookup 11/19 (58%). Temporal reasoning is the highest-priority failure class. This benchmark is one measured run, not a confidence interval or a 98% claim. Its per-question answers, traces, and metrics are in [`results/public_clean_20260929.jsonl`](results/public_clean_20260929.jsonl); methodology and run details are in [the benchmark audit](docs/benchmark-audits/public-benchmark-20260929.md). The evaluator checkpoints completed questions and supports `--resume` after provider interruption.
 
-Post-v4 work further corrects case-insensitive graph matching and venue/date extraction: the agent now preserves the date order in the source/question and receives the full candidate list instead of only five results. Direct live Savanna checks verified the expected unique results for two previously missed questions. These changes have not yet been scored in a fresh full benchmark: the current Cloudflare account returns HTTP 429 with provider error 4006 (daily neuron allocation exhausted). The client now stops immediately on this non-recoverable quota response instead of retrying it five times.
-
-A separate live dense-retrieval audit on 2026-09-28 used aligned Jina v5 1024-dimensional query embeddings for all 100 public questions. TigerVector returned **zero chunks for every question**, with zero hit/recall/MRR through top-30. The graph has 22,016 Chunk vertices and the schema declares the HNSW vector attribute, but an inspected Chunk vertex had no stored `embedding` value. This means the historical 5% RAG score cannot diagnose embedding relevance. A provenance-checked rebuild cached 12,929/22,016 vectors but stopped before upsert when Jina returned HTTP 403 `AUTHZ_INSUFFICIENT_BALANCE`. Therefore, live dense retrieval and a clean RAG score remain unverified. Ingestion rejects unverifiable cache entries and fails when TigerGraph accepts fewer records than requested. See [the dense retrieval audit](docs/benchmark-audits/dense-retrieval-20260928.md), [the sparse audit](docs/benchmark-audits/sparse-retrieval-20260929.md), and run `uv run python -m scripts.evaluate_dense_retrieval` after a complete vector upsert.
+TigerVector is now populated and returns dense results. The corrected live audit found 95% gold-document hit@30 and 93.43% mean gold-document recall@30 across the public set. The previous zero-result audit was caused by parsing the TigerGraph response shape incorrectly and is superseded. These are document retrieval coverage numbers, not answer accuracy or proof that a retrieved chunk contains the answer. See [the current dense audit](docs/benchmark-audits/dense-retrieval-20260929.md) and [the sparse audit](docs/benchmark-audits/sparse-retrieval-20260929.md).
 
 ### Sparse Retrieval Ablation
 

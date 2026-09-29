@@ -118,6 +118,53 @@ Action Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, 
 
 
 @pytest.mark.asyncio
+async def test_agentic_does_not_replace_bounded_aggregate_with_sample_count() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content='Thought: Count matching events.\nAction: gsql_aggregate\nAction Input: {"sport":"Biathlon","target_year":2018,"min_competitors":74,"max_competitors":0}',
+            input_tokens=90,
+            output_tokens=35,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content='Thought: Inspect the first event.\nAction: gsql_lookup\nAction Input: {"event_name_fragment":"Mixed relay","target_year":2018,"sport":"Biathlon","attribute":"competitor_count"}',
+            input_tokens=100,
+            output_tokens=40,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(
+            graph,
+            "run_aggregation",
+            return_value={"count": 5, "events": ["Mixed relay"], "gold_doc_ids": ["Q1"]},
+        ),
+        patch.object(graph, "run_lookup") as lookup,
+        patch.object(LockedLLMSession, "chat", side_effect=responses),
+    ):
+        result = await pipeline.run(
+            qid="aggregate-count-not-sample-attribute",
+            question="How many biathlon events in 2018 had at least 74 competitors?",
+        )
+
+    assert result.answer == "5"
+    assert result.agentic_trace is not None
+    assert "cannot replace it" in result.agentic_trace["stopping_reason"]
+    lookup.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_agentic_react_strategy_adaptation() -> None:
     graph = create_mock_graph_client()
     coprocessor = Coprocessor()

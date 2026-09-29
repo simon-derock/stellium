@@ -116,6 +116,7 @@ Final Answer: <concise, direct answer>
 ### ACTION SELECTION POLICY:
 - Derive every tool argument from the current question or retrieved observations; never copy an answer or entity from an example.
 - Translate comparative language into the corresponding inclusive/exclusive numeric bound before calling `gsql_aggregate`.
+- When a bounded `gsql_aggregate` returns a count, do not replace that event count with an attribute from one sample event.
 - For a named event attribute, use `gsql_lookup` with the event discriminator, sport, year, and gender in their separate fields.
 - If a tool returns no evidence, change retrieval strategy using the remaining tools; do not fill the gap from prior knowledge.
 - Treat tool output as the only source of answer facts. Cite the supporting document or chunk identifiers returned by the tools.
@@ -539,6 +540,7 @@ class AgenticPipeline:
         current_strategy = "initial_reasoning"
         prev_tool_category: str | None = None
         tool_cache: dict[str, tuple[dict[str, Any], list[str]]] = {}
+        bounded_aggregate_count: int | None = None
 
         for iteration in range(1, self.max_iterations + 1):
             t_call = time.perf_counter()
@@ -587,6 +589,19 @@ class AgenticPipeline:
             action_name = step_parsed.action
             action_input = step_parsed.action_input
 
+            if (
+                bounded_aggregate_count is not None
+                and action_name == "gsql_lookup"
+                and action_input.get("attribute") == "competitor_count"
+            ):
+                state.final_answer = str(bounded_aggregate_count)
+                state.confidence_score = 0.98
+                state.stopping_reason = (
+                    "Bounded GSQL aggregation already returned the requested event count; "
+                    "an individual event's competitor count cannot replace it"
+                )
+                break
+
             tool_category = "graph" if "gsql" in action_name else "vector"
             if prev_tool_category and tool_category != prev_tool_category:
                 state.strategy_changed = True
@@ -616,6 +631,20 @@ class AgenticPipeline:
                 )
                 if "error" not in tool_obs:
                     tool_cache[cache_key] = (tool_obs, step_citations)
+
+            min_competitors = action_input.get(
+                "min_competitors", action_input.get("competitor_threshold", 0)
+            )
+            max_competitors = action_input.get("max_competitors", 0)
+            aggregate_count = tool_obs.get("count")
+            if (
+                action_name == "gsql_aggregate"
+                and "error" not in tool_obs
+                and isinstance(aggregate_count, int)
+                and not isinstance(aggregate_count, bool)
+                and (min_competitors or max_competitors)
+            ):
+                bounded_aggregate_count = aggregate_count
 
             # Audit record
             state.tool_history.append(
