@@ -66,12 +66,24 @@ def test_client_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_cohere_key_selects_cohere_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("COHERE", "COHERE_BACKUP"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("COHERE_KEY", "cohere-test-key")
     client = embedding_client_from_env()
     assert isinstance(client, CohereEmbeddingClient)
     assert client.model == "embed-v4.0"
     assert client.dimension == 1024
     assert client.batch_size == 96
+
+
+def test_cohere_primary_key_selects_cohere_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in ("COHERE_BACKUP", "COHERE_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("COHERE", "cohere-primary-test-key")
+    client = embedding_client_from_env()
+    assert isinstance(client, CohereEmbeddingClient)
+    assert client.api_key == "cohere-primary-test-key"
+    assert client.backup_api_key == ""
 
 
 def test_cohere_batch_uses_query_and_document_modes() -> None:

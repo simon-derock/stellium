@@ -8,6 +8,7 @@ import hashlib
 import json
 import logging
 import math
+import os
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -305,13 +306,21 @@ def prepare_ingestion_plan(
     )
     if embedding_client is not None:
         missing_chunks = [c for c in all_chunks if c.chunk_id not in cached_embeddings]
+        reverse_embedding_order = os.environ.get("COHERE_EMBED_REVERSE_ORDER", "").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if isinstance(embedding_client, CohereEmbeddingClient) and reverse_embedding_order:
+            missing_chunks.reverse()
         if missing_chunks:
             b_size = embedding_client.batch_size
             total_missing = len(missing_chunks)
             total_batches = (total_missing + b_size - 1) // b_size
             print(
                 f"[Embeddings] Generating embeddings for {total_missing} chunks "
-                f"({len(cached_embeddings)} loaded from disk cache)..."
+                f"({len(cached_embeddings)} loaded from disk cache; "
+                f"reverse_order={reverse_embedding_order})..."
             )
             if isinstance(embedding_client, CohereEmbeddingClient):
                 future_batches = {}

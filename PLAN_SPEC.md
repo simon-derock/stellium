@@ -33,6 +33,8 @@ This specification records both the desired system and implementation work. A re
 
 Verified status (2026-09-29): the agent is a bounded cyclic ReAct loop; the TigerGraph schema and populated native HNSW index use 1024-dimensional Jina v5 vectors. All 22,016 chunk vectors were accepted by TigerGraph in 45 batches, and the live response parser fix restored dense results. The corrected dense audit reports 95% gold-document hit@30 and 93.43% mean gold-document recall@30; these are document coverage, not answer accuracy. The latest full three-pipeline public run, after the temporal query fixes, scores RAG 42/100 EM, GraphRAG 32/100, and Agentic 84/100; Agentic temporal is 21/22, aggregation 21/21, superlative 7/10, multi-hop 19/28, and lookup 16/19. The report and raw output are `docs/benchmark-audits/public-benchmark-post-temporal-20260929.md` and `results/public_post_temporal_20260929.jsonl`. `hybrid_search` was called on 0/100 Agentic questions, so the run does not establish an answer-level BM25/RRF/cross-encoder contribution. The 98% goal is not achieved. Persistent session history, query-specific graph snapshots, and the maintained premium React frontend remain incomplete; the current API dashboard is a basic HTML surface and its snapshot endpoint still needs live query-derived data.
 
+Embedding migration update (2026-09-29): all 22,016 corpus chunks now have unique, locally cached Cohere `embed-v4.0` passage vectors at 1024 dimensions. Cache validation against the current corpus text hashes found 22,016/22,016 compatible vectors, and the cache-only upsert dry-run prepared 45 batches without generating embeddings. The live TigerGraph upsert has not been verified: the attempted upsert returned authentication failures, and the current configured endpoint presents a TLS certificate for a different hostname. Until the Savanna RESTPP endpoint is confirmed and all accepted counts plus Cohere query retrieval are revalidated, treat the graph's deployed vectors and the Cohere cache as separate states; the historical Jina dense-retrieval audit does not measure the Cohere migration.
+
 Follow-up query correction (2026-09-29): trace review found lookup misses where question wording supplied possessive gender (`Women's` / `Men's`) but Event stores the category (`Women` / `Men`). Client normalization and case-insensitive lookup GSQL are covered by regression tests. The corrected `get_event_attribute` query has now been reinstalled on Savanna. Read-only checks returned the 2012 women's trampoline result with `Rosannagh MacLennan` and the 1996 men's rifle result with 30 nations (114 ms end-to-end for the latter). These deterministic tool checks validate the query fix; they are not refreshed agent answers or benchmark scores. A full public run remains blocked on live LLM provider availability.
 
 Agent protocol correction (2026-09-29): the ReAct harness previously accepted any nonempty response without a parsed action as a terminal answer, including thought-only or malformed text. It now rejects that response, feeds a protocol correction into the cyclic loop, and records `invalid_response_count` in the trace. Regression test and full local quality gate pass (181 passed, 3 skipped). This change has not been included in a new public benchmark; measure its accuracy and token/latency costs before claiming improvement.
@@ -126,7 +128,12 @@ MISTRAL_API_KEY=
 CLOUDFLARE_ACCOUNT_ID=
 CLOUDFLARE_API_TOKEN=
 
-# Embedding Model (Jina v5 text-small; must match TigerGraph's vector dimension)
+# Embeddings (Cohere selected when configured; Jina remains the fallback)
+COHERE=
+COHERE_BACKUP=
+COHERE_EMBEDDING_MODEL=embed-v4.0
+COHERE_EMBEDDING_DIMENSION=1024
+COHERE_EMBEDDING_WORKERS=1
 JINA_API_KEY=
 JINA_EMBEDDING_MODEL=jina-embeddings-v5-text-small
 EMBEDDING_DIMENSION=1024

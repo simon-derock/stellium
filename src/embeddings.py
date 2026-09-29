@@ -387,6 +387,7 @@ class JinaEmbeddingClient:
 class CohereEmbeddingClient:
     # Cohere v2 adapter with the same passage/query interface used by the pipelines.
     api_key: str
+    backup_api_key: str = ""
     model: str = COHERE_EMBEDDING_MODEL
     dimension: int = GRAPH_EMBEDDING_DIMENSION
     batch_size: int = 96
@@ -396,6 +397,8 @@ class CohereEmbeddingClient:
     max_concurrent_requests: int = 1
     _last_request_time: float = field(default=0.0, init=False)
     _rate_limit_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
+    _last_request_times: dict[str, float] = field(default_factory=dict, init=False)
+    _next_key_index: int = field(default=0, init=False)
 
     @classmethod
     def from_env(cls) -> CohereEmbeddingClient:
@@ -405,8 +408,12 @@ class CohereEmbeddingClient:
         )
         raw_batch_size = os.environ.get("COHERE_EMBEDDING_BATCH_SIZE", "96")
         raw_workers = os.environ.get("COHERE_EMBEDDING_WORKERS", "1")
+        primary_key = os.environ.get("COHERE", "").strip()
+        backup_key = os.environ.get("COHERE_BACKUP", "").strip()
+        legacy_key = os.environ.get("COHERE_KEY", "").strip()
         return cls(
-            api_key=os.environ.get("COHERE_KEY", "").strip(),
+            api_key=primary_key or backup_key or legacy_key,
+            backup_api_key=backup_key if primary_key and backup_key != primary_key else "",
             model=os.environ.get("COHERE_EMBEDDING_MODEL", COHERE_EMBEDDING_MODEL),
             dimension=int(raw_dimension) if raw_dimension.isdigit() else 1024,
             batch_size=int(raw_batch_size) if raw_batch_size.isdigit() else 96,
@@ -416,6 +423,16 @@ class CohereEmbeddingClient:
     @property
     def is_configured(self) -> bool:
         return bool(self.api_key)
+
+    def _select_api_key(self) -> str:
+        # Distributes independent embedding batches across configured keys without logging them.
+        keys = [self.api_key]
+        if self.backup_api_key and self.backup_api_key != self.api_key:
+            keys.append(self.backup_api_key)
+        with self._rate_limit_lock:
+            key = keys[self._next_key_index % len(keys)]
+            self._next_key_index += 1
+            return key
 
     def embed_passages(
         self, texts: list[str], late_chunking: bool | None = None
@@ -442,6 +459,7 @@ class CohereEmbeddingClient:
             )
 
         vectors: list[list[float]] = []
+        api_key = self._select_api_key()
         for offset in range(0, len(texts), self.batch_size):
             batch = texts[offset : offset + self.batch_size]
             payload = {
@@ -455,15 +473,17 @@ class CohereEmbeddingClient:
             for attempt in range(self.max_retries):
                 try:
                     with self._rate_limit_lock:
-                        elapsed = time.monotonic() - self._last_request_time
-                        if self._last_request_time and elapsed < self.request_interval_s:
+                        last_request_time = self._last_request_times.get(api_key, 0.0)
+                        elapsed = time.monotonic() - last_request_time
+                        if last_request_time and elapsed < self.request_interval_s:
                             time.sleep(self.request_interval_s - elapsed)
-                        self._last_request_time = time.monotonic()
+                        self._last_request_times[api_key] = time.monotonic()
+                        self._last_request_time = self._last_request_times[api_key]
                     with httpx.Client(timeout=self.timeout_s) as client:
                         response = client.post(
                             _COHERE_API_URL,
                             headers={
-                                "Authorization": f"Bearer {self.api_key}",
+                                "Authorization": f"Bearer {api_key}",
                                 "Content-Type": "application/json",
                             },
                             json=payload,
@@ -527,7 +547,7 @@ class CohereEmbeddingClient:
 
 def embedding_client_from_env() -> CohereEmbeddingClient | JinaEmbeddingClient:
     # Select Cohere when its key is configured; otherwise retain the established Jina path.
-    if os.environ.get("COHERE_KEY", "").strip():
+    if any(os.environ.get(name, "").strip() for name in ("COHERE", "COHERE_BACKUP", "COHERE_KEY")):
         return CohereEmbeddingClient.from_env()
     return JinaEmbeddingClient.from_env()
 

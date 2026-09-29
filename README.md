@@ -141,6 +141,8 @@ Temporal query diagnostics found two graph-query mismatches: an undirected `PREC
 
 TigerVector is now populated and returns dense results. The corrected live audit found 95% gold-document hit@30 and 93.43% mean gold-document recall@30 across the public set. The previous zero-result audit was caused by parsing the TigerGraph response shape incorrectly and is superseded. These are document retrieval coverage numbers, not answer accuracy or proof that a retrieved chunk contains the answer. See [the current dense audit](docs/benchmark-audits/dense-retrieval-20260929.md) and [the sparse audit](docs/benchmark-audits/sparse-retrieval-20260929.md).
 
+**Embedding refresh status (2026-09-29):** the historical live retrieval audit above used Jina v5 vectors. A Cohere `embed-v4.0` 1024-dimensional vector has since been generated and validated locally for every one of the 22,016 corpus chunks. The Cohere cache is ready for upsert, but the live TigerGraph update and a Cohere dense-retrieval audit are still pending endpoint/TLS verification. Do not interpret the Jina audit as evidence about Cohere retrieval quality.
+
 ### Sparse Retrieval Ablation
 
 On the 100 public questions and 22,016 chunks, BM25Plus candidate retrieval was compared using the previous whitespace tokenizer and the production punctuation-normalizing tokenizer. BM25 ranks chunks; metrics deduplicate document IDs before applying document cutoffs. **Hit rate@k** is the share of questions with at least one gold document retrieved. **Document recall@k** is the average fraction of each question's gold documents retrieved. This measures document coverage only, not answer-bearing chunk recall, answer accuracy, or hybrid-search quality.

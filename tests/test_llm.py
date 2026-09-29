@@ -21,7 +21,8 @@ from src.llm import (
 async def test_query_embeddings_fail_closed_without_index_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("COHERE_KEY", raising=False)
+    for name in ("COHERE", "COHERE_BACKUP", "COHERE_KEY"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.delenv("JINA_API_KEY", raising=False)
     monkeypatch.delenv("EMBEDDING_KEY", raising=False)
     monkeypatch.delenv("jina_embedding_api_key", raising=False)
@@ -35,7 +36,8 @@ async def test_query_embeddings_fail_closed_without_index_model(
 
 @pytest.mark.asyncio
 async def test_query_embeddings_reject_dimension_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("COHERE_KEY", raising=False)
+    for name in ("COHERE", "COHERE_BACKUP", "COHERE_KEY"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("JINA_API_KEY", "mock-jina-key")
     monkeypatch.setenv("EMBEDDING_DIMENSION", "768")
 

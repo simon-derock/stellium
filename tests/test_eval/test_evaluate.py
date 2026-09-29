@@ -138,7 +138,8 @@ def test_live_evaluation_does_not_replace_graph_failure_with_mock(
 def test_live_evaluation_rejects_embedding_index_mismatch(
     monkeypatch: pytest.MonkeyPatch, setting: str, value: str
 ) -> None:
-    monkeypatch.delenv("COHERE_KEY", raising=False)
+    for name in ("COHERE", "COHERE_BACKUP", "COHERE_KEY"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(evaluate_module, "load_dotenv", lambda: None)
     monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "test-account")
     monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "test-token")
