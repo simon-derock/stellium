@@ -20,7 +20,6 @@ def test_graph_schema_setup_and_query_installation() -> None:
     assert "CREATE GRAPH OlympicsGraph" in ddl_statements[0]
     assert "VECTOR ATTRIBUTE" in ddl_statements[1]
     assert "CONFLICTS_WITH" in ddl_statements[2]
-    assert any("e.gender == gender" in statement for statement in ddl_statements)
     assert any("lower(e.name) LIKE" in statement for statement in ddl_statements)
     assert any("lower(e.sport) == lower(sport)" in statement for statement in ddl_statements)
     assert any("lower(e.gender) == lower(gender)" in statement for statement in ddl_statements)
@@ -93,14 +92,27 @@ def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
     ]
     assert calls[0].kwargs["params"]["sport"] == hostile_value
     assert calls[1].kwargs["params"]["sport"] == hostile_value
-    assert calls[1].kwargs["params"]["gender"] == "Men"
+    assert calls[1].kwargs["params"]["gender"] == "men"
     assert calls[2].kwargs["params"]["sport"] == hostile_value
     assert calls[3].kwargs["params"]["venue_name_fragment"] == hostile_value
     assert calls[3].kwargs["params"]["target_date_fragment"] == "12 August"
     assert calls[3].kwargs["params"]["target_year"] == 2012
     assert calls[4].kwargs["params"]["event_name_fragment"] == hostile_value
-    assert calls[4].kwargs["params"]["gender"] == "Women"
+    assert calls[4].kwargs["params"]["gender"] == "women"
     assert all("timeout" in call.kwargs for call in calls)
+
+
+def test_graph_gender_filters_normalize_possessive_question_forms() -> None:
+    connection = MagicMock()
+    connection.runInstalledQuery.return_value = [{}]
+    client = GraphClient(conn=connection)
+
+    client.run_temporal(gender="Women’s")
+    client.run_lookup(gender="Men's")
+
+    calls = connection.runInstalledQuery.call_args_list
+    assert calls[0].kwargs["params"]["gender"] == "women"
+    assert calls[1].kwargs["params"]["gender"] == "men"
 
 
 def test_vector_search_converts_distance_to_similarity() -> None:

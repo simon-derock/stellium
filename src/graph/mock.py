@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from src.graph.normalization import normalize_gender_filter
+
 if TYPE_CHECKING:
     from src.graph import GraphClient
 
@@ -191,7 +193,7 @@ class MockTigerGraphConnection:
     def _query_get_preceding_event(self, params: dict[str, Any]) -> list[dict[str, Any]]:
         sport = str(params.get("sport", "")).strip().lower()
         frag = str(params.get("event_name_fragment", "")).strip().lower()
-        gender = str(params.get("gender", "")).strip().lower()
+        gender = normalize_gender_filter(str(params.get("gender", "")))
         cur_year = int(params.get("current_year", params.get("year", 0)))
 
         events_store = self.vertices.get("Event", {})
@@ -206,7 +208,7 @@ class MockTigerGraphConnection:
 
             if sport and sport != ev_sport:
                 continue
-            if gender and gender != str(attrs.get("gender", "")).strip().lower():
+            if gender and gender != normalize_gender_filter(str(attrs.get("gender", ""))):
                 continue
             if frag and frag not in ev_name:
                 continue
@@ -386,7 +388,7 @@ class MockTigerGraphConnection:
             name = str(attrs.get("name", "")).lower()
             ev_year = int(attrs.get("year", 0))
             ev_sport = str(attrs.get("sport", "")).lower()
-            ev_gender = str(attrs.get("gender", "")).lower()
+            ev_gender = normalize_gender_filter(str(attrs.get("gender", "")))
 
             if frag and frag not in name:
                 continue
@@ -394,7 +396,7 @@ class MockTigerGraphConnection:
                 continue
             if sport and sport != ev_sport:
                 continue
-            gender = str(params.get("gender", "")).strip().lower()
+            gender = normalize_gender_filter(str(params.get("gender", "")))
             if gender and gender != ev_gender:
                 continue
 

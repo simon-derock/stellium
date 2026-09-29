@@ -171,6 +171,34 @@ def test_mock_temporal_matches_event_name_and_sport_case_insensitively() -> None
     assert result["gold_athletes"] == ["Jason Lamy Chappuis"]
 
 
+def test_mock_lookup_normalizes_possessive_gender_filter() -> None:
+    conn = MockTigerGraphConnection()
+    conn.upsertVertex(
+        "Event",
+        "event",
+        {
+            "name": "Cross-country skiing at the 2006 Winter Olympics – Women's relay",
+            "year": 2006,
+            "sport": "Cross-country skiing",
+            "gender": "Women",
+            "nation_count": 17,
+        },
+    )
+
+    result = conn.runInstalledQuery(
+        "get_event_attribute",
+        {
+            "event_name_fragment": "Women's relay",
+            "target_year": 2006,
+            "sport": "Cross-country skiing",
+            "gender": "Women's",
+        },
+    )[0]
+
+    assert result["events"] == ["Cross-country skiing at the 2006 Winter Olympics – Women's relay"]
+    assert result["nation_counts"] == [17]
+
+
 # Test installed query simulation for event aggregates
 def test_mock_query_event_aggregates() -> None:
     conn = MockTigerGraphConnection()

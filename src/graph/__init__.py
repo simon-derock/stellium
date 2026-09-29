@@ -28,6 +28,7 @@ from src.graph.bitemporal import (
     resolve_fact_conflict,
 )
 from src.graph.mock import MockTigerGraphConnection, create_mock_graph_client
+from src.graph.normalization import normalize_gender_filter
 from src.models import Chunk, ParsedInbox
 
 __all__ = [
@@ -412,7 +413,7 @@ CREATE OR REPLACE QUERY get_event_attribute (
               WHERE (event_name_fragment == "" OR lower(e.name) LIKE "%" + lower(event_name_fragment) + "%")
                 AND (target_year == 0 OR e.year == target_year)
                 AND (sport == "" OR lower(e.sport) == lower(sport))
-                AND (gender == "" OR e.gender == gender);
+                AND (gender == "" OR lower(e.gender) == lower(gender));
 
     x = SELECT e FROM Matched:e
         ACCUM @@event_names += e.name,
@@ -673,7 +674,7 @@ class GraphClient:
             "get_preceding_event",
             params={
                 "sport": sport,
-                "gender": gender,
+                "gender": normalize_gender_filter(gender),
                 "event_name_fragment": event_name_fragment,
                 "current_year": current_year,
             },
@@ -759,7 +760,7 @@ class GraphClient:
                 "event_name_fragment": event_fragment,
                 "target_year": year,
                 "sport": sport,
-                "gender": gender,
+                "gender": normalize_gender_filter(gender),
             },
             timeout=10000,
         )
