@@ -5,15 +5,15 @@ from unittest.mock import AsyncMock, MagicMock
 os.environ["TG_USE_MOCK"] = "1"
 
 import pytest
-from fastapi.testclient import TestClient
 
 import src.api.main as api_main
 from src.api.main import app
 from src.coprocessor import Coprocessor
 from src.llm import LLMCallResult, LockedLLMSession
 from src.models import Chunk
+from tests.asgi_client import InProcessASGIClient
 
-client = TestClient(app)
+client = InProcessASGIClient(app)
 
 
 def _wire_retrieval_api(

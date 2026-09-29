@@ -348,8 +348,9 @@ def _make_chunk(
     filter_mask: int = 0,
 ) -> Chunk:
     raw_text = "\n\n".join(paras)
-    # Prepend metadata header to first chunk only for richer embedding signal.
-    text = f"{header}\n\n{raw_text}" if header else raw_text
+    # Keep document identity in every embedding while limiting structured metadata to chunk 0.
+    embedding_header = header or f"Title: {doc.title}"
+    text = f"{embedding_header}\n\n{raw_text}"
 
     return Chunk(
         chunk_id=f"{doc.doc_id}#{index}",

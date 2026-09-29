@@ -119,3 +119,31 @@ def test_chunking_doubly_linked_pointers() -> None:
             assert c.next_chunk_id is None
         else:
             assert c.next_chunk_id == f"Q1000#{i + 1}"
+
+
+def test_later_chunks_keep_document_title_in_embedding_text() -> None:
+    title = "Athletics at the 2012 Summer Olympics – Women's 100 metres"
+    doc = CorpusDoc(
+        doc_id="Q2000",
+        wikidata_qid="Q2000",
+        wikipedia_pageid=456,
+        title=title,
+        url="https://en.wikipedia.org/wiki/test",
+        text=(
+            SAMPLE_TEXT
+            + "\n\n"
+            + ("Qualification round results list each competing athlete and recorded time. " * 40)
+            + "\n\n"
+            + ("The final round determined the medal positions and official event result. " * 40)
+        ),
+        approx_tokens=500,
+    )
+
+    chunks = chunk_document(doc)
+
+    assert len(chunks) > 1
+    assert chunks[0].text.startswith("Title: Athletics at the 2012 Summer Olympics")
+    assert chunks[0].infobox is not None
+    assert chunks[1].text.startswith(f"Title: {title}\n\n")
+    assert "Qualification round results" in chunks[1].raw_text
+    assert chunks[1].infobox is None

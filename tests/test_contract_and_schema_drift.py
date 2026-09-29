@@ -1,8 +1,6 @@
 # Contract testing, consumer-driven contracts, and schema drift validation.
 # Validates OpenAPI specifications, TigerGraph REST envelopes, and bitemporal schema evolution.
 
-from fastapi.testclient import TestClient
-
 from src.api.main import app
 from src.graph.bitemporal import BitemporalFact, parse_temporal_datetime
 from src.models import (
@@ -10,6 +8,7 @@ from src.models import (
     GraphNodeDTO,
     SnapshotDTO,
 )
+from tests.asgi_client import InProcessASGIClient
 
 
 def test_openapi_specification_contract() -> None:
@@ -32,7 +31,7 @@ def test_openapi_specification_contract() -> None:
 
 def test_health_endpoint_contract() -> None:
     # Verifies health check response format.
-    client = TestClient(app)
+    client = InProcessASGIClient(app)
     resp = client.get("/health")
     assert resp.status_code == 200
     data = resp.json()
