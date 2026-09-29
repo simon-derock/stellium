@@ -165,6 +165,59 @@ async def test_agentic_does_not_replace_bounded_aggregate_with_sample_count() ->
 
 
 @pytest.mark.asyncio
+async def test_agentic_fallback_synthesis_uses_tool_observations_and_value_only_contract() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+        max_iterations=1,
+    )
+    responses = [
+        LLMCallResult(
+            content='Thought: Look up the named event.\nAction: gsql_lookup\nAction Input: {"event_name_fragment":"synthetic event","target_year":2020}',
+            input_tokens=80,
+            output_tokens=30,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content="Synthetic Champion",
+            input_tokens=100,
+            output_tokens=5,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+    lookup_result = {
+        "events": ["Synthetic event"],
+        "competitor_counts": [],
+        "nation_counts": [],
+        "gold_athletes": ["Synthetic Champion"],
+        "venues": [],
+        "gold_doc_ids": ["Q_SYNTHETIC"],
+    }
+
+    with (
+        patch.object(graph, "run_lookup", return_value=lookup_result),
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run(
+            qid="fallback-evidence-contract",
+            question="Who won the synthetic event?",
+        )
+
+    assert result.answer == "Synthetic Champion"
+    synthesis_messages = chat.await_args_list[-1].args[0]
+    synthesis_contract = synthesis_messages[0]["content"].casefold()
+    assert "only facts in the supplied tool observations" in synthesis_contract
+    assert "return only the requested answer value" in synthesis_contract
+    assert "Synthetic Champion" in synthesis_messages[1]["content"]
+
+
+@pytest.mark.asyncio
 async def test_agentic_react_strategy_adaptation() -> None:
     graph = create_mock_graph_client()
     coprocessor = Coprocessor()

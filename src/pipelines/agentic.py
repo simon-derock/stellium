@@ -730,15 +730,29 @@ class AgenticPipeline:
         # Final synthesis pass if no terminal answer was emitted
         if not state.final_answer:
             context_pieces = [e.text for e in state.evidence if e.text]
-            synth_context = "\n---\n".join(context_pieces[:5])
+            observations = [
+                message["content"]
+                for message in messages
+                if message["role"] == "user" and message["content"].startswith("Observation:")
+            ]
+            synth_context = "\n---\n".join(observations + context_pieces[:5])
             synth_msg = [
                 {
                     "role": "system",
-                    "content": "Synthesize a concise answer to the question using the evidence.",
+                    "content": (
+                        "Answer using only facts in the supplied tool observations or evidence. "
+                        "Return only the requested answer value: an exact entity name or a number. "
+                        "Do not include reasoning, preamble, event details, or markdown. "
+                        'If the evidence does not establish the value, return "Not found in corpus". '
+                        "Never infer an answer from general knowledge."
+                    ),
                 },
                 {
                     "role": "user",
-                    "content": f"Evidence:\n{synth_context}\n\nQuestion: {question}\nAnswer:",
+                    "content": (
+                        f"Tool observations and evidence:\n{synth_context}\n\n"
+                        f"Question: {question}\nAnswer value:"
+                    ),
                 },
             ]
             synth_call = await self.llm.chat(synth_msg, max_tokens=128)
