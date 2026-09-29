@@ -725,6 +725,7 @@ class GraphClient:
         year: int = 0,
     ) -> dict[str, Any]:
         # Event year is stored on Event, while HELD_AT dates usually omit the year.
+        date_fragment = date_fragment.split("(", maxsplit=1)[0].strip(" ,–—-()")
         if year:
             date_fragment = date_fragment.replace(str(year), "").strip(" ,–—-()")
         t0 = time.perf_counter()

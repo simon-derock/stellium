@@ -139,6 +139,21 @@ def test_multihop_does_not_broaden_without_date_or_year_constraints() -> None:
     assert connection.runInstalledQuery.call_count == 1
 
 
+def test_multihop_omits_parenthetical_date_stage_annotations() -> None:
+    connection = MagicMock()
+    connection.runInstalledQuery.return_value = [{"events": ["Swimming event"]}]
+    client = GraphClient(conn=connection)
+
+    client.run_multihop(
+        venue_fragment="Olympic Aquatic Centre",
+        date_fragment="August 14 (heats & final)",
+        year=2004,
+    )
+
+    call = connection.runInstalledQuery.call_args
+    assert call.kwargs["params"]["target_date_fragment"] == "August 14"
+
+
 def test_graph_gender_filters_normalize_possessive_question_forms() -> None:
     connection = MagicMock()
     connection.runInstalledQuery.return_value = [{}]
