@@ -62,7 +62,7 @@ async def test_graphrag_passes_retrieved_chunk_text_to_answer_model() -> None:
     graph.run_multihop.return_value = {
         "events": ["Men's marathon"],
         "gold_athletes": ["Samuel Wanjiru"],
-        "gold_doc_ids": ["Q123"],
+        "gold_doc_ids": ["Q999", "Q888", "Q999"],
     }
     graph.run_lookup.return_value = {"events": [], "gold_athletes": [], "gold_doc_ids": []}
     graph.vector_search.return_value = [("Q123#0", 0.91)]
@@ -95,7 +95,7 @@ async def test_graphrag_passes_retrieved_chunk_text_to_answer_model() -> None:
         dense_results=[("Q123#0", 0.91)],
         final_top_k=5,
     )
-    assert "Q123" in result.retrieved_doc_ids
+    assert result.retrieved_doc_ids == ["Q999", "Q888", "Q123"]
     assert result.answer == "Samuel Wanjiru"
     assert result.llm_input_tokens == 40
     assert result.llm_output_tokens == 10

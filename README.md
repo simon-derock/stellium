@@ -130,8 +130,10 @@ This is the current end-to-end, three-pipeline run over all 100 public questions
 | Pipeline | Exact Match | Token F1 | Mean latency | Mean LLM tokens | Mean document MRR |
 | :--- | ---: | ---: | ---: | ---: | ---: |
 | RAG | 42% (42/100) | 0.438 | 1,121 ms | 2,423 | 0.588 |
-| GraphRAG | 32% (32/100) | 0.367 | 1,567 ms | 2,079 | 0.478 |
-| Agentic GraphRAG | **84% (84/100)** | **0.859** | 2,219 ms | 3,830 | **0.897** |
+| GraphRAG | 32% (32/100) | 0.367 | 1,567 ms | 2,079 | invalid† |
+| Agentic GraphRAG | **84% (84/100)** | **0.859** | 2,219 ms | 3,830 | invalid† |
+
+† An audit found that GraphRAG and Agentic deduplicated retrieved document IDs through unordered sets. Their historical MRR, recall@5, and precision@5 therefore do not preserve evidence order and are not reliable rank metrics. A code fix now preserves first-seen order; rerun the benchmark before publishing replacement ranking scores. Answer EM/F1, token, and latency figures above are unaffected by this ordering defect.
 
 Agentic exact match by question type: aggregation 21/21 (100%), temporal 21/22 (95%), superlative 7/10 (70%), multi-hop 19/28 (68%), and lookup 16/19 (84%). Remaining work is concentrated in superlative, multi-hop, and lookup cases. This is one measured run, not a confidence interval or a 98% claim. Its per-question answers, traces, and metrics are in [`results/public_post_temporal_20260929.jsonl`](results/public_post_temporal_20260929.jsonl); methodology and run details are in [the post-fix benchmark audit](docs/benchmark-audits/public-benchmark-post-temporal-20260929.md). The previous 60/100 Agentic score is the pre-temporal-fix run; see [the earlier benchmark audit](docs/benchmark-audits/public-benchmark-20260929.md).
 

@@ -25,8 +25,10 @@ uv run python -m src.evaluate \
 | Pipeline | Exact match | Token F1 | Mean latency | Mean LLM tokens | Mean document MRR |
 |---|---:|---:|---:|---:|---:|
 | RAG | 42/100 (42%) | 0.438 | 1,120.9 ms | 2,423 | 0.588 |
-| GraphRAG | 32/100 (32%) | 0.367 | 1,567.0 ms | 2,079 | 0.478 |
-| Agentic GraphRAG | 84/100 (84%) | 0.859 | 2,219.1 ms | 3,830 | 0.897 |
+| GraphRAG | 32/100 (32%) | 0.367 | 1,567.0 ms | 2,079 | invalid† |
+| Agentic GraphRAG | 84/100 (84%) | 0.859 | 2,219.1 ms | 3,830 | invalid† |
+
+† A later audit found that the GraphRAG and Agentic pipelines converted retrieved document IDs through unordered sets before evaluation. The stored MRR, recall@5, and precision@5 for those pipelines do not reliably represent evidence order and must not be used as ranking results. RAG preserves its HNSW order and its MRR remains valid. A first-seen-order fix is implemented; new ranking metrics require a fresh benchmark. This issue does not affect answer, token, or latency metrics.
 
 Agentic category results:
 
@@ -60,6 +62,7 @@ After the run above, GraphRAG's supporting-passage path was changed to retrieve 
 ## Evaluation limits and next work
 
 - EM is strict equality against the dataset's short answer after repository normalization; token F1 is lexical overlap. Neither is a reviewed semantic-completeness/grounding score. Multi-athlete gold strings can differ from readable comma-separated answer formatting, and EM does not measure citation correctness.
+- The stored GraphRAG and Agentic rank metrics are invalidated by unordered document-ID deduplication discovered after this run; only their answer/token/latency figures and RAG's ordered retrieval metrics remain usable. Rerun after the stable-order correction.
 - Mean `context_tokens` is an estimate from text length, not provider-tokenizer measurement. The evaluator captures overall and per-call trace timing/token fields, but this report does not claim p50/p95/p99 distributions or complete per-operation accounting.
 - This is one live run. Agentic is substantially better than the other two pipelines here and the temporal fix explains much of the gain, but answer accuracy remains below the 98% goal. The most important remaining Agentic categories are multi-hop (9 misses) and superlative (3 misses); lookup has 3 misses.
 - Inspect the remaining errors and citation/evidence sufficiency, fix general entity resolution and tool-selection/answer-type errors, run a public answer-level BM25/RRF ablation, then regenerate all three full public results. Regenerate the 50-row hidden submission only after public tuning is frozen; do not tune on hidden answers.

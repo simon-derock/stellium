@@ -14,8 +14,10 @@
 | Pipeline | Exact match | Token F1 | Mean latency (ms) | Mean LLM tokens | Mean document MRR | Mean document recall@5 | Mean document precision@5 |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | RAG | 43/100 (43%) | 0.453 | 1,213.1 | 2,422.8 | 0.5643 | 0.6039 | 0.4477 |
-| GraphRAG | 35/100 (35%) | 0.395 | 1,657.3 | 2,083.8 | 0.5019 | 0.3954 | 0.3880 |
-| Agentic GraphRAG | 60/100 (60%) | 0.619 | 3,446.2 | 5,113.9 | 0.7372 | 0.5470 | 0.6835 |
+| GraphRAG | 35/100 (35%) | 0.395 | 1,657.3 | 2,083.8 | invalid† | invalid† | invalid† |
+| Agentic GraphRAG | 60/100 (60%) | 0.619 | 3,446.2 | 5,113.9 | invalid† | invalid† | invalid† |
+
+† A later audit found that GraphRAG and Agentic converted retrieved document IDs through unordered sets before computing these rank metrics. Their MRR, recall@5, and precision@5 values are not reliable and have been withdrawn. RAG preserves HNSW ranking order, so its retrieval metrics remain valid.
 
 ## Agentic exact match by question type
 
@@ -30,11 +32,12 @@
 ## Interpretation and limits
 
 - This is the latest measured public answer benchmark in this repository. It is one run, not a confidence interval; accuracy is materially below the 98% goal.
-- Agentic has the best EM and mean document MRR in this run, while using more tokens and taking longer than either simpler pipeline. The results do not imply agentic reasoning is cost-effective for every question type.
+- Agentic has the best EM in this run, while using more tokens and taking longer than either simpler pipeline. Its stored rank metrics are invalidated by unordered document-ID deduplication. The results do not imply agentic reasoning is cost-effective for every question type.
 - Temporal questions are the clearest failure concentration. Multi-hop and lookup also need answer-level error analysis. Retrieval metrics alone cannot establish that answer-bearing evidence was found or that the generated answer is grounded.
 - Token F1 is lexical overlap, not semantic completeness or factuality. Mean document recall/precision/MRR use the evaluator's gold-document IDs and must not be represented as citation correctness.
 - The benchmark used the same configured provider/model for all arms. It records one date's provider behavior and is not a provider-independent measurement.
 - The 98% figure remains a goal. Do not tune against or publish hidden-set accuracy; the hidden dataset contains no answer key for this project.
+- A later code correction preserves first-seen evidence order in GraphRAG and Agentic, but these historical output files were produced before that correction. Regenerate results before reporting their rank metrics.
 
 Reproduce with:
 

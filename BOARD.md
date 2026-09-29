@@ -35,6 +35,7 @@
 | **TASK-019** | Reinstall and Verify Case-Insensitive Gender Lookup | `master-agent-001` | **DONE** | `main` | 185 passed, 3 skipped; live women's and possessive men's lookup checks returned expected graph results | `032c6fd` |
 | **TASK-020** | Migrate Passage Vectors to Cohere and Revalidate TigerVector Retrieval | `master-agent-001` | **IN PROGRESS** | `main` | Cache and dry-run verified; live upsert blocked by endpoint TLS hostname mismatch | Pending |
 | **TASK-021** | Add Typed Single-Operation GSQL Dispatch to Fixed GraphRAG | `master-agent-001` | **DONE** | `main` | 195 passed, 3 skipped; Ruff and strict mypy pass; public impact unmeasured | Pending |
+| **TASK-022** | Preserve Retrieval Evidence Order for Deterministic Rank Metrics | `master-agent-001` | **DONE** | `main` | 196 passed, 3 skipped; Ruff and strict mypy pass; public rerun pending | Pending |
 
 ---
 

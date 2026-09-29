@@ -254,7 +254,8 @@ class GraphRAGPipeline:
             ),
             context_tokens=context_tokens,
             latency_ms=latency_ms,
-            retrieved_doc_ids=list(set(doc_ids)),
+            # Preserve first-seen retrieval order for deterministic rank metrics.
+            retrieved_doc_ids=list(dict.fromkeys(doc_ids)),
             model_name=llm_result.model_name,
             provider=llm_result.provider,
         )

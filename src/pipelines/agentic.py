@@ -519,7 +519,7 @@ class AgenticPipeline:
             result = {"error": f"Tool execution error: {exc}"}
 
         latency_ms = (time.perf_counter() - t0) * 1000
-        return result, list(set(citations)), latency_ms
+        return result, list(dict.fromkeys(citations)), latency_ms
 
     async def run(self, qid: str, question: str) -> PipelineResult:
         # Executes the full autonomous ReAct agent loop over the user question.
@@ -820,7 +820,7 @@ class AgenticPipeline:
             "tools_called": [t.model_dump() for t in state.tool_history],
             "action_corrections": action_corrections,
             "chunks_retrieved": len([e for e in state.evidence if e.chunk_id]),
-            "citations": list({e.doc_id for e in state.evidence if e.doc_id}),
+            "citations": list(dict.fromkeys(e.doc_id for e in state.evidence if e.doc_id)),
             "strategy_changed": state.strategy_changed,
             "strategy_change_rationale": state.strategy_change_rationale,
             "stopping_reason": state.stopping_reason or "Investigation complete",
@@ -840,7 +840,7 @@ class AgenticPipeline:
             total_llm_tokens=total_tokens,
             context_tokens=total_input_tokens,
             latency_ms=elapsed_ms,
-            retrieved_doc_ids=list({e.doc_id for e in state.evidence if e.doc_id}),
+            retrieved_doc_ids=list(dict.fromkeys(e.doc_id for e in state.evidence if e.doc_id)),
             agentic_trace=agentic_trace,
             model_name=self.llm.model,
             provider=self.llm.provider,

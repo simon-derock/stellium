@@ -120,6 +120,53 @@ Action Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, 
 
 
 @pytest.mark.asyncio
+async def test_agentic_retrieved_document_order_is_stable_for_rank_metrics() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content="Thought: Count matching events.\nAction: gsql_aggregate\nAction Input: "
+            '{"sport":"Biathlon","target_year":2018,"min_competitors":74}',
+            input_tokens=80,
+            output_tokens=30,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content="Thought: The exact count is supported by the graph.\nFinal Answer: 2",
+            input_tokens=60,
+            output_tokens=8,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(
+            graph,
+            "run_aggregation",
+            return_value={
+                "count": 2,
+                "events": ["Event A", "Event B"],
+                "gold_doc_ids": ["Q2", "Q1", "Q2"],
+            },
+        ),
+        patch.object(LockedLLMSession, "chat", side_effect=responses),
+    ):
+        result = await pipeline.run(qid="ordered-citations", question="Count events?")
+
+    assert result.retrieved_doc_ids == ["Q2", "Q1"]
+    assert result.agentic_trace is not None
+    assert result.agentic_trace["citations"] == ["Q2", "Q1"]
+
+
+@pytest.mark.asyncio
 async def test_agentic_does_not_replace_bounded_aggregate_with_sample_count() -> None:
     graph = create_mock_graph_client()
     pipeline = AgenticPipeline(
