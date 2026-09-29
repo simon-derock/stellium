@@ -267,6 +267,47 @@ async def test_agentic_fallback_synthesis_uses_tool_observations_and_value_only_
 
 
 @pytest.mark.asyncio
+async def test_agentic_fallback_rejects_thought_only_synthesis_output() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+        max_iterations=1,
+    )
+    responses = [
+        LLMCallResult(
+            content="Thought: Check the named event.\nAction: gsql_lookup\nAction Input: "
+            '{"event_name_fragment":"synthetic event","target_year":2020}',
+            input_tokens=80,
+            output_tokens=30,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content="Thought: The evidence is ambiguous, so I should inspect another event.",
+            input_tokens=90,
+            output_tokens=25,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(graph, "run_lookup", return_value={}),
+        patch.object(LockedLLMSession, "chat", side_effect=responses),
+    ):
+        result = await pipeline.run(qid="thought-only-synthesis", question="Who won?")
+
+    assert result.answer == "Not found in corpus"
+    assert result.agentic_trace is not None
+    assert result.agentic_trace["invalid_response_count"] == 1
+    assert "Rejected nonterminal output" in result.agentic_trace["stopping_reason"]
+
+
+@pytest.mark.asyncio
 async def test_agentic_rejects_unstructured_thought_instead_of_returning_it() -> None:
     graph = create_mock_graph_client()
     pipeline = AgenticPipeline(

@@ -802,9 +802,23 @@ class AgenticPipeline:
                 }
             )
             reasoning_steps += 1
-            state.final_answer = sanitize_output(synth_call.content.strip())
-            state.stopping_reason = "Synthesized from accumulated multi-step evidence"
-            state.confidence_score = 0.85
+            synthesis = parse_react_response(synth_call.content)
+            if synthesis.is_terminal and synthesis.final_answer:
+                state.final_answer = synthesis.final_answer
+                state.stopping_reason = (
+                    "Synthesized an explicit final answer from accumulated evidence"
+                )
+                state.confidence_score = 0.85
+            elif synthesis.thought or synthesis.action:
+                # Do not expose planner text or a stale tool action as the user-facing answer.
+                state.final_answer = "Not found in corpus"
+                state.stopping_reason = "Rejected nonterminal output from final answer synthesis"
+                state.confidence_score = 0.0
+                invalid_response_count += 1
+            else:
+                state.final_answer = sanitize_output(synth_call.content.strip())
+                state.stopping_reason = "Synthesized from accumulated multi-step evidence"
+                state.confidence_score = 0.85
 
         state.step_count = reasoning_steps + len(state.tool_history)
         total_tokens = total_input_tokens + total_output_tokens
