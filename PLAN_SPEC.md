@@ -435,7 +435,7 @@ To avoid chunk boundary truncation and support chronological progression, chunks
 
 ### Behavioral Differentiation Across Pipelines
 - Pipeline 1 (RAG): the baseline currently retrieves vector top-5 and does not expand adjacent chunks. The coprocessor stores chunk pointers and offers an expected O(1) in-memory neighbor lookup; wiring that behavior into a pipeline remains future work.
-- Pipeline 2 (GraphRAG): currently performs fixed graph lookups/multihop queries plus dense retrieval; it does not currently use chunk-level neighbor expansion or the temporal predecessor tool.
+- Pipeline 2 (GraphRAG): performs fixed graph lookups/multihop queries plus hybrid passage retrieval (dense HNSW + BM25Plus/RRF + optional cross-encoder); it does not currently use chunk-level neighbor expansion or the temporal predecessor tool.
 - Pipeline 3 (Agentic GraphRAG): can use the temporal GSQL tool. Chunk-neighbor expansion is not yet exposed to the ReAct loop, and the evidence critic remains a roadmap item.
 [/ORCHESTRA:LINKED_CHUNKS]
 
@@ -455,7 +455,7 @@ Uses graph structure and text retrieval in a fixed sequence — no dynamic plann
 - Retrieval (Fixed Sequence):
   1. Ask the configured LLM to extract year, sport, and venue fields.
   2. Run the corresponding compiled graph lookup/multihop query when fields are available.
-  3. Run TigerVector search at fixed top-3 and combine returned graph facts and chunk text.
+  3. Retrieve up to 30 dense candidates and fuse them with BM25Plus using RRF; rerank the fused candidates and combine the top 5 passages with graph facts.
 - Generation: Single-turn LLM call: inject fused graph + text context → generate answer.
 - Current code does not implement a distinct fuzzy entity-linker or generic 1-hop traversal agent.
 - Expected Weaknesses: No backtracking if extraction/retrieval fails. No strategy adaptation. Fixed retrieval order.
@@ -466,13 +466,13 @@ The agent plans its own investigation, selects retrieval methods dynamically, an
 - Retrieval & Reasoning (Dynamic, Agent-Controlled):
   1. The ReAct LLM reads the question and selects an action; there is no separate regex query classifier.
   2. Dynamic Tool Dispatch: The agent chooses from implemented tools and observes returned evidence:
-     - `vector_search` (TigerVector HNSW semantic retrieval)
-     - `hybrid_search` (BM25Plus + RRF + optional cross-encoder inside the coprocessor)
+     - `hybrid_search` (default passage retrieval: BM25Plus + dense HNSW + RRF + optional cross-encoder)
+     - `vector_search` (dense-only fallback when deliberately selected)
      - `gsql_aggregate` (deterministic event aggregation via compiled GSQL)
      - `gsql_temporal` (PRECEDES/SUCCEEDS edge traversal — 0 LLM tokens)
      - `gsql_superlative`, `gsql_multihop`, and `gsql_lookup` (compiled structured queries)
      - `finish` (agent-supplied answer and citations)
-  3. Bounded Cycle: The loop appends observations and asks the LLM for its next action until a finish, deterministic fast stop, direct answer, or iteration limit.
+  3. Bounded Cycle: The loop appends observations and asks the LLM for its next action until a finish, deterministic fast stop, explicit grounded final answer, or iteration limit. Thought-only/malformed nonterminal responses are rejected and retried.
   4. Evidence review and distinct specialist agent components are incomplete; they remain roadmap work.
 - Chunk-neighbor expansion exists in the local coprocessor but is not exposed as a ReAct tool.
 - Stopping confidence values are assigned by current code paths and are not calibrated probabilities.

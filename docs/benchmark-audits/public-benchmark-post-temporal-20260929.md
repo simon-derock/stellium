@@ -47,11 +47,15 @@ Dense retrieval's 95% gold-document hit@30 and BM25's 88% gold-document hit@5 / 
 ## Pipeline scope and observed tool selection
 
 - RAG uses TigerVector HNSW top-5 only. It does not call GSQL, BM25, RRF, or a reranker.
-- Fixed GraphRAG uses an LLM entity-extraction step, fixed GSQL lookups/multi-hop when its extracted fields permit, dense top-3 retrieval, then one synthesis call. It does not use BM25/RRF or cross-encoder reranking.
+- The measured fixed GraphRAG run used an LLM entity-extraction step, fixed GSQL lookups/multi-hop when its extracted fields permitted, dense top-3 retrieval, then one synthesis call. The code was subsequently changed to use hybrid passage retrieval by default; this historical benchmark does not measure that change.
 - Agentic exposes GSQL aggregation/temporal/superlative/multi-hop/lookup, dense vector search, and hybrid search. The orchestrator makes tool selection dynamically within a four-iteration bound.
 - In this 100-question Agentic run, `hybrid_search` was selected for **0/100** questions; `vector_search` was selected for 4/100. Tool-call counts were GSQL aggregate 30, temporal 31, superlative 7, multi-hop 40, and lookup 40 (a question can call multiple tools).
 - Consequently, this run's 84% Agentic result does **not** establish a contribution from BM25, RRF, or the cross-encoder. Their separate retrieval audit measures BM25 candidate document coverage only. An answer-level hybrid ablation remains missing.
 - The trace records only `ReActOrchestrator` as an agent. Retrieval/reasoning capabilities are tools, not separate specialized agent instances. A dedicated evidence-evaluation agent and explicit answer-bearing evidence validation are not implemented.
+
+## Retrieval default change after this measurement
+
+After the run above, GraphRAG's supporting-passage path was changed to retrieve up to 30 HNSW candidates, fuse them with BM25Plus via RRF, and rerank up to five passages. Agentic's prompt now prefers `hybrid_search` for document evidence and reserves dense-only search as a deliberate fallback; exact GSQL answers can still stop without unnecessary passage retrieval. RAG remains dense-only as the control. No post-change accuracy or latency claim is available yet.
 
 ## Evaluation limits and next work
 

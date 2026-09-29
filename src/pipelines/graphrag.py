@@ -1,5 +1,5 @@
 # Pipeline 2: Hybrid GraphRAG (fixed pipeline, non-agentic baseline).
-# Fixed sequence: entity extraction -> 1-2 hop graph expansion -> dense vector fusion -> LLM synthesis.
+# Fixed sequence: entity extraction -> graph expansion -> dense/sparse fusion -> reranking -> synthesis.
 from __future__ import annotations
 
 import json
@@ -104,20 +104,40 @@ class GraphRAGPipeline:
                 graph_facts.append(f"Event: {event} | Gold: {gold}")
             doc_ids.extend(result.get("gold_doc_ids", [])[:10])
 
-        # Step 3: Fixed dense vector search for supporting passages (fixed top-3)
+        # Step 3: Hybrid retrieval is the default passage retriever for GraphRAG.
         embeddings = await self.llm.embed([question])
-        dense_results = self.graph.vector_search(embeddings[0], top_k=3)
-        for chunk_id, score in dense_results:
-            doc_id = chunk_id.rsplit("#", 1)[0]
-            if doc_id not in doc_ids:
-                doc_ids.append(doc_id)
-            chunk = self.coprocessor.get_chunk(chunk_id) if self.coprocessor else None
-            if chunk:
+        dense_results = self.graph.vector_search(embeddings[0], top_k=30)
+        if self.coprocessor:
+            passage_results = self.coprocessor.hybrid_rerank(
+                query=question,
+                dense_results=dense_results,
+                final_top_k=5,
+            )
+        else:
+            passage_results = []
+
+        if passage_results:
+            for chunk, score in passage_results:
+                doc_id = chunk.doc_id
+                if doc_id not in doc_ids:
+                    doc_ids.append(doc_id)
                 graph_facts.append(
-                    f"[Semantic match score {score:.3f} | doc: {doc_id}]\n{chunk.text}"
+                    f"[Hybrid rank score {score:.3f} | chunk: {chunk.chunk_id} | doc: {doc_id}]\n"
+                    f"{chunk.text}"
                 )
-            else:
-                graph_facts.append(f"[Semantic match score {score:.3f} | doc: {doc_id}]")
+        else:
+            # Keep GraphRAG operational when the local coprocessor has no indexed candidates.
+            for chunk_id, score in dense_results[:5]:
+                doc_id = chunk_id.rsplit("#", 1)[0]
+                if doc_id not in doc_ids:
+                    doc_ids.append(doc_id)
+                fallback_chunk = self.coprocessor.get_chunk(chunk_id) if self.coprocessor else None
+                if fallback_chunk:
+                    graph_facts.append(
+                        f"[Dense fallback score {score:.3f} | doc: {doc_id}]\n{fallback_chunk.text}"
+                    )
+                else:
+                    graph_facts.append(f"[Dense fallback score {score:.3f} | doc: {doc_id}]")
 
         # Step 4: Single-turn LLM synthesis over assembled graph context
         context_text = "\n".join(graph_facts) if graph_facts else "No relevant graph data found."

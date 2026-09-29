@@ -75,13 +75,13 @@ Your mission is to investigate complex sports queries autonomously by planning r
    Preserve every qualifier that distinguishes the requested event. For attribute questions, select the exact attribute.
 
 6. vector_search:
-   Perform 1024-dimensional HNSW dense semantic similarity search over passage chunks in TigerGraph.
+   Perform dense-only 1024-dimensional HNSW search over passage chunks in TigerGraph. Use this as a fallback when hybrid retrieval is unavailable or when dense-only retrieval is a deliberate strategy change.
    Parameters:
      - query: string (natural language search query)
      - top_k: integer (number of chunks to retrieve, default 5)
 
 7. hybrid_search:
-   Perform fused dense vector + BM25Plus sparse search with CrossEncoder reranking via coprocessor.
+   Default document retriever: fuse dense HNSW and BM25Plus ranks with RRF, then rerank candidates with the cross-encoder when available.
    Parameters:
      - query: string (natural language search query)
      - top_k: integer (number of top reranked chunks to retrieve, default 5)
@@ -120,6 +120,7 @@ Final Answer: <concise, direct answer>
 - When a bounded `gsql_aggregate` returns a count, do not replace that event count with an attribute from one sample event.
 - For a named event attribute, use `gsql_lookup` with the event discriminator, sport, year, and gender in their separate fields.
 - If a tool returns no evidence, change retrieval strategy using the remaining tools; do not fill the gap from prior knowledge.
+- For document and passage retrieval, prefer `hybrid_search`; use `vector_search` only as a deliberate dense-only fallback. Exact graph aggregations and uniquely resolved graph attributes may be answered directly with GSQL without an unnecessary passage search.
 - Treat tool output as the only source of answer facts. Cite the supporting document or chunk identifiers returned by the tools.
 
 ### EVENT ATTRIBUTE ROUTING AND RETRY:

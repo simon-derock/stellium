@@ -1,7 +1,7 @@
 # Pipeline integration tests for retrieved source text and LLM context contracts.
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -73,11 +73,21 @@ async def test_graphrag_passes_retrieved_chunk_text_to_answer_model() -> None:
     ]
     llm.embed.return_value = [[0.0] * 1024]
 
-    result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
-        "q2", "Who won the marathon in 2008?"
-    )
+    with patch.object(
+        coprocessor, "hybrid_rerank", return_value=[(_chunk(), 0.91)]
+    ) as hybrid_rerank:
+        result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
+            "q2", "Who won the marathon in 2008?"
+        )
 
     synthesis_prompt = llm.chat.await_args.args[0][1]["content"]
     assert "The 2008 Olympic men's marathon was won by Samuel Wanjiru." in synthesis_prompt
+    assert "Hybrid rank score 0.910" in synthesis_prompt
+    graph.vector_search.assert_called_once_with([0.0] * 1024, top_k=30)
+    hybrid_rerank.assert_called_once_with(
+        query="Who won the marathon in 2008?",
+        dense_results=[("Q123#0", 0.91)],
+        final_top_k=5,
+    )
     assert "Q123" in result.retrieved_doc_ids
     assert result.answer == "Samuel Wanjiru"

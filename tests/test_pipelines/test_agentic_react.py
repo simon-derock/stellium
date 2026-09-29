@@ -19,6 +19,8 @@ def test_react_prompt_does_not_contain_public_benchmark_questions() -> None:
         Path(__file__).resolve().parents[2] / "hackathon-resources/questions/eval_public.jsonl"
     )
     prompt = _REACT_SYSTEM_PROMPT.casefold()
+    assert "default document retriever" in prompt
+    assert "prefer `hybrid_search`" in prompt
 
     for line in dataset.read_text(encoding="utf-8").splitlines():
         if line.strip():
