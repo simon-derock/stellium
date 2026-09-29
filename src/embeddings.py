@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import threading
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -392,7 +393,9 @@ class CohereEmbeddingClient:
     timeout_s: float = 60.0
     max_retries: int = 6
     request_interval_s: float = 3.2
+    max_concurrent_requests: int = 4
     _last_request_time: float = field(default=0.0, init=False)
+    _rate_limit_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     @classmethod
     def from_env(cls) -> CohereEmbeddingClient:
@@ -401,11 +404,13 @@ class CohereEmbeddingClient:
             "COHERE_EMBEDDING_DIMENSION", os.environ.get("EMBEDDING_DIMENSION", "1024")
         )
         raw_batch_size = os.environ.get("COHERE_EMBEDDING_BATCH_SIZE", "96")
+        raw_workers = os.environ.get("COHERE_EMBEDDING_WORKERS", "4")
         return cls(
             api_key=os.environ.get("COHERE_KEY", "").strip(),
             model=os.environ.get("COHERE_EMBEDDING_MODEL", COHERE_EMBEDDING_MODEL),
             dimension=int(raw_dimension) if raw_dimension.isdigit() else 1024,
             batch_size=int(raw_batch_size) if raw_batch_size.isdigit() else 96,
+            max_concurrent_requests=int(raw_workers) if raw_workers.isdigit() else 4,
         )
 
     @property
@@ -449,10 +454,11 @@ class CohereEmbeddingClient:
             backoff = 1.0
             for attempt in range(self.max_retries):
                 try:
-                    elapsed = time.monotonic() - self._last_request_time
-                    if self._last_request_time and elapsed < self.request_interval_s:
-                        time.sleep(self.request_interval_s - elapsed)
-                    self._last_request_time = time.monotonic()
+                    with self._rate_limit_lock:
+                        elapsed = time.monotonic() - self._last_request_time
+                        if self._last_request_time and elapsed < self.request_interval_s:
+                            time.sleep(self.request_interval_s - elapsed)
+                        self._last_request_time = time.monotonic()
                     with httpx.Client(timeout=self.timeout_s) as client:
                         response = client.post(
                             _COHERE_API_URL,

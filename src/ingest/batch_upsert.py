@@ -10,6 +10,7 @@ import logging
 import math
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -312,30 +313,73 @@ def prepare_ingestion_plan(
                 f"[Embeddings] Generating embeddings for {total_missing} chunks "
                 f"({len(cached_embeddings)} loaded from disk cache)..."
             )
-            for idx in range(0, total_missing, b_size):
-                sub_batch = missing_chunks[idx : idx + b_size]
-                sub_texts = [c.text for c in sub_batch]
-                sub_embs = embedding_client.embed_passages(sub_texts, late_chunking=False)
-                if len(sub_embs) != len(sub_batch):
-                    raise ValueError(
-                        "Embedding provider returned "
-                        f"{len(sub_embs)} vectors for {len(sub_batch)} chunks"
+            if isinstance(embedding_client, CohereEmbeddingClient):
+                future_batches = {}
+                with ThreadPoolExecutor(
+                    max_workers=embedding_client.max_concurrent_requests
+                ) as executor:
+                    for idx in range(0, total_missing, b_size):
+                        sub_batch = missing_chunks[idx : idx + b_size]
+                        future = executor.submit(
+                            embedding_client.embed_passages,
+                            [chunk.text for chunk in sub_batch],
+                            late_chunking=False,
+                        )
+                        future_batches[future] = (idx, sub_batch)
+
+                    completed = 0
+                    for future in as_completed(future_batches):
+                        idx, sub_batch = future_batches[future]
+                        sub_embs = future.result()
+                        if len(sub_embs) != len(sub_batch):
+                            raise ValueError(
+                                "Embedding provider returned "
+                                f"{len(sub_embs)} vectors for {len(sub_batch)} chunks"
+                            )
+                        new_pairs = [
+                            (chunk.chunk_id, vector) for chunk, vector in zip(sub_batch, sub_embs)
+                        ]
+                        save_chunk_embeddings_batch(
+                            new_pairs,
+                            cache_path,
+                            source_texts=source_texts,
+                            model=embedding_client.model,
+                        )
+                        for chunk_id, vector in new_pairs:
+                            cached_embeddings[chunk_id] = vector
+                        completed += len(sub_batch)
+                        current_batch = idx // b_size + 1
+                        pct = (completed / total_missing) * 100
+                        print(
+                            f"  Batch {current_batch}/{total_batches} "
+                            f"({completed}/{total_missing} chunks, {pct:.1f}%) cached to disk"
+                        )
+            else:
+                for idx in range(0, total_missing, b_size):
+                    sub_batch = missing_chunks[idx : idx + b_size]
+                    sub_texts = [c.text for c in sub_batch]
+                    sub_embs = embedding_client.embed_passages(sub_texts, late_chunking=False)
+                    if len(sub_embs) != len(sub_batch):
+                        raise ValueError(
+                            "Embedding provider returned "
+                            f"{len(sub_embs)} vectors for {len(sub_batch)} chunks"
+                        )
+                    new_pairs = [(c.chunk_id, emb) for c, emb in zip(sub_batch, sub_embs)]
+                    save_chunk_embeddings_batch(
+                        new_pairs,
+                        cache_path,
+                        source_texts=source_texts,
+                        model=embedding_client.model,
                     )
-                new_pairs = [(c.chunk_id, emb) for c, emb in zip(sub_batch, sub_embs)]
-                save_chunk_embeddings_batch(
-                    new_pairs,
-                    cache_path,
-                    source_texts=source_texts,
-                    model=embedding_client.model,
-                )
-                for cid, emb in new_pairs:
-                    cached_embeddings[cid] = emb
-                current_batch = idx // b_size + 1
-                completed = min(idx + b_size, total_missing)
-                pct = (completed / total_missing) * 100
-                print(
-                    f"  Batch {current_batch}/{total_batches} ({completed}/{total_missing} chunks, {pct:.1f}%) cached to disk"
-                )
+                    for cid, emb in new_pairs:
+                        cached_embeddings[cid] = emb
+                    current_batch = idx // b_size + 1
+                    completed = min(idx + b_size, total_missing)
+                    pct = (completed / total_missing) * 100
+                    print(
+                        f"  Batch {current_batch}/{total_batches} "
+                        f"({completed}/{total_missing} chunks, {pct:.1f}%) cached to disk"
+                    )
 
     for c in all_chunks:
         attrs: dict[str, Any] = {
