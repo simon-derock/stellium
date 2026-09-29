@@ -32,6 +32,7 @@
 | **TASK-016** | Temporal Graph Query and Entity-Linking Corrections | `master-agent-001` | **IN PROGRESS** | `main` | 178 passed, 3 skipped | `a42eac7`, `589a9a2` |
 | **TASK-017** | Recover Empty Venue/Date Queries with Bounded Constraint-Preserving Broadening | `master-agent-001` | **DONE** | `main` | 184 passed, 3 skipped; live `pub-022` tool check returned correct event/athlete | `dcd5415` |
 | **TASK-018** | Preserve Compound Athlete Names During Infobox Segmentation | `master-agent-001` | **DONE** | `main` | 185 passed, 3 skipped; 2,210 live Event vertices refreshed and `pub-067` tool check verified | `7f38bfb` |
+| **TASK-019** | Reinstall and Verify Case-Insensitive Gender Lookup | `master-agent-001` | **DONE** | `main` | 185 passed, 3 skipped; live women's and possessive men's lookup checks returned expected graph results | `032c6fd` |
 
 ---
 
@@ -61,7 +62,7 @@
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Deploy and Measure Gender Normalization**: A code-level canonicalizer now handles possessive gender filters, and local tests pass. The live compiled lookup query still returns no candidates when this filter is active; install the updated GSQL and run focused lookup/temporal checks before counting recoveries. Then rerun the public benchmark if relevant scores change.
+1. **Rebenchmark Deployed Query Corrections**: Gender normalization and venue query recovery now pass focused live TigerGraph checks. Run the public benchmark when a live LLM provider is available; report any measured score change separately from deterministic tool correctness.
 2. **Rerun and Audit ReAct Reliability**: The harness now rejects thought-only or malformed nonterminal output instead of returning it as an answer; `invalid_response_count` is captured in traces. The latest full benchmark predates this code change. Re-run the public set after live query corrections and compare EM, completeness, tokens, and latency, then investigate remaining multi-hop/superlative errors from traces.
 3. **Measure Retrieval and Finish Submission Surface**: Agentic chose `hybrid_search` 0/100 times; run answer-level BM25/RRF ablations before claiming an accuracy benefit. Complete the query-backed graph dashboard, maintained frontend, demo/writeup, richer completeness/grounding metrics, and final cost/accuracy comparisons. Keep hidden data out of tuning. The 98% objective remains unmet.
 4. **Rebenchmark Query and Parser Fixes**: Live deterministic checks now pass for `pub-022` and `pub-067`, but a fresh public agent benchmark is still required to measure answer accuracy, completeness, token cost, and latency. Mistral live calls currently return HTTP 429; Gemini must not be used until its exposed key is rotated.
