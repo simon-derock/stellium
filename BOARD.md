@@ -29,7 +29,7 @@
 | **TASK-013** | Restore and Verify Live TigerVector Evidence Retrieval | `master-agent-001` | **DONE** | `main` | 175 passed, 3 skipped | `1096c6d` |
 | **TASK-014** | Correct Sparse Retrieval Metrics and Audit Public Gold-Document Coverage | `master-agent-001` | **DONE** | `main` | 175 passed, 3 skipped | `502df22` |
 | **TASK-015** | Publish Current Three-Pipeline Baseline and Submission Artifacts | `master-agent-001` | **IN PROGRESS** | `main` | 177 passed, 3 skipped | `1096c6d` |
-| **TASK-016** | Temporal Fallback Evidence and Answer-Quality Iteration | `master-agent-001` | **IN PROGRESS** | `main` | 178 passed, 3 skipped | `479715c` |
+| **TASK-016** | Temporal Graph Query and Entity-Linking Corrections | `master-agent-001` | **IN PROGRESS** | `main` | 178 passed, 3 skipped | `a42eac7`, `589a9a2` |
 
 ---
 
@@ -59,7 +59,7 @@
 
 ## 5. Immediate Next Steps (Next 3 Atomic Steps)
 
-1. **Correct Temporal Evidence Selection**: The targeted temporal rerun rose from 2/22 to 6/22 EM after grounding synthesis in tool observations, but still has 16 misses and used more tokens. Inspect the GSQL temporal path and per-question candidate evidence; improve event/year resolution without keyword classifiers or static answers, then rerun public temporal and full public evaluations.
-2. **Continue Failure-Led Accuracy Work**: The current full public baseline is RAG 43/100, GraphRAG 35/100, Agentic 60/100. Agentic temporal remains the largest weakness, followed by multi-hop 18/28 and lookup 11/19. Measure answer-bearing evidence and citation correctness, not only gold-document coverage; rerun the full comparison after material changes.
+1. **Fix Remaining Temporal Entity Linking**: After correcting directed `PRECEDES` traversal and case-sensitive gender filtering, one public 22-question temporal rerun scored 20/22 EM. The remaining misses use reordered, non-contiguous event-title fragments; replace fragile substring-only linking with general entity resolution, then rerun the temporal set.
+2. **Refresh Full Public Comparison**: The latest 100-question three-pipeline baseline remains RAG 43/100, GraphRAG 35/100, Agentic 60/100, measured before the temporal query fixes. Run all 100 questions through all three pipelines after the remaining temporal/tool fixes; update the benchmark/dashboard with EM, semantic correctness, completeness, grounding, answer-bearing evidence, latency tails, and token cost.
 3. **Complete Submission Surface**: Keep the fresh 50-row hidden Agentic result locally as `results/hidden_submission.jsonl`; do not tune against hidden questions. Remaining visible work includes a live query-backed graph dashboard, maintained premium frontend, architecture/demo/writeup, and complete cost/accuracy comparisons. The 98% goal remains unmet.
 3. **Complete Submission Surface**: Dense retrieval is restored and reports 95% gold-document hit@30 (document coverage, not answer accuracy). Remaining deliverables include richer completeness/grounding metrics, a live query-backed graph dashboard and maintained frontend, final architecture/demo/writeup, and an honest cost/accuracy comparison. The 98% objective is unmet; track evidence, not aspiration.
