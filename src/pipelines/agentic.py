@@ -117,9 +117,11 @@ Final Answer: <concise, direct answer>
 ### ACTION SELECTION POLICY:
 - Derive every tool argument from the current question or retrieved observations; never copy an answer or entity from an example.
 - Translate comparative language into the corresponding inclusive/exclusive numeric bound before calling `gsql_aggregate`.
+- For "which event had the highest/lowest/most/fewest competitors" questions, call `gsql_superlative` directly. Do not enumerate events with `gsql_aggregate` and guess a winner through a later lookup; return the complete ranked event title from the superlative observation.
 - When a bounded `gsql_aggregate` returns a count, do not replace that event count with an attribute from one sample event.
 - For a named event attribute, use `gsql_lookup` with the event discriminator, sport, year, and gender in their separate fields.
 - If a tool returns no evidence, change retrieval strategy using the remaining tools; do not fill the gap from prior knowledge.
+- For "the edition immediately before year X" questions, treat X as a time cutoff; if `gsql_temporal` finds no event at that year, search the full question with `hybrid_search`, identify the latest matching edition from retrieved evidence, then use `gsql_lookup` for the requested fact. Do not guess by subtracting one calendar year.
 - For document and passage retrieval, prefer `hybrid_search`; use `vector_search` only as a deliberate dense-only fallback. Exact graph aggregations and uniquely resolved graph attributes may be answered directly with GSQL without an unnecessary passage search.
 - Treat tool output as the only source of answer facts. Cite the supporting document or chunk identifiers returned by the tools.
 
