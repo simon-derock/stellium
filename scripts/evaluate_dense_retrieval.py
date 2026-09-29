@@ -12,7 +12,12 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from src.embeddings import JinaEmbeddingClient
+from src.embeddings import (
+    CohereEmbeddingClient,
+    JinaEmbeddingClient,
+    embedding_client_from_env,
+    is_graph_embedding_compatible,
+)
 from src.graph import GraphClient, connect
 from src.models import EvalQuestion
 
@@ -61,7 +66,7 @@ def _summarize(rows: list[dict[str, Any]], cutoffs: tuple[int, ...]) -> dict[str
 
 def evaluate_dense_retrieval(
     questions: list[EvalQuestion],
-    embedding_client: JinaEmbeddingClient,
+    embedding_client: CohereEmbeddingClient | JinaEmbeddingClient,
     graph: GraphClient,
     top_k: int,
     output_path: Path,
@@ -150,9 +155,13 @@ def main() -> None:
         parser.error("top-k and cutoffs must be positive, with every cutoff <= top-k")
 
     load_dotenv()
-    embedding_client = JinaEmbeddingClient.from_env()
+    embedding_client = embedding_client_from_env()
     if not embedding_client.is_configured:
-        raise RuntimeError("JINA_API_KEY is required for live dense retrieval evaluation")
+        raise RuntimeError("A configured embedding API key is required for live dense retrieval")
+    if not is_graph_embedding_compatible(embedding_client):
+        raise RuntimeError(
+            "Live query embeddings must match the configured TigerGraph embedding model and dimension"
+        )
 
     questions = [
         EvalQuestion.model_validate_json(line)

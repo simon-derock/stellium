@@ -28,6 +28,10 @@ CLOUDFLARE_OPENAI_URL = (
 # Fallback providers (run-level selection, never mid-run mixing)
 GEMINI_MODEL = "gemini-3.8-flash"
 MISTRAL_MODEL = "mistral-small-latest"
+COHERE_MODEL = os.environ.get("COHERE_CHAT_MODEL", "command-a-03-2025")
+COHERE_CHAT_REQUEST_INTERVAL_S = 3.25
+_cohere_chat_start_lock = asyncio.Lock()
+_cohere_chat_last_start = 0.0
 
 
 class ProviderQuotaExceededError(RuntimeError):
@@ -253,6 +257,87 @@ async def _call_mistral(
 
 
 # ---------------------------------------------------------------------------
+# Cohere Chat API Provider
+# ---------------------------------------------------------------------------
+
+
+async def _call_cohere(
+    model: str,
+    messages: list[dict[str, str]],
+    max_tokens: int = 512,
+    temperature: float = 0.0,
+    client: httpx.AsyncClient | None = None,
+) -> LLMCallResult:
+    global _cohere_chat_last_start
+
+    api_key = next(
+        (
+            os.environ[name].strip()
+            for name in ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY")
+            if os.environ.get(name, "").strip()
+        ),
+        "",
+    )
+    if not api_key:
+        raise RuntimeError("Cohere chat requires COHERE_CHAT_API_KEY or a configured COHERE key")
+
+    url = "https://api.cohere.com/v2/chat"
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+    }
+
+    t0 = time.perf_counter()
+    active_client = client or httpx.AsyncClient(timeout=90.0)
+    own_client = client is None
+    try:
+        async with _cohere_chat_start_lock:
+            delay = COHERE_CHAT_REQUEST_INTERVAL_S - (time.monotonic() - _cohere_chat_last_start)
+            if delay > 0:
+                await asyncio.sleep(delay)
+            _cohere_chat_last_start = time.monotonic()
+        resp = await active_client.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        content = data.get("message", {}).get("content", [])
+        result_text = "".join(
+            str(part.get("text", ""))
+            for part in content
+            if isinstance(part, dict) and part.get("type") == "text"
+        )
+        if not result_text:
+            raise RuntimeError("Cohere Chat API returned no text content")
+        usage = data.get("usage", {})
+        billed = usage.get("billed_units", {})
+        tokens = usage.get("tokens", {})
+        input_tokens = int(
+            billed.get("input_tokens")
+            or tokens.get("input_tokens")
+            or max(1, sum(len(message.get("content", "")) // 4 for message in messages))
+        )
+        output_tokens = int(
+            billed.get("output_tokens")
+            or tokens.get("output_tokens")
+            or max(1, len(result_text) // 4)
+        )
+    finally:
+        if own_client:
+            await active_client.aclose()
+
+    return LLMCallResult(
+        content=result_text,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        model_name=model,
+        provider="cohere",
+        latency_ms=(time.perf_counter() - t0) * 1000,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Session-Level Model Lock Router
 # ---------------------------------------------------------------------------
 
@@ -299,6 +384,14 @@ class LockedLLMSession:
                     return await _call_gemini(messages, max_tokens, self._client)
                 elif self.provider == "mistral":
                     return await _call_mistral(messages, max_tokens, self._client)
+                elif self.provider == "cohere":
+                    return await _call_cohere(
+                        self.model,
+                        messages,
+                        max_tokens,
+                        temperature=temperature,
+                        client=self._client,
+                    )
                 else:
                     raise ValueError(f"Unknown provider: {self.provider}")
             except httpx.HTTPStatusError as e:
@@ -363,6 +456,7 @@ def make_session(provider: str = "cloudflare") -> LockedLLMSession:
         "cloudflare": CLOUDFLARE_PRIMARY_MODEL,
         "gemini": GEMINI_MODEL,
         "mistral": MISTRAL_MODEL,
+        "cohere": COHERE_MODEL,
     }
     model = models.get(provider, CLOUDFLARE_PRIMARY_MODEL)
     return LockedLLMSession(provider=provider, model=model)

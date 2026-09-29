@@ -633,6 +633,8 @@ class GraphClient:
             dist = distances.get(cid, 1.0)
             score = 1.0 - float(dist)  # cosine similarity from distance
             output.append((cid, score))
+        # TigerGraph's projected TopChunks rows are not guaranteed to retain score order.
+        output.sort(key=lambda hit: hit[1], reverse=True)
         return output
 
     def run_aggregation(

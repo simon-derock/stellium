@@ -185,6 +185,26 @@ def test_vector_search_converts_distance_to_similarity() -> None:
 
     results = client.vector_search([0.1] * 1024, top_k=2)
 
-    assert results[0] == ("Q1#0", 0.8)
-    assert results[1] == ("Q2#1", 0.30000000000000004)
+    assert results == [
+        ("Q1#0", 0.8),
+        ("Q2#1", 0.30000000000000004),
+    ]
     assert connection.runInstalledQuery.call_args.kwargs["params"]["top_k"] == 2
+
+
+def test_vector_search_sorts_hits_by_similarity_instead_of_graph_row_order() -> None:
+    connection = MagicMock()
+    connection.runInstalledQuery.return_value = [
+        {
+            "TopChunks": [
+                {"chunk_id": "Q_LOW#0"},
+                {"chunk_id": "Q_HIGH#0"},
+            ]
+        },
+        {"@@distances": {"Q_LOW#0": 0.6, "Q_HIGH#0": 0.1}},
+    ]
+    client = GraphClient(conn=connection)
+
+    results = client.vector_search([0.1] * 1024, top_k=2)
+
+    assert results == [("Q_HIGH#0", 0.9), ("Q_LOW#0", 0.4)]

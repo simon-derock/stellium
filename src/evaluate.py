@@ -204,15 +204,13 @@ class EvaluationHarness:
                 "cloudflare": ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"),
                 "gemini": ("GEMINI_API_KEY",),
                 "mistral": ("MISTRAL_API_KEY",),
+                "cohere": ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY"),
             }
             required_credentials = provider_credentials[provider]
-            missing_credentials = [
-                name for name in required_credentials if not os.environ.get(name)
-            ]
-            if missing_credentials:
-                names = ", ".join(missing_credentials)
+            if not any(os.environ.get(name, "").strip() for name in required_credentials):
+                names = " or ".join(required_credentials)
                 raise RuntimeError(
-                    f"Live evaluation requires credentials for provider {provider}: {names}"
+                    f"Live evaluation requires one credential for provider {provider}: {names}"
                 )
             if not os.environ.get("TG_HOST"):
                 raise RuntimeError("Live evaluation requires TG_HOST; use_mock is for tests only")
@@ -472,7 +470,7 @@ def main() -> None:
     parser.add_argument(
         "--provider",
         default="cloudflare",
-        choices=["cloudflare", "gemini", "mistral"],
+        choices=["cloudflare", "gemini", "mistral", "cohere"],
         help="LLM provider to use",
     )
     parser.add_argument(
