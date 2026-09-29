@@ -411,6 +411,59 @@ async def test_agentic_lookup_returns_requested_nation_count_from_unique_event()
 
 
 @pytest.mark.asyncio
+async def test_agentic_corrects_superlative_arguments_sent_to_lookup_tool() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    response = LLMCallResult(
+        content=(
+            "Thought: Rank the shooting events by competitors.\n"
+            "Action: gsql_lookup\n"
+            'Action Input: {"sport":"shooting","target_year":2016,"season":"Summer",'
+            '"order_by":"desc","result_limit":1}'
+        ),
+        input_tokens=90,
+        output_tokens=35,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+    expected_event = "Shooting at the 2016 Summer Olympics – Women's 10 metre air rifle"
+    ranked_event = {
+        "events": [expected_event],
+        "competitor_counts": [51],
+        "gold_doc_ids": ["Q25396733"],
+    }
+
+    with (
+        patch.object(graph, "run_superlative", return_value=ranked_event) as superlative,
+        patch.object(LockedLLMSession, "chat", return_value=response) as chat,
+    ):
+        result = await pipeline.run(
+            qid="superlative-action-schema",
+            question="Which shooting event had the highest number of competitors in 2016?",
+        )
+
+    superlative.assert_called_once_with(
+        sport="shooting", year=2016, season="Summer", order="desc", limit=1
+    )
+    chat.assert_awaited_once()
+    assert result.answer == expected_event
+    assert result.agentic_trace is not None
+    assert result.agentic_trace["tools_called"][0]["tool_name"] == "gsql_superlative"
+    assert result.agentic_trace["action_corrections"] == [
+        {
+            "requested_tool": "gsql_lookup",
+            "executed_tool": "gsql_superlative",
+            "reason": "Arguments matched the superlative tool schema.",
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_agentic_retries_when_aggregate_action_contains_event_attribute_request() -> None:
     graph = create_mock_graph_client()
     lookup_result = {

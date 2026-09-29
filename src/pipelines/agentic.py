@@ -544,6 +544,7 @@ class AgenticPipeline:
         tool_cache: dict[str, tuple[dict[str, Any], list[str]]] = {}
         bounded_aggregate_count: int | None = None
         invalid_response_count = 0
+        action_corrections: list[dict[str, str]] = []
 
         for iteration in range(1, self.max_iterations + 1):
             t_call = time.perf_counter()
@@ -603,6 +604,20 @@ class AgenticPipeline:
             # Execute the selected tool
             action_name = step_parsed.action
             action_input = step_parsed.action_input
+            if (
+                action_name == "gsql_lookup"
+                and "attribute" not in action_input
+                and "order_by" in action_input
+                and ("result_limit" in action_input or "limit" in action_input)
+            ):
+                action_name = "gsql_superlative"
+                action_corrections.append(
+                    {
+                        "requested_tool": "gsql_lookup",
+                        "executed_tool": action_name,
+                        "reason": "Arguments matched the superlative tool schema.",
+                    }
+                )
 
             if (
                 bounded_aggregate_count is not None
@@ -801,6 +816,7 @@ class AgenticPipeline:
             "specialized_tools_used": list(dict.fromkeys(state.strategy_history)),
             "llm_calls": llm_calls,
             "tools_called": [t.model_dump() for t in state.tool_history],
+            "action_corrections": action_corrections,
             "chunks_retrieved": len([e for e in state.evidence if e.chunk_id]),
             "citations": list({e.doc_id for e in state.evidence if e.doc_id}),
             "strategy_changed": state.strategy_changed,
