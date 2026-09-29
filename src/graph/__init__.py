@@ -306,7 +306,7 @@ CREATE OR REPLACE QUERY get_preceding_event (
     Events = {Event.*};
     Current = SELECT e FROM Events:e
               WHERE (sport == "" OR lower(e.sport) == lower(sport))
-                AND (gender == "" OR e.gender == gender)
+                AND (gender == "" OR lower(e.gender) == lower(gender))
                 AND (event_name_fragment == "" OR lower(e.name) LIKE "%" + lower(event_name_fragment) + "%")
                 AND e.year == current_year;
 
