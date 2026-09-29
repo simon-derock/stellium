@@ -176,7 +176,7 @@ uv sync --extra dev
 
 # Configure environment variables
 cp .env.example .env
-# Edit .env with your credentials (TigerGraph Savanna, Cloudflare / Gemini API keys)
+# Edit .env with TigerGraph, embedding, and selected LLM provider credentials (Cloudflare, Gemini, or Mistral)
 ```
 
 ### 2. Run the Verification Quality Gate

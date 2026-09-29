@@ -111,7 +111,7 @@
   <rect x="830" y="400" width="300" height="85" rx="8" fill="#581c87" stroke="#c084fc" stroke-width="1"/>
   <text x="845" y="425" fill="#f3e8ff" font-size="13" font-weight="700">Session-Locked Model Router</text>
   <text x="845" y="445" fill="#fae8ff" font-size="11">Primary: Cloudflare Llama 3.1 8B (~9 neurons)</text>
-  <text x="845" y="463" fill="#d8b4fe" font-size="10">Failover: Gemini 2.0 Flash / Mistral</text>
+  <text x="845" y="463" fill="#d8b4fe" font-size="10">Selectable: Gemini 3.8 Flash / Mistral</text>
   <text x="845" y="478" fill="#38bdf8" font-size="10">Strict: identical model across all steps in run</text>
 
   <rect x="830" y="505" width="300" height="120" rx="8" fill="#581c87" stroke="#c084fc" stroke-width="1"/>

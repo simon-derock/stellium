@@ -211,7 +211,10 @@ async def test_gemini_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch
     assert (result.input_tokens, result.output_tokens) == (31, 6)
     request_url = post.call_args.args[0]
     request_payload = post.call_args.kwargs["json"]
+    request_headers = post.call_args.kwargs["headers"]
     assert GEMINI_MODEL in request_url
+    assert "test-gemini-key" not in request_url
+    assert request_headers["x-goog-api-key"] == "test-gemini-key"
     assert request_payload["contents"][0]["role"] == "user"
 
 
@@ -234,3 +237,22 @@ async def test_mistral_provider_request_and_usage(monkeypatch: pytest.MonkeyPatc
     assert (result.input_tokens, result.output_tokens) == (29, 5)
     assert post.call_args.args[0] == "https://api.mistral.ai/v1/chat/completions"
     assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer test-mistral-key"
+
+
+@pytest.mark.asyncio
+async def test_mistral_retry_error_reports_status_without_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
+    request = httpx.Request("POST", "https://api.mistral.ai/v1/chat/completions")
+    response = httpx.Response(429, request=request, headers={"retry-after": "0"})
+    session = make_session("mistral")
+
+    with (
+        patch("httpx.AsyncClient.post", return_value=response),
+        patch("src.llm.asyncio.sleep", new_callable=AsyncMock),
+        pytest.raises(RuntimeError, match="HTTP status 429") as error,
+    ):
+        await session.chat([{"role": "user", "content": "question"}], max_retries=2)
+
+    assert "test-mistral-key" not in str(error.value)

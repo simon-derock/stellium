@@ -26,7 +26,7 @@ CLOUDFLARE_OPENAI_URL = (
 )
 
 # Fallback providers (run-level selection, never mid-run mixing)
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-3.8-flash"
 MISTRAL_MODEL = "mistral-small-latest"
 
 
@@ -163,7 +163,8 @@ async def _call_gemini(
     client: httpx.AsyncClient | None = None,
 ) -> LLMCallResult:
     api_key = os.environ["GEMINI_API_KEY"]
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
+    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
     # Convert OpenAI-style messages to Gemini format
     contents = []
@@ -180,7 +181,7 @@ async def _call_gemini(
     active_client = client or httpx.AsyncClient(timeout=60.0)
     own_client = client is None
     try:
-        resp = await active_client.post(url, json=payload)
+        resp = await active_client.post(url, json=payload, headers=headers)
         resp.raise_for_status()
         data = resp.json()
         result_text: str = data["candidates"][0]["content"]["parts"][0]["text"]
@@ -328,8 +329,13 @@ class LockedLLMSession:
                     last_exc = e
                     continue
                 raise
+        status_detail = (
+            f" with HTTP status {last_exc.response.status_code}"
+            if isinstance(last_exc, httpx.HTTPStatusError)
+            else ""
+        )
         raise RuntimeError(
-            f"Provider {self.provider} failed after {max_retries} retries"
+            f"Provider {self.provider} failed after {max_retries} attempts{status_detail}"
         ) from last_exc
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
