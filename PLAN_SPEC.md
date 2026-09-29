@@ -446,7 +446,7 @@ To avoid chunk boundary truncation and support chronological progression, chunks
 
 ### Behavioral Differentiation Across Pipelines
 - Pipeline 1 (RAG): the baseline currently retrieves vector top-5 and does not expand adjacent chunks. The coprocessor stores chunk pointers and offers an expected O(1) in-memory neighbor lookup; wiring that behavior into a pipeline remains future work.
-- Pipeline 2 (GraphRAG): performs fixed graph lookups/multihop queries plus hybrid passage retrieval (dense HNSW + BM25Plus/RRF + optional cross-encoder); it does not currently use chunk-level neighbor expansion or the temporal predecessor tool.
+- Pipeline 2 (GraphRAG): performs one LLM-selected typed GSQL operation (including temporal predecessor traversal) plus hybrid passage retrieval (dense HNSW + BM25Plus/RRF + optional cross-encoder); it does not use chunk-level neighbor expansion or multi-step backtracking.
 - Pipeline 3 (Agentic GraphRAG): can use the temporal GSQL tool. Chunk-neighbor expansion is not yet exposed to the ReAct loop, and the evidence critic remains a roadmap item.
 [/ORCHESTRA:LINKED_CHUNKS]
 
@@ -462,15 +462,16 @@ The baseline must be vanilla to create maximum contrast with Agentic GraphRAG.
 - Metrics: context length (currently estimated from characters), provider-reported LLM input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
 
 ## 2. Pipeline 2: GraphRAG (Fixed Pipeline, Non-Agentic)
-Uses graph structure and text retrieval in a fixed sequence — no dynamic planning or backtracking.
+Uses graph structure and text retrieval in a fixed sequence — no multi-turn planning or backtracking.
 - Retrieval (Fixed Sequence):
-  1. Ask the configured LLM to extract year, sport, and venue fields.
-  2. Run the corresponding compiled graph lookup/multihop query when fields are available.
-  3. Retrieve up to 30 dense candidates and fuse them with BM25Plus using RRF; rerank the fused candidates and combine the top 5 passages with graph facts.
+  1. Ask the configured LLM once to extract typed operation and parameters (`aggregation`, `superlative`, `temporal`, `multi_hop`, `lookup`, or no graph operation).
+  2. Dispatch exactly one corresponding compiled GSQL query when the extracted operation has sufficient parameters.
+  3. Retrieve up to 30 dense candidates, fuse them with BM25Plus using RRF, optionally rerank, and combine up to 5 passages with graph facts.
 - Generation: Single-turn LLM call: inject fused graph + text context → generate answer.
 - Current code does not implement a distinct fuzzy entity-linker or generic 1-hop traversal agent.
 - Expected Weaknesses: No backtracking if extraction/retrieval fails. No strategy adaptation. Fixed retrieval order.
-- Metrics: graph/subgraph counts when exposed, estimated context length, provider-reported input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
+- Metrics: graph/subgraph counts when exposed, estimated context length, both entity-planning and synthesis LLM input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
+- Measurement status: the published 32/100 GraphRAG baseline predates typed operation dispatch; this implementation change needs a fresh public run before any accuracy claim.
 
 ## 3. Pipeline 3: Autonomous Agentic GraphRAG (Full Arsenal, Dynamic)
 The agent plans its own investigation, selects retrieval methods dynamically, and adapts based on what it finds.

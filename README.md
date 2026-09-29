@@ -113,7 +113,7 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 
 | Dimension | Pipeline 1: Baseline Vector RAG | Pipeline 2: Fixed GraphRAG | Pipeline 3: Autonomous Agentic GraphRAG (Stellium) |
 | :--- | :--- | :--- | :--- |
-| **Retrieval Strategy** | Vanilla TigerVector HNSW top-5 | Fixed GSQL lookup/venue traversal + hybrid BM25Plus/RRF retrieval with reranking | **Dynamic tool dispatch (GSQL + hybrid default for passage retrieval)** |
+| **Retrieval Strategy** | Vanilla TigerVector HNSW top-5 | One LLM-selected typed GSQL operation + fixed hybrid BM25Plus/RRF retrieval | **Dynamic tool dispatch (GSQL + hybrid default for passage retrieval)** |
 | **Tool Calling** | None (Single vector retrieval) | Fixed retrieval flow | **Bounded cyclic ReAct; reviews each observation and can pivot tools** |
 | **Aggregations** | LLM over retrieved passages | Graph plus retrieved passages | Compiled GSQL accumulators when the agent selects the matching tool |
 | **Temporal Chains** | Passage retrieval | Graph expansion | `PRECEDES`/`SUCCEEDS` traversal when applicable |
@@ -121,7 +121,7 @@ Stellium runs a side-by-side benchmark comparing three distinct retrieval pipeli
 | **Latency** | Measure with the evaluation runner | Measure with the evaluation runner | Live end-to-end GSQL example: 38.59 ms; includes network overhead |
 | **Investigation Trace** | None | Fixed subgraph triples | **Full 10-field Agentic Trace (Judges Spec)** |
 
-These are three independent benchmark pipelines, not sequential phases. RAG remains the dense-only control. Current GraphRAG code uses hybrid retrieval by default for supporting passages; Agentic prefers hybrid when it needs document evidence, while it can use exact GSQL directly when that fully answers the question. The latest published benchmark below predates this wiring change, so it is not a measurement of the new retrieval defaults.
+These are three independent benchmark pipelines, not sequential phases. RAG remains the dense-only control. Current GraphRAG uses a single LLM extraction call to select one typed compiled GSQL operation, then hybrid retrieval and answer synthesis. Agentic may choose tools repeatedly in its bounded ReAct loop. The published benchmark below predates the GraphRAG operation-dispatch change, so it does not measure that code.
 
 ### Latest public benchmark after temporal query fixes (2026-09-29)
 
@@ -135,7 +135,7 @@ This is the current end-to-end, three-pipeline run over all 100 public questions
 
 Agentic exact match by question type: aggregation 21/21 (100%), temporal 21/22 (95%), superlative 7/10 (70%), multi-hop 19/28 (68%), and lookup 16/19 (84%). Remaining work is concentrated in superlative, multi-hop, and lookup cases. This is one measured run, not a confidence interval or a 98% claim. Its per-question answers, traces, and metrics are in [`results/public_post_temporal_20260929.jsonl`](results/public_post_temporal_20260929.jsonl); methodology and run details are in [the post-fix benchmark audit](docs/benchmark-audits/public-benchmark-post-temporal-20260929.md). The previous 60/100 Agentic score is the pre-temporal-fix run; see [the earlier benchmark audit](docs/benchmark-audits/public-benchmark-20260929.md).
 
-Agentic used `hybrid_search` **zero times** in this 100-question run (4 questions selected dense `vector_search`; GSQL tools accounted for the rest). Therefore this run does not demonstrate an answer-accuracy benefit from BM25/RRF/cross-encoder, even though the separate BM25 document-coverage audit is strong. This is a historical tool-use count from before hybrid became GraphRAG's default passage retriever and Agentic's preferred document retriever. See [pipeline scope and actual tool-use counts](docs/benchmark-audits/public-benchmark-post-temporal-20260929.md).
+Agentic used `hybrid_search` **zero times** in this 100-question run (4 questions selected dense `vector_search`; GSQL tools accounted for the rest). Therefore this run does not demonstrate an answer-accuracy benefit from BM25/RRF/cross-encoder, even though the separate BM25 document-coverage audit is strong. GraphRAG's published 32/100 result also predates the current typed-operation GSQL dispatch. See [pipeline scope and actual tool-use counts](docs/benchmark-audits/public-benchmark-post-temporal-20260929.md).
 
 Temporal query diagnostics found two graph-query mismatches: an undirected `PRECEDES` traversal despite directed predecessor edges, and a case-sensitive gender filter against lowercase ReAct arguments. Correcting both raised the targeted 22-question temporal rerun to **20/22 EM**. Two remaining temporal questions still fail because the model's reordered event fragments do not match corpus title substrings. See [the temporal query correction audit](docs/benchmark-audits/temporal-query-correction-20260929.md) and [the earlier fallback audit](docs/benchmark-audits/temporal-fallback-20260929.md).
 

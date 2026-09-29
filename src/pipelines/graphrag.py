@@ -17,10 +17,10 @@ from src.models import PipelineResult
 logger = logging.getLogger(__name__)
 
 _ENTITY_LINKING_SYSTEM_PROMPT = """You are an entity extraction engine for Olympic sports questions.
-Extract the target year, sport, and venue mentioned in the user question.
+Translate the question into exactly one fixed graph operation and copy its constraints.
 Return ONLY a valid JSON object matching this schema:
-{"year": 2012, "sport": "Athletics", "venue": "National Stadium"}
-Use null for any field not explicitly mentioned or inferred from the question. Do not include markdown formatting or commentary."""
+{"operation":"aggregation|superlative|temporal|multi_hop|lookup|none","year":2012,"sport":"Athletics","season":"Summer","gender":"Women","event_fragment":"100 metres","venue":"National Stadium","date":"16 August","attribute":"gold_athlete|nation_count|competitor_count|venue","min_competitors":0,"max_competitors":0,"order":"desc","limit":1}
+Use "aggregation" for counts of matching events, "lookup" for an attribute of one named event, "superlative" for events with the most/fewest competitors, "temporal" for a preceding edition, and "multi_hop" for an event identified by venue/date. For strict comparisons, convert "more than N" to min_competitors N+1 and "fewer than N" or "less than N" to max_competitors N-1. Copy entities and date wording from the question; do not invent values or use a fixed sport/entity list. Use empty strings and zero for unknown or unconstrained fields. Do not include markdown or commentary."""
 
 _GRAPHRAG_SYSTEM_PROMPT = """You are a precise sports historian with access to Olympic event data.
 Answer the question using ONLY the provided graph context (entities, relationships, and passages).
@@ -37,17 +37,40 @@ Answer:"""
 
 @dataclass
 class ExtractedEntities:
+    operation: str = "none"
     year: int = 0
     sport: str = ""
+    season: str = ""
+    gender: str = ""
+    event_fragment: str = ""
     venue: str = ""
+    date: str = ""
+    attribute: str = "gold_athlete"
+    min_competitors: int = 0
+    max_competitors: int = 0
+    order: str = "desc"
+    limit: int = 1
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+def _as_int(value: Any, default: int = 0) -> int:
+    # Reject booleans and values that cannot be converted to an integer.
+    if isinstance(value, bool):
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
 
 
 async def _extract_entities_via_llm(llm: LockedLLMSession, question: str) -> ExtractedEntities:
-    # Uses a single-turn LLM call to extract structured entities from query text.
+    # Uses one bounded LLM call to produce a typed plan for the fixed GraphRAG sequence.
     messages = [
         {"role": "system", "content": _ENTITY_LINKING_SYSTEM_PROMPT},
         {"role": "user", "content": f"Question: {question}"},
     ]
+    res = None
     try:
         res = await llm.chat(messages, max_tokens=128, temperature=0.0)
         cleaned = res.content.strip()
@@ -55,14 +78,35 @@ async def _extract_entities_via_llm(llm: LockedLLMSession, question: str) -> Ext
             cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         data: dict[str, Any] = json.loads(cleaned)
 
-        raw_year = data.get("year")
-        year = int(raw_year) if raw_year is not None and str(raw_year).isdigit() else 0
-        sport = str(data.get("sport") or "").strip()
-        venue = str(data.get("venue") or "").strip()
-        return ExtractedEntities(year=year, sport=sport, venue=venue)
+        operations = {"aggregation", "superlative", "temporal", "multi_hop", "lookup", "none"}
+        operation = str(data.get("operation", "none")).strip().lower()
+        order = str(data.get("order", "desc")).strip().lower()
+        attribute = str(data.get("attribute", "gold_athlete")).strip().lower()
+        if attribute not in {"gold_athlete", "nation_count", "competitor_count", "venue"}:
+            attribute = "gold_athlete"
+        return ExtractedEntities(
+            operation=operation if operation in operations else "none",
+            year=_as_int(data.get("year")),
+            sport=str(data.get("sport") or "").strip(),
+            season=str(data.get("season") or "").strip(),
+            gender=str(data.get("gender") or "").strip(),
+            event_fragment=str(data.get("event_fragment") or "").strip(),
+            venue=str(data.get("venue") or "").strip(),
+            date=str(data.get("date") or "").strip(),
+            attribute=attribute,
+            min_competitors=max(0, _as_int(data.get("min_competitors"))),
+            max_competitors=max(0, _as_int(data.get("max_competitors"))),
+            order=order if order in {"asc", "desc"} else "desc",
+            limit=min(10, max(1, _as_int(data.get("limit"), 1))),
+            input_tokens=res.input_tokens,
+            output_tokens=res.output_tokens,
+        )
     except Exception:
         # Graceful fallback when running in offline mode or on unparseable JSON
-        return ExtractedEntities()
+        return ExtractedEntities(
+            input_tokens=res.input_tokens if res else 0,
+            output_tokens=res.output_tokens if res else 0,
+        )
 
 
 @dataclass
@@ -77,32 +121,71 @@ class GraphRAGPipeline:
         # Step 1: Entity linking — dynamic LLM entity extraction
         entities = await _extract_entities_via_llm(self.llm, question)
 
-        # Step 2: Fixed 1-2 hop graph traversal based on extracted entities
+        # Step 2: Execute one graph operation from the bounded extraction plan.
         graph_facts: list[str] = []
         doc_ids: list[str] = []
 
-        if entities.venue:
-            result = self.graph.run_multihop(venue_fragment=entities.venue)
+        if entities.operation == "aggregation":
+            result = self.graph.run_aggregation(
+                sport=entities.sport,
+                year=entities.year,
+                min_competitors=entities.min_competitors,
+                max_competitors=entities.max_competitors,
+            )
+            graph_facts.append(
+                f"Exact matching event count: {result.get('count', 0)}. "
+                f"Matching events: {', '.join(result.get('events', []))}"
+            )
+            doc_ids.extend(result.get("gold_doc_ids", []))
+        elif entities.operation == "superlative":
+            result = self.graph.run_superlative(
+                sport=entities.sport,
+                year=entities.year,
+                season=entities.season,
+                order=entities.order,
+                limit=entities.limit,
+            )
+            for event, count in zip(result.get("events", []), result.get("competitor_counts", [])):
+                graph_facts.append(f"Ranked event: {event} | Competitors: {count}")
+            doc_ids.extend(result.get("gold_doc_ids", []))
+        elif entities.operation == "temporal":
+            result = self.graph.run_temporal(
+                sport=entities.sport,
+                event_name_fragment=entities.event_fragment,
+                current_year=entities.year,
+                gender=entities.gender,
+            )
+            for event, athlete in zip(
+                result.get("prev_events", []), result.get("gold_athletes", [])
+            ):
+                graph_facts.append(f"Preceding-edition event: {event} | Gold: {athlete}")
+            doc_ids.extend(result.get("gold_doc_ids", []))
+        elif entities.operation == "multi_hop":
+            result = self.graph.run_multihop(
+                venue_fragment=entities.venue,
+                date_fragment=entities.date,
+                year=entities.year,
+            )
             for event, athlete in zip(result.get("events", []), result.get("gold_athletes", [])):
                 graph_facts.append(f"Event: {event} | Gold: {athlete}")
             doc_ids.extend(result.get("gold_doc_ids", []))
-
-        if entities.year and entities.sport:
-            result = self.graph.run_lookup(year=entities.year, sport=entities.sport)
-            for event, gold, nations in zip(
-                result.get("events", []),
-                result.get("gold_athletes", []),
-                result.get("nation_counts", []),
-            ):
-                graph_facts.append(f"Event: {event} | Gold: {gold} | Nations: {nations}")
+        elif entities.operation == "lookup":
+            result = self.graph.run_lookup(
+                event_fragment=entities.event_fragment,
+                year=entities.year,
+                sport=entities.sport,
+                gender=entities.gender,
+            )
+            values = {
+                "gold_athlete": result.get("gold_athletes", []),
+                "nation_count": result.get("nation_counts", []),
+                "competitor_count": result.get("competitor_counts", []),
+                "venue": result.get("venues", []),
+            }.get(entities.attribute, [])
+            for index, event in enumerate(result.get("events", [])):
+                value = values[index] if index < len(values) else ""
+                graph_facts.append(f"Event: {event} | Requested {entities.attribute}: {value}")
             doc_ids.extend(result.get("gold_doc_ids", []))
-        elif entities.year:
-            result = self.graph.run_lookup(year=entities.year)
-            for event, gold in zip(
-                result.get("events", [])[:10], result.get("gold_athletes", [])[:10]
-            ):
-                graph_facts.append(f"Event: {event} | Gold: {gold}")
-            doc_ids.extend(result.get("gold_doc_ids", [])[:10])
 
         # Step 3: Hybrid retrieval is the default passage retriever for GraphRAG.
         embeddings = await self.llm.embed([question])
@@ -161,9 +244,14 @@ class GraphRAGPipeline:
             pipeline="graphrag",
             question=question,
             answer=answer,
-            llm_input_tokens=llm_result.input_tokens,
-            llm_output_tokens=llm_result.output_tokens,
-            total_llm_tokens=llm_result.input_tokens + llm_result.output_tokens,
+            llm_input_tokens=entities.input_tokens + llm_result.input_tokens,
+            llm_output_tokens=entities.output_tokens + llm_result.output_tokens,
+            total_llm_tokens=(
+                entities.input_tokens
+                + entities.output_tokens
+                + llm_result.input_tokens
+                + llm_result.output_tokens
+            ),
             context_tokens=context_tokens,
             latency_ms=latency_ms,
             retrieved_doc_ids=list(set(doc_ids)),
