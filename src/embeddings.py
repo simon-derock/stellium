@@ -393,7 +393,7 @@ class CohereEmbeddingClient:
     timeout_s: float = 60.0
     max_retries: int = 6
     request_interval_s: float = 3.2
-    max_concurrent_requests: int = 4
+    max_concurrent_requests: int = 1
     _last_request_time: float = field(default=0.0, init=False)
     _rate_limit_lock: threading.Lock = field(default_factory=threading.Lock, init=False)
 
@@ -404,13 +404,13 @@ class CohereEmbeddingClient:
             "COHERE_EMBEDDING_DIMENSION", os.environ.get("EMBEDDING_DIMENSION", "1024")
         )
         raw_batch_size = os.environ.get("COHERE_EMBEDDING_BATCH_SIZE", "96")
-        raw_workers = os.environ.get("COHERE_EMBEDDING_WORKERS", "4")
+        raw_workers = os.environ.get("COHERE_EMBEDDING_WORKERS", "1")
         return cls(
             api_key=os.environ.get("COHERE_KEY", "").strip(),
             model=os.environ.get("COHERE_EMBEDDING_MODEL", COHERE_EMBEDDING_MODEL),
             dimension=int(raw_dimension) if raw_dimension.isdigit() else 1024,
             batch_size=int(raw_batch_size) if raw_batch_size.isdigit() else 96,
-            max_concurrent_requests=int(raw_workers) if raw_workers.isdigit() else 4,
+            max_concurrent_requests=int(raw_workers) if raw_workers.isdigit() else 1,
         )
 
     @property
@@ -480,6 +480,13 @@ class CohereEmbeddingClient:
                         # Cohere can omit Retry-After on per-minute input throttles. Wait for
                         # the full rate window instead of burning retries inside the same one.
                         wait_s = retry_after if retry_after is not None else max(60.0, backoff)
+                        logger.warning(
+                            "Cohere embedding HTTP %s; retry_after=%s wait_s=%.1f response=%s",
+                            response.status_code,
+                            retry_after,
+                            wait_s,
+                            response.text[:300],
+                        )
                         time.sleep(wait_s)
                         backoff = min(backoff * 2, 30.0)
                         continue
