@@ -339,23 +339,22 @@ class LockedLLMSession:
         ) from last_exc
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
-        # Uniform embedding model across all pipelines & agents using JinaEmbeddingClient.
-        # Matches the 1024-dim HNSW vector index space in TigerGraph Savanna.
+        # Uses the configured corpus-aligned provider in TigerGraph's 1024-dim vector space.
         from src.embeddings import (
             GRAPH_EMBEDDING_DIMENSION,
-            GRAPH_EMBEDDING_MODEL,
-            JinaEmbeddingClient,
+            embedding_client_from_env,
+            is_graph_embedding_compatible,
         )
 
-        jina = JinaEmbeddingClient.from_env()
-        if not jina.is_configured:
-            raise RuntimeError("JINA_API_KEY is required for the TigerGraph embedding space")
-        if jina.model != GRAPH_EMBEDDING_MODEL or jina.dimension != GRAPH_EMBEDDING_DIMENSION:
+        embedding_client = embedding_client_from_env()
+        if not embedding_client.is_configured:
+            raise RuntimeError("A configured embedding API key is required for TigerGraph search")
+        if not is_graph_embedding_compatible(embedding_client):
             raise RuntimeError(
-                "Query embeddings must match the TigerGraph index: "
-                f"{GRAPH_EMBEDDING_MODEL} at {GRAPH_EMBEDDING_DIMENSION} dimensions"
+                "Query embeddings must match the TigerGraph index model and dimension: "
+                f"{GRAPH_EMBEDDING_DIMENSION}"
             )
-        return jina.embed_queries(texts)
+        return embedding_client.embed_queries(texts)
 
 
 def make_session(provider: str = "cloudflare") -> LockedLLMSession:

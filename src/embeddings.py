@@ -21,8 +21,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 _JINA_API_URL = "https://api.jina.ai/v1/embeddings"
+_COHERE_API_URL = "https://api.cohere.com/v2/embed"
 GRAPH_EMBEDDING_MODEL = "jina-embeddings-v5-text-small"
 GRAPH_EMBEDDING_DIMENSION = 1024
+COHERE_EMBEDDING_MODEL = "embed-v4.0"
 _DEFAULT_MODEL = GRAPH_EMBEDDING_MODEL
 _DEFAULT_DIMENSION = GRAPH_EMBEDDING_DIMENSION
 _JINA_TOKEN_WINDOW_S = 60.0
@@ -378,3 +380,151 @@ class JinaEmbeddingClient:
             f"Jina embedding request failed after {self.max_retries} attempts; "
             f"last error: {last_error}"
         ) from last_error
+
+
+@dataclass
+class CohereEmbeddingClient:
+    # Cohere v2 adapter with the same passage/query interface used by the pipelines.
+    api_key: str
+    model: str = COHERE_EMBEDDING_MODEL
+    dimension: int = GRAPH_EMBEDDING_DIMENSION
+    batch_size: int = 96
+    timeout_s: float = 60.0
+    max_retries: int = 6
+    request_interval_s: float = 3.2
+    _last_request_time: float = field(default=0.0, init=False)
+
+    @classmethod
+    def from_env(cls) -> CohereEmbeddingClient:
+        # Cohere is preferred when configured so ingestion and live query vectors stay aligned.
+        raw_dimension = os.environ.get(
+            "COHERE_EMBEDDING_DIMENSION", os.environ.get("EMBEDDING_DIMENSION", "1024")
+        )
+        raw_batch_size = os.environ.get("COHERE_EMBEDDING_BATCH_SIZE", "96")
+        return cls(
+            api_key=os.environ.get("COHERE_KEY", "").strip(),
+            model=os.environ.get("COHERE_EMBEDDING_MODEL", COHERE_EMBEDDING_MODEL),
+            dimension=int(raw_dimension) if raw_dimension.isdigit() else 1024,
+            batch_size=int(raw_batch_size) if raw_batch_size.isdigit() else 96,
+        )
+
+    @property
+    def is_configured(self) -> bool:
+        return bool(self.api_key)
+
+    def embed_passages(
+        self, texts: list[str], late_chunking: bool | None = None
+    ) -> list[list[float]]:
+        return self._embed(texts, input_type="search_document")
+
+    def embed_query(self, query: str) -> list[float]:
+        return self.embed_queries([query])[0]
+
+    def embed_queries(self, queries: list[str]) -> list[list[float]]:
+        return self._embed(queries, input_type="search_query")
+
+    def embed_text_matching(self, texts: list[str]) -> list[list[float]]:
+        return self._embed(texts, input_type="classification")
+
+    def _embed(self, texts: list[str], input_type: str) -> list[list[float]]:
+        if not texts:
+            return []
+        if not self.is_configured:
+            raise EmbeddingRequestError("COHERE_KEY is required to generate Cohere vectors")
+        if self.model != COHERE_EMBEDDING_MODEL or self.dimension != GRAPH_EMBEDDING_DIMENSION:
+            raise EmbeddingRequestError(
+                "TigerGraph requires Cohere embed-v4.0 output_dimension=1024"
+            )
+
+        vectors: list[list[float]] = []
+        for offset in range(0, len(texts), self.batch_size):
+            batch = texts[offset : offset + self.batch_size]
+            payload = {
+                "model": self.model,
+                "input_type": input_type,
+                "embedding_types": ["float"],
+                "output_dimension": self.dimension,
+                "texts": batch,
+            }
+            backoff = 1.0
+            for attempt in range(self.max_retries):
+                try:
+                    elapsed = time.monotonic() - self._last_request_time
+                    if self._last_request_time and elapsed < self.request_interval_s:
+                        time.sleep(self.request_interval_s - elapsed)
+                    self._last_request_time = time.monotonic()
+                    with httpx.Client(timeout=self.timeout_s) as client:
+                        response = client.post(
+                            _COHERE_API_URL,
+                            headers={
+                                "Authorization": f"Bearer {self.api_key}",
+                                "Content-Type": "application/json",
+                            },
+                            json=payload,
+                        )
+                    if response.status_code == 429 or response.status_code >= 500:
+                        if attempt + 1 == self.max_retries:
+                            detail = response.text[:400]
+                            raise EmbeddingRequestError(
+                                "Cohere embedding API remained unavailable after "
+                                f"{self.max_retries} attempts (HTTP {response.status_code}): "
+                                f"{detail}"
+                            )
+                        retry_after = _retry_after_seconds(response.headers.get("retry-after"))
+                        # Cohere can omit Retry-After on per-minute input throttles. Wait for
+                        # the full rate window instead of burning retries inside the same one.
+                        wait_s = retry_after if retry_after is not None else max(60.0, backoff)
+                        time.sleep(wait_s)
+                        backoff = min(backoff * 2, 30.0)
+                        continue
+                    response.raise_for_status()
+                    response_vectors = response.json().get("embeddings", {}).get("float", [])
+                    if not isinstance(response_vectors, list) or len(response_vectors) != len(
+                        batch
+                    ):
+                        raise EmbeddingRequestError(
+                            "Cohere returned an unexpected number of vectors"
+                        )
+                    validated: list[list[float]] = []
+                    for vector in response_vectors:
+                        if (
+                            not isinstance(vector, list)
+                            or len(vector) != self.dimension
+                            or any(
+                                isinstance(value, bool)
+                                or not isinstance(value, (int, float))
+                                or not math.isfinite(value)
+                                for value in vector
+                            )
+                            or not any(value != 0 for value in vector)
+                        ):
+                            raise EmbeddingRequestError("Cohere returned an invalid vector")
+                        validated.append([float(value) for value in vector])
+                    vectors.extend(validated)
+                    break
+                except (httpx.TransportError, httpx.TimeoutException) as exc:
+                    if attempt + 1 == self.max_retries:
+                        raise EmbeddingRequestError(
+                            f"Cohere embedding request failed after {self.max_retries} attempts"
+                        ) from exc
+                    time.sleep(backoff)
+                    backoff = min(backoff * 2, 30.0)
+        return vectors
+
+
+def embedding_client_from_env() -> CohereEmbeddingClient | JinaEmbeddingClient:
+    # Select Cohere when its key is configured; otherwise retain the established Jina path.
+    if os.environ.get("COHERE_KEY", "").strip():
+        return CohereEmbeddingClient.from_env()
+    return JinaEmbeddingClient.from_env()
+
+
+def is_graph_embedding_compatible(
+    client: CohereEmbeddingClient | JinaEmbeddingClient,
+) -> bool:
+    # Dimension alone is insufficient: query and passage vectors must share a model space.
+    if client.dimension != GRAPH_EMBEDDING_DIMENSION:
+        return False
+    if isinstance(client, CohereEmbeddingClient):
+        return client.model == COHERE_EMBEDDING_MODEL
+    return client.model == GRAPH_EMBEDDING_MODEL

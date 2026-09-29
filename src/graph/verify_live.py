@@ -10,9 +10,8 @@ from typing import Any
 from dotenv import load_dotenv
 
 from src.embeddings import (
-    GRAPH_EMBEDDING_DIMENSION,
-    GRAPH_EMBEDDING_MODEL,
-    JinaEmbeddingClient,
+    embedding_client_from_env,
+    is_graph_embedding_compatible,
 )
 from src.graph import GraphClient, connect
 from src.models import EvalQuestion
@@ -207,13 +206,14 @@ def main() -> int:
     # Run benchmarks
     if not args.skip_benchmarks:
         print("\n--- 4. Query Execution Benchmarks ---")
-        embedding_client = JinaEmbeddingClient.from_env()
-        if (
-            not embedding_client.is_configured
-            or embedding_client.model != GRAPH_EMBEDDING_MODEL
-            or embedding_client.dimension != GRAPH_EMBEDDING_DIMENSION
+        embedding_client = embedding_client_from_env()
+        if not embedding_client.is_configured or not is_graph_embedding_compatible(
+            embedding_client
         ):
-            print("ERROR: A matching Jina query embedding configuration is required.")
+            print(
+                "ERROR: A matching model and 1024-dimensional query embedding "
+                "configuration is required."
+            )
             return 1
         dataset_path = "hackathon-resources/questions/eval_public.jsonl"
         with open(dataset_path, encoding="utf-8") as question_file:

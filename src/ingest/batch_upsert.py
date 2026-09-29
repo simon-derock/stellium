@@ -18,7 +18,10 @@ from src.coprocessor import build_filter_mask
 from src.embeddings import (
     GRAPH_EMBEDDING_DIMENSION,
     GRAPH_EMBEDDING_MODEL,
+    CohereEmbeddingClient,
     JinaEmbeddingClient,
+    embedding_client_from_env,
+    is_graph_embedding_compatible,
 )
 from src.graph import GraphClient, connect
 from src.graph.mock import create_mock_graph_client
@@ -184,7 +187,7 @@ class IngestionStats:
 def prepare_ingestion_plan(
     corpus_path: str | Path,
     batch_size: int = 500,
-    embedding_client: JinaEmbeddingClient | None = None,
+    embedding_client: CohereEmbeddingClient | JinaEmbeddingClient | None = None,
     cache_path: Path = DEFAULT_CACHE_PATH,
 ) -> IngestionPlan:
     # Reads corpus.jsonl, builds all vertices and relational edges, and partitions them.
@@ -289,13 +292,10 @@ def prepare_ingestion_plan(
 
     # Generate or reuse only passage vectors bound to this exact chunk text and model.
     source_texts = {chunk.chunk_id: chunk.text for chunk in all_chunks}
-    if embedding_client is not None and (
-        embedding_client.model != GRAPH_EMBEDDING_MODEL
-        or embedding_client.dimension != GRAPH_EMBEDDING_DIMENSION
-    ):
+    if embedding_client is not None and not is_graph_embedding_compatible(embedding_client):
         raise ValueError(
-            "Corpus passage embeddings must match the TigerGraph index: "
-            f"{GRAPH_EMBEDDING_MODEL} at {GRAPH_EMBEDDING_DIMENSION} dimensions"
+            "Corpus passage embeddings must match the configured TigerGraph model and "
+            f"dimension ({GRAPH_EMBEDDING_DIMENSION})"
         )
     cached_embeddings = load_chunk_embeddings_cache(
         cache_path,
@@ -542,10 +542,12 @@ def main() -> None:
         pass
 
     cache_file = Path(args.cache_path)
-    embedding_client = JinaEmbeddingClient.from_env() if (args.embed or args.embed_only) else None
+    embedding_client = embedding_client_from_env() if (args.embed or args.embed_only) else None
     if embedding_client:
+        provider_name = "Cohere" if isinstance(embedding_client, CohereEmbeddingClient) else "Jina"
         print(
-            f"[Stream 1] Jina Embeddings enabled: model={embedding_client.model}, dim={embedding_client.dimension}"
+            f"[Stream 1] {provider_name} embeddings enabled: "
+            f"model={embedding_client.model}, dim={embedding_client.dimension}"
         )
 
     print(f"[Stream 1] Partitioning corpus: {args.corpus_path} (batch_size={args.batch_size})")

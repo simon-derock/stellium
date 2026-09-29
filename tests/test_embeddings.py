@@ -7,7 +7,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.embeddings import JinaEmbeddingClient, RateLimiter, _retry_after_seconds
+from src.embeddings import (
+    CohereEmbeddingClient,
+    JinaEmbeddingClient,
+    RateLimiter,
+    _retry_after_seconds,
+    embedding_client_from_env,
+)
 
 
 # Test RateLimiter enforces minimum delay between successive calls
@@ -57,6 +63,52 @@ def test_client_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("JINA_EMBEDDING_API_KEY", raising=False)
     unconf_client = JinaEmbeddingClient.from_env()
     assert unconf_client.is_configured is False
+
+
+def test_cohere_key_selects_cohere_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("COHERE_KEY", "cohere-test-key")
+    client = embedding_client_from_env()
+    assert isinstance(client, CohereEmbeddingClient)
+    assert client.model == "embed-v4.0"
+    assert client.dimension == 1024
+    assert client.batch_size == 96
+
+
+def test_cohere_batch_uses_query_and_document_modes() -> None:
+    client = CohereEmbeddingClient(api_key="test-key", batch_size=2, request_interval_s=0)
+    fake_response = MagicMock()
+    fake_response.status_code = 200
+    fake_response.headers = {}
+    fake_response.json.return_value = {"embeddings": {"float": [[0.25] * 1024] * 2}}
+
+    with patch("httpx.Client.post", return_value=fake_response) as post:
+        passages = client.embed_passages(["one", "two"])
+        queries = client.embed_queries(["first", "second"])
+
+    assert len(passages) == len(queries) == 2
+    assert all(len(vector) == 1024 for vector in passages + queries)
+    assert post.call_count == 2
+    assert post.call_args_list[0].kwargs["json"]["input_type"] == "search_document"
+    assert post.call_args_list[1].kwargs["json"]["input_type"] == "search_query"
+
+
+def test_cohere_429_waits_for_rate_window() -> None:
+    client = CohereEmbeddingClient(api_key="test-key", request_interval_s=0)
+    rate_limited = MagicMock()
+    rate_limited.status_code = 429
+    rate_limited.headers = {}
+    successful = MagicMock()
+    successful.status_code = 200
+    successful.json.return_value = {"embeddings": {"float": [[0.25] * 1024]}}
+
+    with (
+        patch("httpx.Client.post", side_effect=[rate_limited, successful]),
+        patch("src.embeddings.time.sleep") as sleep,
+    ):
+        vectors = client.embed_passages(["retry after the rate window"])
+
+    assert len(vectors) == 1
+    sleep.assert_called_once_with(60.0)
 
 
 # Unconfigured embeddings fail closed instead of feeding zero vectors to retrieval.
