@@ -108,6 +108,7 @@ When you receive the Observation, you must reflect on the result:
 - If a graph query returns multiple candidate events, never assume the first is correct. Refine the query with all distinguishing qualifiers from the original question or gather evidence to select the matching event.
 - For venue/date retrieval, copy the date fragment in the same order and wording used in the question or corpus. The corpus contains both forms such as "August 14" and "16 August"; do not translate one order into the other. Include date qualifiers such as "heats & final" when present in the question.
 - Use gsql_aggregate only when the question asks how many events match criteria. Use gsql_lookup for an attribute (including the number of nations or competitors) of one named event.
+- A Thought by itself is never a final answer. Use a tool, or emit an explicit Final Answer only when supported by observations already in this investigation.
 
 To conclude, you may either call the finish tool or output:
 Thought: I have sufficient evidence to answer accurately.
@@ -541,6 +542,7 @@ class AgenticPipeline:
         prev_tool_category: str | None = None
         tool_cache: dict[str, tuple[dict[str, Any], list[str]]] = {}
         bounded_aggregate_count: int | None = None
+        invalid_response_count = 0
 
         for iteration in range(1, self.max_iterations + 1):
             t_call = time.perf_counter()
@@ -579,11 +581,23 @@ class AgenticPipeline:
 
             # Direct response generated without tool invocation
             if not step_parsed.action:
-                # Direct synthesis branch
-                state.final_answer = sanitize_output(llm_res.content.strip())
-                state.stopping_reason = "Single-step direct reasoning completed"
-                state.confidence_score = 0.80
-                break
+                # Reject unstructured thoughts instead of treating reasoning text as an answer.
+                invalid_response_count += 1
+                messages.extend(
+                    [
+                        {"role": "assistant", "content": llm_res.content},
+                        {
+                            "role": "user",
+                            "content": (
+                                "Protocol error: provide a valid Action and Action Input, or an "
+                                "explicit Final Answer grounded in prior tool observations. A "
+                                "Thought or unstructured answer is not a terminal response."
+                            ),
+                        },
+                    ]
+                )
+                state.stopping_reason = "Rejected unstructured ReAct response and requested retry"
+                continue
 
             # Execute the selected tool
             action_name = step_parsed.action
@@ -794,6 +808,7 @@ class AgenticPipeline:
             "total_tokens": total_tokens,
             "total_latency_ms": elapsed_ms,
             "confidence_score": state.confidence_score,
+            "invalid_response_count": invalid_response_count,
         }
 
         return PipelineResult(

@@ -35,6 +35,8 @@ Verified status (2026-09-29): the agent is a bounded cyclic ReAct loop; the Tige
 
 Follow-up query correction (2026-09-29): trace review found lookup misses where question wording supplied a possessive gender (`Women's`) but Event stores the category (`Women`). Client-side gender normalization and case-insensitive lookup GSQL are implemented with regression tests; the local quality gate passes. A live read-only probe still returns no candidates for gender-filtered lookup, while year/sport queries without gender do return them, so the deployed compiled query needs reinstalling and verification. This fix is not included in the 84/100 benchmark and no recovery is claimed until a fresh live run.
 
+Agent protocol correction (2026-09-29): the ReAct harness previously accepted any nonempty response without a parsed action as a terminal answer, including thought-only or malformed text. It now rejects that response, feeds a protocol correction into the cyclic loop, and records `invalid_response_count` in the trace. Regression test and full local quality gate pass (181 passed, 3 skipped). This change has not been included in a new public benchmark; measure its accuracy and token/latency costs before claiming improvement.
+
 The primary quality objective is **at least 98% measured answer accuracy**, pursued without hard-coded answers or hidden-set tuning. Treat this as a target, not a result or guarantee. Report accuracy with completeness, evidence/citation quality, latency, token use, and question-category breakdowns.
 
 ---

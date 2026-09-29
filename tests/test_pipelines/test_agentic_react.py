@@ -218,6 +218,56 @@ async def test_agentic_fallback_synthesis_uses_tool_observations_and_value_only_
 
 
 @pytest.mark.asyncio
+async def test_agentic_rejects_unstructured_thought_instead_of_returning_it() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+        max_iterations=2,
+    )
+    responses = [
+        LLMCallResult(
+            content="Thought: I think the answer is an unsupported guess.",
+            input_tokens=40,
+            output_tokens=12,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content='Thought: Verify through the graph.\nAction: gsql_lookup\nAction Input: {"event_name_fragment":"winner","attribute":"gold_athlete"}',
+            input_tokens=50,
+            output_tokens=25,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+        LLMCallResult(
+            content="Not found in corpus",
+            input_tokens=60,
+            output_tokens=5,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=5.0,
+        ),
+    ]
+
+    with (
+        patch.object(graph, "run_lookup", return_value={}),
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run(qid="malformed-react-output", question="Who won?")
+
+    assert result.answer == "Not found in corpus"
+    assert result.agentic_trace is not None
+    assert result.agentic_trace["invalid_response_count"] == 1
+    assert chat.await_count == 3
+    retry_messages = chat.await_args_list[1].args[0]
+    assert any("protocol error" in message["content"].lower() for message in retry_messages)
+
+
+@pytest.mark.asyncio
 async def test_agentic_react_strategy_adaptation() -> None:
     graph = create_mock_graph_client()
     coprocessor = Coprocessor()
