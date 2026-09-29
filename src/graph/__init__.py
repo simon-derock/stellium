@@ -728,17 +728,27 @@ class GraphClient:
         if year:
             date_fragment = date_fragment.replace(str(year), "").strip(" ,–—-()")
         t0 = time.perf_counter()
-        results = self.conn.runInstalledQuery(
-            "get_event_by_venue_date",
-            params={
-                "venue_name_fragment": venue_fragment,
-                "target_date_fragment": date_fragment,
-                "target_year": year,
-            },
-            timeout=10000,
-        )
+        venue_words = venue_fragment.split()
+        venue_candidates = [venue_fragment]
+        while (date_fragment or year) and len(venue_words) > 3 and len(venue_candidates) < 4:
+            venue_words.pop()
+            venue_candidates.append(" ".join(venue_words))
+
+        r: dict[str, Any] = {}
+        for candidate in venue_candidates:
+            results = self.conn.runInstalledQuery(
+                "get_event_by_venue_date",
+                params={
+                    "venue_name_fragment": candidate,
+                    "target_date_fragment": date_fragment,
+                    "target_year": year,
+                },
+                timeout=10000,
+            )
+            r = results[0] if results else {}
+            if r.get("events"):
+                break
         latency_ms = (time.perf_counter() - t0) * 1000
-        r = results[0] if results else {}
         return {
             "events": r.get("events", []),
             "gold_athletes": r.get("gold_athletes", []),

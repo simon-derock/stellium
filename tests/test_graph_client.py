@@ -67,7 +67,7 @@ def test_graph_upserts_preserve_schema_fields_and_limits() -> None:
 
 def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
     connection = MagicMock()
-    connection.runInstalledQuery.return_value = [{}]
+    connection.runInstalledQuery.return_value = [{"events": ["matched event"]}]
     client = GraphClient(conn=connection)
     hostile_value = "Athletics' OR 1=1 --"
 
@@ -100,6 +100,43 @@ def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
     assert calls[4].kwargs["params"]["event_name_fragment"] == hostile_value
     assert calls[4].kwargs["params"]["gender"] == "women"
     assert all("timeout" in call.kwargs for call in calls)
+
+
+def test_multihop_relaxes_venue_fragment_only_after_empty_result() -> None:
+    connection = MagicMock()
+    connection.runInstalledQuery.side_effect = [
+        [{"events": [], "gold_athletes": []}],
+        [{"events": [], "gold_athletes": []}],
+        [{"events": ["Judo event"], "gold_athletes": ["Athlete"]}],
+    ]
+    client = GraphClient(conn=connection)
+
+    result = client.run_multihop(
+        venue_fragment="Beijing Science and Technology University Gymnasium",
+        date_fragment="August 12, 2008",
+        year=2008,
+    )
+
+    assert result["events"] == ["Judo event"]
+    assert result["gold_athletes"] == ["Athlete"]
+    calls = connection.runInstalledQuery.call_args_list
+    assert [call.kwargs["params"]["venue_name_fragment"] for call in calls] == [
+        "Beijing Science and Technology University Gymnasium",
+        "Beijing Science and Technology University",
+        "Beijing Science and Technology",
+    ]
+    assert all(call.kwargs["params"]["target_date_fragment"] == "August 12" for call in calls)
+    assert all(call.kwargs["params"]["target_year"] == 2008 for call in calls)
+
+
+def test_multihop_does_not_broaden_without_date_or_year_constraints() -> None:
+    connection = MagicMock()
+    connection.runInstalledQuery.return_value = [{"events": []}]
+    client = GraphClient(conn=connection)
+
+    client.run_multihop(venue_fragment="Beijing Science and Technology University Gymnasium")
+
+    assert connection.runInstalledQuery.call_count == 1
 
 
 def test_graph_gender_filters_normalize_possessive_question_forms() -> None:

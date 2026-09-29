@@ -30,6 +30,7 @@
 | **TASK-014** | Correct Sparse Retrieval Metrics and Audit Public Gold-Document Coverage | `master-agent-001` | **DONE** | `main` | 175 passed, 3 skipped | `502df22` |
 | **TASK-015** | Publish Current Three-Pipeline Baseline and Submission Artifacts | `master-agent-001` | **IN PROGRESS** | `main` | 177 passed, 3 skipped | `1096c6d` |
 | **TASK-016** | Temporal Graph Query and Entity-Linking Corrections | `master-agent-001` | **IN PROGRESS** | `main` | 178 passed, 3 skipped | `a42eac7`, `589a9a2` |
+| **TASK-017** | Recover Empty Venue/Date Queries with Bounded Constraint-Preserving Broadening | `master-agent-001` | **IN PROGRESS** | `main` | 183 passed, 3 skipped | pending |
 
 ---
 
@@ -62,3 +63,4 @@
 1. **Deploy and Measure Gender Normalization**: A code-level canonicalizer now handles possessive gender filters, and local tests pass. The live compiled lookup query still returns no candidates when this filter is active; install the updated GSQL and run focused lookup/temporal checks before counting recoveries. Then rerun the public benchmark if relevant scores change.
 2. **Rerun and Audit ReAct Reliability**: The harness now rejects thought-only or malformed nonterminal output instead of returning it as an answer; `invalid_response_count` is captured in traces. The latest full benchmark predates this code change. Re-run the public set after live query corrections and compare EM, completeness, tokens, and latency, then investigate remaining multi-hop/superlative errors from traces.
 3. **Measure Retrieval and Finish Submission Surface**: Agentic chose `hybrid_search` 0/100 times; run answer-level BM25/RRF ablations before claiming an accuracy benefit. Complete the query-backed graph dashboard, maintained frontend, demo/writeup, richer completeness/grounding metrics, and final cost/accuracy comparisons. Keep hidden data out of tuning. The 98% objective remains unmet.
+4. **Verify Recent Query Recovery**: The venue-fragment fallback is covered by local tests but has not been deployed to the compiled Savanna query or measured on public data. Mistral live calls currently return HTTP 429; Gemini must not be used until its exposed key is rotated.
