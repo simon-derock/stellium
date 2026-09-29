@@ -40,6 +40,24 @@ def test_infobox_extraction() -> None:
     assert infobox.prev_year == 2008
     assert infobox.next_year == 2016
     assert infobox.gold_noc == "HUN"
+    assert infobox.gold_athlete == "Rudolf Dombi, Roland Kökény"
+
+
+def test_infobox_preserves_internal_capital_when_article_confirms_full_name() -> None:
+    text = """[Infobox Olympic event]
+  event: Women's trampoline
+  games: 2012 Summer
+  gold: Rosannagh MacLennan
+  goldNOC: CAN
+
+Results
+1 | He Wenna | CHN
+4 | Rosannagh MacLennan | CAN
+"""
+
+    parsed = parse_infobox(text)
+
+    assert parsed.gold_athlete == "Rosannagh MacLennan"
 
 
 def test_infobox_gender_uses_explicit_event_title_qualifier() -> None:
@@ -59,6 +77,16 @@ def test_split_athlete_names() -> None:
     names_silver = _split_athlete_names("Fernando PimentaEmanuel Silva")
     assert "Fernando Pimenta" in names_silver
     assert "Emanuel Silva" in names_silver
+
+    assert _split_athlete_names("Rosannagh MacLennan") == ["Rosannagh MacLennan"]
+    assert _split_athlete_names("Rosannagh MacLennanOther Person") == [
+        "Rosannagh MacLennan",
+        "Other Person",
+    ]
+    assert _split_athlete_names("Michel AndrieuxJean-Christophe Rolland") == [
+        "Michel Andrieux",
+        "Jean-Christophe Rolland",
+    ]
 
 
 def test_chunking_doubly_linked_pointers() -> None:

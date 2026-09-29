@@ -93,9 +93,30 @@ _NAME_SPLIT_RE = re.compile(r"(?<=[a-züöäåæøéèà])(?=[A-ZÜÖÄÅÆØÉ�
 
 
 def _split_athlete_names(raw: str) -> list[str]:
-    # Handle both space-separated and concatenated name formats.
-    parts = _NAME_SPLIT_RE.split(raw.strip())
-    return [p.strip() for p in parts if p.strip()]
+    # Accept camel-case cuts only when every resulting name has at least two tokens.
+    value = raw.strip()
+    cuts = []
+    for match in _NAME_SPLIT_RE.finditer(value):
+        first_token = value[match.start() :].split(maxsplit=1)[0]
+        has_internal_camel_case = any(
+            character.isupper() and first_token[index - 1].islower()
+            for index, character in enumerate(first_token[1:], start=1)
+        )
+        if not has_internal_camel_case:
+            cuts.append(match.start())
+    boundaries = [0, *cuts, len(value)]
+    best: dict[int, list[str]] = {len(value): []}
+    for start_index in range(len(boundaries) - 2, -1, -1):
+        start = boundaries[start_index]
+        options: list[list[str]] = []
+        for end in boundaries[start_index + 1 :]:
+            suffix = best.get(end)
+            name = value[start:end].strip()
+            if suffix is not None and len(name.split()) >= 2:
+                options.append([name, *suffix])
+        if options:
+            best[start] = max(options, key=len)
+    return best.get(0, [value])
 
 
 def parse_infobox(text: str, title: str = "") -> ParsedInbox:
