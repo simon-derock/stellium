@@ -397,6 +397,7 @@ class Coprocessor:
         filter_mask: int = 0,
         candidate_k: int = 30,
         final_top_k: int = 5,
+        distinct_documents: bool = True,
     ) -> HybridRetrievalResult:
         # Full pipeline: BM25 → RRF fusion with dense results → cross-encoder rerank.
         # dense_results: [(chunk_id, cosine_score)] from TigerGraph
@@ -427,9 +428,15 @@ class Coprocessor:
         reranker = _get_reranker()
         pairs = [(query, chunk.raw_text) for chunk in candidates]
         scores = reranker.predict(pairs)
-        reranked = sorted(zip(candidates, scores), key=lambda item: item[1], reverse=True)[
-            :final_top_k
-        ]
+        ranked = sorted(zip(candidates, scores), key=lambda item: item[1], reverse=True)
+        if distinct_documents:
+            # One passage per article: near-duplicate chunks of the same event otherwise fill
+            # several of the few context slots (public set: +1 answer in context, +2% coverage).
+            best_per_doc: dict[str, tuple[Chunk, float]] = {}
+            for chunk, score in ranked:
+                best_per_doc.setdefault(chunk.doc_id, (chunk, score))
+            ranked = list(best_per_doc.values())
+        reranked = ranked[:final_top_k]
         return HybridRetrievalResult(
             chunks=reranked,
             dense_candidate_count=len(dense_results),

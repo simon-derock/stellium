@@ -291,3 +291,25 @@ def test_local_reranker_batches_candidates_without_dropping_scores(
     assert session.batch_sizes == [2, 2, 1]
     assert scores == [4.0, 4.0, 6.0, 5.0, 5.0]
     assert reranker.latency_ms >= 0
+
+
+def test_hybrid_search_keeps_one_passage_per_document(monkeypatch: pytest.MonkeyPatch) -> None:
+    chunks = [
+        Chunk(
+            chunk_id=f"{doc}#{i}", doc_id=doc, chunk_index=i, section_title=doc, text=t, raw_text=t
+        )
+        for doc, i, t in [("d1", 0, "alpha one"), ("d1", 1, "alpha two"), ("d2", 0, "alpha three")]
+    ]
+    coprocessor = Coprocessor()
+    coprocessor.build(chunks)
+    scores = {"alpha one": 0.9, "alpha two": 0.8, "alpha three": 0.1}
+    reranker = SimpleNamespace(
+        predict=lambda pairs: [scores[text] for _, text in pairs], model_name="m", latency_ms=0.0
+    )
+    monkeypatch.setattr(coprocessor_module, "_get_reranker", lambda: reranker)
+
+    distinct = coprocessor.hybrid_search("alpha", dense_results=[], final_top_k=2)
+    raw = coprocessor.hybrid_search("alpha", [], final_top_k=2, distinct_documents=False)
+
+    assert [chunk.chunk_id for chunk, _ in distinct.chunks] == ["d1#0", "d2#0"]
+    assert [chunk.chunk_id for chunk, _ in raw.chunks] == ["d1#0", "d1#1"]
