@@ -437,3 +437,19 @@ def test_exhausted_language_model_returns_503_not_a_fabricated_answer(
     assert resp.status_code == 503
     assert resp.headers["retry-after"] == "30"
     assert "monthly call limit" in resp.json()["detail"]
+
+
+def test_metrics_endpoint_serves_the_committed_benchmark_document() -> None:
+    resp = client.get("/api/v1/metrics")
+    assert resp.status_code == 200
+    pipelines = resp.json()["pipelines"]
+    assert set(pipelines) == {"rag", "graphrag", "agentic"}
+    assert pipelines["agentic"]["overall"]["questions"] == 100
+
+
+def test_presets_list_public_questions_without_answers() -> None:
+    resp = client.get("/api/v1/presets")
+    assert resp.status_code == 200
+    presets = resp.json()
+    assert len(presets) == 100
+    assert set(presets[0]) == {"qid", "qtype", "question"}

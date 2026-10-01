@@ -10,10 +10,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -306,6 +308,35 @@ async def evaluate_batch(req: BatchEvalRequest) -> list[dict[str, Any]]:
             results.append(entry)
 
     return results
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_METRICS_PATH = _REPO_ROOT / "docs" / "metrics" / "public.json"
+_PUBLIC_QUESTIONS = _REPO_ROOT / "hackathon-resources" / "questions" / "eval_public.jsonl"
+
+
+@app.get("/api/v1/metrics")
+async def benchmark_metrics() -> dict[str, Any]:
+    # The committed benchmark summary that the dashboard renders; never recomputed per request.
+    if not _METRICS_PATH.exists():
+        raise HTTPException(status_code=404, detail="No benchmark metrics have been published")
+    metrics: dict[str, Any] = json.loads(_METRICS_PATH.read_text(encoding="utf-8"))
+    return metrics
+
+
+@app.get("/api/v1/presets")
+async def preset_questions() -> list[dict[str, str]]:
+    # Public questions for the demo picker, with gold answers stripped.
+    if not _PUBLIC_QUESTIONS.exists():
+        return []
+    presets = []
+    for line in _PUBLIC_QUESTIONS.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            question = json.loads(line)
+            presets.append(
+                {key: str(question[key]) for key in ("qid", "qtype", "question") if key in question}
+            )
+    return presets
 
 
 @app.get("/api/v1/graph/snapshot", response_model=SnapshotDTO)
