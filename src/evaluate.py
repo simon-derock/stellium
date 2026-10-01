@@ -338,6 +338,11 @@ class EvaluationHarness:
             f"Benchmarking {len(questions)} questions across pipelines: {pipeline_names}...",
             file=sys.stderr,
         )
+        if self.provider != "offline" and {"rag", "graphrag"} & set(pipeline_names):
+            # One batched request warms the query-embedding cache for every question up front.
+            pending = [q.question for q in questions if q.qid not in completed_records]
+            if pending:
+                await self.session_factory(self.provider).embed(pending)
 
         all_records: list[dict[str, Any]] = []
 

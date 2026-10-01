@@ -3,6 +3,8 @@
 # Features adaptive token-bucket rate limiting with HTTP response header feedback.
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import math
 import os
@@ -11,6 +13,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from pathlib import Path
 from typing import Any, Literal
 
 import httpx
@@ -574,3 +577,65 @@ def is_graph_embedding_compatible(
     if isinstance(client, CohereEmbeddingClient):
         return client.model == COHERE_EMBEDDING_MODEL
     return client.model == GRAPH_EMBEDDING_MODEL
+
+
+class QueryEmbeddingCache:
+    # Query vectors are deterministic for a model, dimension, and text, so a benchmark rerun
+    # or a question shared by several pipelines never pays for the same embedding twice.
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self._lock = threading.Lock()
+        self._vectors: dict[str, list[float]] = {}
+        if path.exists():
+            with path.open(encoding="utf-8") as cache_file:
+                for line in cache_file:
+                    if line.strip():
+                        record = json.loads(line)
+                        self._vectors[str(record["key"])] = [float(v) for v in record["vector"]]
+
+    @staticmethod
+    def key(model: str, dimension: int, text: str) -> str:
+        return hashlib.sha256(f"{model}|{dimension}|search_query|{text}".encode()).hexdigest()
+
+    def get(self, key: str) -> list[float] | None:
+        with self._lock:
+            return self._vectors.get(key)
+
+    def put(self, key: str, vector: list[float]) -> None:
+        with self._lock:
+            if key in self._vectors:
+                return
+            self._vectors[key] = vector
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with self.path.open("a", encoding="utf-8") as cache_file:
+                cache_file.write(json.dumps({"key": key, "vector": vector}) + "\n")
+
+
+_query_caches: dict[str, QueryEmbeddingCache] = {}
+
+
+def query_embedding_cache() -> QueryEmbeddingCache | None:
+    # STELLIUM_QUERY_EMBEDDING_CACHE picks the file; "off" disables caching.
+    location = os.environ.get("STELLIUM_QUERY_EMBEDDING_CACHE", "data/query_embedding_cache.jsonl")
+    if location.strip().casefold() in {"", "off", "0", "false"}:
+        return None
+    if location not in _query_caches:
+        _query_caches[location] = QueryEmbeddingCache(Path(location))
+    return _query_caches[location]
+
+
+def cached_query_embeddings(
+    client: CohereEmbeddingClient | JinaEmbeddingClient, texts: list[str]
+) -> list[list[float]]:
+    cache = query_embedding_cache()
+    if cache is None:
+        return client.embed_queries(texts)
+    keys = [QueryEmbeddingCache.key(client.model, client.dimension, text) for text in texts]
+    missing = list(
+        dict.fromkeys(text for text, key in zip(texts, keys, strict=True) if cache.get(key) is None)
+    )
+    if missing:
+        for text, vector in zip(missing, client.embed_queries(missing), strict=True):
+            cache.put(QueryEmbeddingCache.key(client.model, client.dimension, text), vector)
+    vectors = [cache.get(key) for key in keys]
+    return [vector for vector in vectors if vector is not None]

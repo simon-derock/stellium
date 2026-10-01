@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -275,3 +276,22 @@ def test_custom_jina_models(monkeypatch: pytest.MonkeyPatch) -> None:
 
     monkeypatch.setenv("JINA_EMBEDDING_MODEL", "jina-embeddings-v5-text-small")
     assert JinaEmbeddingClient.from_env().model == "jina-embeddings-v5-text-small"
+
+
+def test_query_embeddings_are_cached_and_batched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from src.embeddings import cached_query_embeddings
+
+    monkeypatch.setenv("STELLIUM_QUERY_EMBEDDING_CACHE", str(tmp_path / "queries.jsonl"))
+    client = MagicMock(model="embed-v4.0", dimension=1024)
+    client.embed_queries.side_effect = lambda texts: [[float(len(t))] * 1024 for t in texts]
+
+    first = cached_query_embeddings(client, ["a", "bb", "a"])
+    second = cached_query_embeddings(client, ["bb", "ccc"])
+
+    assert [vector[0] for vector in first] == [1.0, 2.0, 1.0]
+    assert [vector[0] for vector in second] == [2.0, 3.0]
+    # Duplicates and cached texts are never sent again.
+    assert [call.args[0] for call in client.embed_queries.call_args_list] == [["a", "bb"], ["ccc"]]
+    assert len((tmp_path / "queries.jsonl").read_text().splitlines()) == 3

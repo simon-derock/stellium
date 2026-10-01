@@ -684,6 +684,7 @@ class LockedLLMSession:
             return [[0.0] * 1024 for _ in texts]
         from src.embeddings import (
             GRAPH_EMBEDDING_DIMENSION,
+            cached_query_embeddings,
             embedding_client_from_env,
             is_graph_embedding_compatible,
         )
@@ -696,7 +697,7 @@ class LockedLLMSession:
                 "Query embeddings must match the TigerGraph index model and dimension: "
                 f"{GRAPH_EMBEDDING_DIMENSION}"
             )
-        return embedding_client.embed_queries(texts)
+        return cached_query_embeddings(embedding_client, texts)
 
 
 def make_session(provider: str = "cloudflare") -> LockedLLMSession:
