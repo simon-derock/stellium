@@ -119,6 +119,19 @@ def _split_athlete_names(raw: str) -> list[str]:
     return best.get(0, [value])
 
 
+def _games_year_and_season(games_field: str, title: str) -> tuple[int | None, str | None]:
+    # The canonical article title names the Games, so it wins over the infobox "games" field,
+    # which is missing for 21 corpus events and names a neighbouring edition for 5 more.
+    title_games = _OLYMPIC_TITLE_RE.match(title.strip()) if title else None
+    if title_games:
+        return int(title_games.group(2)), title_games.group(3).capitalize()
+    year_match = _YEAR_RE.search(games_field)
+    year = int(year_match.group(1)) if year_match else None
+    lowered = games_field.lower()
+    season = "Summer" if "summer" in lowered else "Winter" if "winter" in lowered else None
+    return year, season
+
+
 def parse_infobox(text: str, title: str = "") -> ParsedInbox:
     # Extract structured fields from the [Infobox Olympic event] header block.
     # Returns ParsedInbox with None values for missing fields.
@@ -144,19 +157,7 @@ def parse_infobox(text: str, title: str = "") -> ParsedInbox:
                 if canonical:
                     fields[canonical] = val
 
-    # Extract year from "games" field or any 4-digit year found.
-    year: int | None = None
-    games_str = fields.get("games", "")
-    year_match = _YEAR_RE.search(games_str)
-    if year_match:
-        year = int(year_match.group(1))
-
-    # Extract season
-    season: str | None = None
-    if "summer" in games_str.lower():
-        season = "Summer"
-    elif "winter" in games_str.lower():
-        season = "Winter"
+    year, season = _games_year_and_season(fields.get("games", ""), title)
 
     # Extract sport from infobox or fallback to document title
     sport = fields.get("sport")

@@ -172,3 +172,15 @@ def test_later_chunks_keep_document_title_in_embedding_text() -> None:
     assert chunks[1].text.startswith(f"Title: {title}\n\n")
     assert "Qualification round results" in chunks[1].raw_text
     assert chunks[1].infobox is None
+
+
+def test_parse_infobox_takes_games_year_and_season_from_canonical_title() -> None:
+    # The infobox "games" field can name a neighbouring edition or be absent; the title wins.
+    text = "[Infobox Olympic event]\ngames: 1984 Summer Olympics\ncompetitors: 42\n\nBody."
+    parsed = parse_infobox(text, title="Sailing at the 1988 Summer Olympics – Women's 470")
+    assert (parsed.year, parsed.season, parsed.competitor_count) == (1988, "Summer", 42)
+
+    missing = parse_infobox(
+        "Intro only.", title="Ice hockey at the 2010 Winter Olympics – Men's tournament"
+    )
+    assert (missing.year, missing.season) == (2010, "Winter")
