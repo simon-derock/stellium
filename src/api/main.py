@@ -95,7 +95,7 @@ def get_coprocessor() -> Coprocessor:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global _coprocessor, _graph
+    global _coprocessor
     # Startup: load corpus into memory coprocessor
     corpus_path = "hackathon-resources/corpus/corpus.jsonl"
     if os.path.exists(corpus_path):

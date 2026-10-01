@@ -320,3 +320,72 @@ def test_batch_eval_bypasses_input_guards() -> None:
         assert len(data) == 1
         assert data[0]["qid"] == "q1"
         assert "agentic_answer" in data[0]
+
+
+def _reset_graph_selection(monkeypatch: pytest.MonkeyPatch, **env: str) -> list[str]:
+    # Isolate graph selection from the developer's .env and cached clients.
+    loaded: list[str] = []
+    monkeypatch.setattr(api_main, "_graph", None)
+    monkeypatch.setattr(api_main, "_load_graph_environment", lambda: loaded.append("dotenv"))
+    for name in ("TG_USE_MOCK", "TG_HOST"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    return loaded
+
+
+def test_query_without_graph_configuration_returns_503_not_mock_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    loaded = _reset_graph_selection(monkeypatch)
+    resp = client.post("/api/v1/query/rag", json={"query": "Who won the 2008 men's marathon?"})
+    assert resp.status_code == 503
+    assert "TG_HOST is not configured" in resp.json()["detail"]
+    # Environment files load before TG_HOST is checked.
+    assert loaded == ["dotenv"]
+
+
+def test_graph_connection_failure_returns_503_without_mock_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _reset_graph_selection(monkeypatch, TG_HOST="https://graph.invalid")
+    monkeypatch.setattr(api_main, "wait_for_graph_ready", lambda host, timeout_s: 0.0)
+
+    def fail_connect() -> object:
+        raise ConnectionError("unreachable")
+
+    monkeypatch.setattr(api_main, "connect", fail_connect)
+    mock_factory = MagicMock()
+    monkeypatch.setattr(api_main, "_get_mock_graph", mock_factory)
+
+    resp = client.post("/api/v1/query/agentic", json={"query": "Who won the marathon in 2008?"})
+
+    assert resp.status_code == 503
+    assert "refusing to substitute mock graph data" in resp.json()["detail"]
+    mock_factory.assert_not_called()
+
+
+def test_explicit_mock_mode_selects_mock_graph(monkeypatch: pytest.MonkeyPatch) -> None:
+    _reset_graph_selection(monkeypatch, TG_USE_MOCK="true")
+    sentinel = MagicMock()
+    monkeypatch.setattr(api_main, "_get_mock_graph", lambda: sentinel)
+    assert api_main.get_graph() is sentinel
+
+
+def test_live_graph_is_created_once_after_workspace_is_ready(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _reset_graph_selection(monkeypatch, TG_HOST="https://graph.example")
+    readiness: list[str] = []
+    monkeypatch.setattr(
+        api_main, "wait_for_graph_ready", lambda host, timeout_s: readiness.append(host) or 0.0
+    )
+    connection = MagicMock()
+    monkeypatch.setattr(api_main, "connect", lambda: connection)
+
+    first = api_main.get_graph()
+    second = api_main.get_graph()
+
+    assert first is second
+    assert first.conn is connection
+    assert readiness == ["https://graph.example"]
