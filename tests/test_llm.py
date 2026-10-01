@@ -55,24 +55,26 @@ def test_make_session_defaults() -> None:
     assert session.model == CLOUDFLARE_PRIMARY_MODEL
 
 
-# Test offline mock fallback when Cloudflare credentials are unset
 @pytest.mark.asyncio
-async def test_cloudflare_offline_mock_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cloudflare_without_credentials_fails_instead_of_switching_models(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("CLOUDFLARE_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("CLOUDFLARE_API_TOKEN", raising=False)
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
-    monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
-    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
-        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("GEMINI_API_KEY", "would-have-been-used-before")
 
-    session = make_session("cloudflare")
-    messages = [{"role": "user", "content": "Who won the 200m sprint in 2012?"}]
-    result = await session.chat(messages)
+    with pytest.raises(RuntimeError, match="CLOUDFLARE_ACCOUNT_ID"):
+        await make_session("cloudflare").chat([{"role": "user", "content": "Who won?"}])
 
-    assert result.provider == "offline_mock"
-    assert "Not found in corpus" in result.content
-    assert result.input_tokens > 0
-    assert result.output_tokens > 0
+
+@pytest.mark.asyncio
+async def test_offline_provider_is_explicit_and_never_answers() -> None:
+    session = make_session("offline")
+    result = await session.chat([{"role": "user", "content": "Who won the 200m in 2012?"}])
+
+    assert (result.provider, result.model_name) == ("offline", "offline-deterministic")
+    assert result.content.endswith("Final Answer: Not found in corpus")
+    assert await session.embed(["q"]) == [[0.0] * 1024]
 
 
 # Test OpenAI-compatible endpoint returns exact ground-truth token usage

@@ -290,21 +290,9 @@ async def _call_cloudflare(
     api_token = os.environ.get("CLOUDFLARE_API_TOKEN")
 
     if not account_id or not api_token:
-        # Fallback to Gemini if configured
-        if os.environ.get("GEMINI_API_KEY"):
-            return await _call_gemini(messages, max_tokens, client)
-        # Fallback to Mistral if configured
-        if _configured_mistral_api_keys():
-            return await _call_mistral(MISTRAL_MODEL, messages, max_tokens, client)
-        # Offline testing fallback
-        last_user = next((m["content"] for m in reversed(messages) if m.get("role") == "user"), "")
-        return LLMCallResult(
-            content=f"Not found in corpus (offline mode: {last_user[:50]})",
-            input_tokens=max(1, len(last_user) // 4),
-            output_tokens=15,
-            model_name=model,
-            provider="offline_mock",
-            latency_ms=1.0,
+        # Never substitute another model: a Cloudflare run must be answered by Cloudflare.
+        raise RuntimeError(
+            "Cloudflare chat requires CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN"
         )
 
     headers = {
@@ -547,6 +535,22 @@ async def _call_cohere(
 # ---------------------------------------------------------------------------
 
 
+OFFLINE_MODEL = "offline-deterministic"
+
+
+def _offline_reply(model: str, messages: list[dict[str, str]]) -> LLMCallResult:
+    # Explicit no-network provider for CI smoke runs; it never claims to know an answer.
+    prompt_chars = sum(len(message.get("content", "")) for message in messages)
+    return LLMCallResult(
+        content="Thought: Offline run without a model.\nFinal Answer: Not found in corpus",
+        input_tokens=max(1, prompt_chars // 4),
+        output_tokens=12,
+        model_name=model,
+        provider="offline",
+        latency_ms=0.0,
+    )
+
+
 class LockedLLMSession:
     # A single pipeline run uses ONE model throughout.
     # Retry transient throttling and gateway errors on the SAME model; do not retry exhausted quota.
@@ -601,6 +605,8 @@ class LockedLLMSession:
                     result = await _call_gemini(messages, max_tokens, self._client)
                 elif self.provider == "mistral":
                     result = await _call_mistral(self.model, messages, max_tokens, self._client)
+                elif self.provider == "offline":
+                    result = _offline_reply(self.model, messages)
                 elif self.provider == "cohere":
                     result = await _call_cohere(
                         self.model,
@@ -670,6 +676,8 @@ class LockedLLMSession:
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         # Uses the configured corpus-aligned provider in TigerGraph's 1024-dim vector space.
+        if self.provider == "offline":
+            return [[0.0] * 1024 for _ in texts]
         from src.embeddings import (
             GRAPH_EMBEDDING_DIMENSION,
             embedding_client_from_env,
@@ -694,6 +702,7 @@ def make_session(provider: str = "cloudflare") -> LockedLLMSession:
         "gemini": GEMINI_MODEL,
         "mistral": os.environ.get("MISTRAL_CHAT_MODEL", MISTRAL_MODEL),
         "cohere": COHERE_MODEL,
+        "offline": OFFLINE_MODEL,
     }
     model = models.get(provider, CLOUDFLARE_PRIMARY_MODEL)
     return LockedLLMSession(provider=provider, model=model)

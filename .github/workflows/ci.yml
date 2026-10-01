@@ -111,6 +111,7 @@ jobs:
           uv run python -m src.evaluate \
             --dataset hackathon-resources/questions/eval_public.jsonl \
             --pipeline agentic \
+            --provider offline \
             --limit 3 \
             --output results/ci_smoke_results.jsonl
           uv run python -c 'import json; from pathlib import Path; rows=[json.loads(line) for line in Path("results/ci_smoke_results.jsonl").read_text().splitlines()]; assert len(rows)==3; assert all({"qid", "agentic_answer", "agentic_tokens", "agentic_trace"} <= row.keys() for row in rows)'

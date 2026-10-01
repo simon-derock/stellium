@@ -494,8 +494,8 @@ def main() -> None:
     parser.add_argument(
         "--provider",
         default="cloudflare",
-        choices=["cloudflare", "gemini", "mistral", "cohere"],
-        help="LLM provider to use",
+        choices=["cloudflare", "gemini", "mistral", "cohere", "offline"],
+        help="LLM provider; 'offline' runs on the mock graph with no network (CI smoke only)",
     )
     parser.add_argument(
         "--limit",
@@ -512,7 +512,7 @@ def main() -> None:
 
     pipelines = ["rag", "graphrag", "agentic"] if args.pipeline == "all" else [args.pipeline]
 
-    harness = EvaluationHarness(provider=args.provider)
+    harness = EvaluationHarness(provider=args.provider, use_mock=args.provider == "offline")
     asyncio.run(
         harness.run_benchmark(
             dataset_path=args.dataset,
