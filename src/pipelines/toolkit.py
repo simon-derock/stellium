@@ -69,6 +69,17 @@ def catalog_for(graph: GraphClient) -> EventCatalog:
     return _catalogs[key]
 
 
+def unsupported_arguments(tool: str, raw: dict[str, Any]) -> list[str]:
+    # Non-empty arguments the tool cannot use usually mean the wrong tool was chosen, e.g. an
+    # event name sent to count_events when the question asks for that event's nation count.
+    return [
+        key
+        for key, value in raw.items()
+        if value not in (None, "", 0)
+        and _ARGUMENT_ALIASES.get(key, key) not in TOOL_PARAMETERS[tool]
+    ]
+
+
 def tool_arguments(tool: str, raw: dict[str, Any]) -> dict[str, Any]:
     arguments: dict[str, Any] = {}
     for key, value in raw.items():

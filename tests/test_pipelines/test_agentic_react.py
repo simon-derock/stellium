@@ -298,3 +298,32 @@ def test_parse_react_response_markdown_bold_headers() -> None:
     assert "Chen Ding" in parsed.thought
     assert parsed.final_answer == "Chen Ding"
     assert parsed.is_terminal
+
+
+@pytest.mark.asyncio
+async def test_wrong_tool_arguments_trigger_a_replan_not_a_silent_answer() -> None:
+    # "How many nations competed in <event>" is an attribute lookup; count_events must refuse it.
+    pipeline, chat = _pipeline(
+        _action(
+            "count_events", {"sport": "Rowing", "year": 2012, "event": "women's single sculls"}
+        ),
+        _action(
+            "event_attribute",
+            {
+                "event": "women's single sculls",
+                "sport": "Rowing",
+                "year": 2012,
+                "attribute": "nation_count",
+            },
+        ),
+    )
+
+    result = await pipeline.run(
+        "q10", "How many nations competed in the 2012 women's single sculls?"
+    )
+
+    trace = _trace(result)
+    assert result.answer == "14"
+    assert chat.await_count == 2
+    assert "count_events does not take event" in trace["tools_called"][0]["output_summary"]
+    assert trace["strategy_changed"] is True

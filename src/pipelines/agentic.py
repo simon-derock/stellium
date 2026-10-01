@@ -25,6 +25,7 @@ from src.pipelines.toolkit import (
     GraphToolkit,
     ToolOutcome,
     catalog_for,
+    unsupported_arguments,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,9 +47,9 @@ _REACT_SYSTEM_PROMPT = f"""You orchestrate an investigation over a TigerGraph kn
 Plan one step at a time from the question, the evidence gathered so far, and what is still missing. Prefer the cheapest tool that can settle the question: graph tools cost no LLM tokens and return exact, source-checked values.
 
 Tools (Action Input is one JSON object; omit unknown fields):
-- count_events {{sport, year, season, gender, comparison, threshold}}: exact number of events meeting the constraints. comparison: more_than, at_least, fewer_than, at_most, exactly.
+- count_events {{sport, year, season, gender, comparison, threshold}}: how many events meet a competitor-count condition. comparison: more_than, at_least, fewer_than, at_most, exactly. Not for a count stored on one event, such as how many nations or competitors took part in it.
 - rank_events {{sport, year, season, gender, order}}: the event with the most ("desc") or fewest ("asc") competitors; reports ties.
-- event_attribute {{event, attribute, sport, year, season, gender}}: one attribute of a named event. attribute: {", ".join(EVENT_ATTRIBUTES)}.
+- event_attribute {{event, attribute, sport, year, season, gender}}: one attribute of a named event, including its nation_count and competitor_count. attribute: {", ".join(EVENT_ATTRIBUTES)}.
 - previous_edition {{event, year, attribute, sport, season, gender}}: the same event at the Games immediately before `year`; pass the year named in the question.
 - event_at_venue_date {{venue, date, year, attribute}}: the event held at a venue on a date; copy the venue and date wording from the question.
 - find_events {{event, sport, year, season, gender}}: canonical events that fit, to explore or disambiguate.
@@ -431,6 +432,19 @@ class AgenticPipeline:
         # Runs one tool. Returns its observation, the typed outcome for graph tools, and any
         # values it verified (used to ground a later finish).
         if tool in TOOL_PARAMETERS:
+            rejected = unsupported_arguments(tool, arguments)
+            if rejected:
+                accepted = ", ".join(TOOL_PARAMETERS[tool])
+                return (
+                    {
+                        "error": (
+                            f"{tool} does not take {', '.join(rejected)}; it accepts {accepted}. "
+                            "Choose the tool whose inputs match the question."
+                        )
+                    },
+                    None,
+                    [],
+                )
             try:
                 outcome = toolkit.invoke(tool, arguments)
             except TypeError as exc:
