@@ -11,7 +11,7 @@
 - [ORCHESTRA:SCHEMA]              : TigerGraph Savanna Graph Schema, Embedding Space & GSQL Stored Queries
 - [ORCHESTRA:LINKED_CHUNKS]       : Doubly Linked Chunk & Event Hierarchy (Low-Byte Predecessor/Successor)
 - [ORCHESTRA:PIPELINES]           : 3-Way Comparative Benchmark Pipelines (RAG, GraphRAG, Agentic GraphRAG)
-- [ORCHESTRA:COPROCESSOR]         : Local Retrieval (Packed Integer Masks, BM25Plus, RRF, Optional Cross-Encoder)
+- [ORCHESTRA:COPROCESSOR]         : Local Retrieval (Packed Integer Masks, Compact BM25Plus, RRF, Required Cross-Encoder)
 - [ORCHESTRA:AGENT_HARNESS]       : Bounded Cyclic ReAct Loop, Tool Dispatch, Evidence Review & Adaptive Stopping
 - [ORCHESTRA:EVAL_BENCHMARK]      : Public/Hidden Evaluation, Metrics & Reproducible Quality Measurement
 - [ORCHESTRA:DASHBOARD_FRONTEND]  : Lunarbit GraphSurface Visualizer, FastAPI Bridge & Snapshot DTOs
@@ -31,9 +31,13 @@
 
 This specification records both the desired system and implementation work. A requirement is not complete merely because it appears in an architecture description. Use these labels in task tracking: **Implemented** means verified in current code or runtime; **Partial** means a primitive exists but the stated user-facing behavior is incomplete; **Missing** means no implementation evidence exists. Performance and accuracy numbers require reproducible result artifacts before they can be presented as measured outcomes.
 
-Verified status (2026-09-30): the agent is a bounded cyclic ReAct loop. TigerGraph Savanna 4.2.5 is live; all 6 vertex types, 7 edge types, six compiled queries, and the native 1024-dimensional cosine HNSW index passed live checks. All 22,016 Cohere `embed-v4.0` passage vectors were accepted in 45 batches; matching Cohere query vectors work against the live index. The 100-question dense-only audit reports hit@5 85%, hit@10 88%, hit@30 93%; mean gold-document recall@30 90.21%, MRR@30 0.7853, zero empty searches, and 96.63 ms mean TigerVector request latency. These are document retrieval measures, not answer accuracy. Retrieval is weakest for multi-hop (hit@30 75% across 28 questions); lookup, temporal, aggregation, and superlative hit@30 are 100%. Audit artifacts: `results/dense_retrieval_cohere_20260930.jsonl` and `results/dense_retrieval_cohere_20260930_report.json` (local, ignored). A fresh 100-question Agentic run with Cohere Command A (`command-a-03-2025`) scored 90/100 EM and 0.924 token F1; by category EM: aggregation 20/21, temporal 21/22, superlative 10/10, multi-hop 20/28, lookup 19/19. It made 136 successful LLM calls (1.36 per question), averaged 3,093 LLM tokens and 4.28 s wall latency per question, and selected `hybrid_search` on 3/100 questions. Latency includes deliberate pacing to stay within Cohere trial RPM, so it is not a raw model-latency comparison. Artifact: `results/agentic_cohere_20260930.jsonl` (local, ignored). The previous Cloudflare Agentic run was 84/100 EM with 190 successful calls and 3,830 mean tokens; this is an observed comparison, not a controlled provider-only ablation because embeddings, code, model, and request pacing differ. RAG and GraphRAG still need a fresh Cohere run for a provider-matched comparison; their older 42/100 and 32/100 EM figures are historical. The 98% goal is not achieved. Persistent session history, query-specific graph snapshots, and the maintained premium React frontend remain incomplete; the current API dashboard is a basic HTML surface and its snapshot endpoint still needs live query-derived data.
+**Historical pre-change benchmark snapshot (2026-09-30):** TigerGraph Savanna 4.2.5 is live; all 6 vertex types, 7 edge types, six compiled queries, and the native 1024-dimensional cosine HNSW index passed live checks. All 22,016 Cohere `embed-v4.0` passage vectors were accepted in 45 batches. The dense-only audit reported hit@5 85%, hit@10 88%, hit@30 93%; mean gold-document recall@30 90.21%, MRR@30 0.7853, and 96.63 ms mean TigerVector request latency. The matched 100-question Cohere Command A benchmark scored RAG 43/100 EM, GraphRAG 53/100, Agentic 90/100. These figures predate the current mandatory hybrid/reranking and generated-GSQL paths; the 98% target remains unverified and unmet by the historical run. Persistent session history, query-specific graph snapshots, and the maintained premium React frontend remain incomplete; the API dashboard is a basic HTML surface and its snapshot endpoint still needs live query-derived data.
+
+Compact BM25/reranker measurements (2026-09-30): replacing retained per-token Python objects with compact term postings reduced the full 22,016-chunk corpus/index RSS from 563 MiB to about 209 MiB, with a 3.81 s local build. A 100-question public gold-document audit compared 30 BM25 candidates before and after local int8 MiniLM reranking. With batch size 1, candidate-pool document hit rate was 96%, reranked top-five hit rate 94%, MRR rose from 0.682 to 0.842, mean rerank latency was 1.90 s (median 1.85 s, p95 2.53 s), and process peak RSS was 379 MiB. Batch size 8 scored 93% reranked hit rate and 0.835 MRR, with 2.43 s mean latency and 782 MiB peak RSS. Batch size 1 is now the default based on this result. A sparse-only candidate-size ablation found that top 10 versus top 30 candidates gave similar rounded hit rate/MRR at 73.6% lower mean rerank latency; this does not validate truncating the live dense-plus-sparse pool. These are host-specific retrieval-only measurements, not answer EM, completeness, or a deployment guarantee. Full methodology and results: `docs/benchmark-audits/local-reranker-public-20260930.md`.
 
 Embedding migration update (2026-09-30): the Cohere `embed-v4.0` migration is complete and live. TigerGraph accepted 22,016 1024-dimensional chunk vectors in 45 batches; the resumed cluster passes TLS, authentication, schema, HNSW, and compiled-query checks. Cohere query embeddings were verified against the deployed Cohere vectors, then the 100-question dense audit was run. See the verified status above. The historical Jina audit is a separate model-space run and should not be compared as a controlled model ablation unless query ordering, corpus state, and evaluation code are aligned.
+
+Generated GSQL live smoke (2026-09-30): `GraphClient.run_generated_gsql` executed a bounded interpreted event projection successfully on the configured Savanna graph, then executed an accumulator query for 2018 Biathlon events with more than 73 competitors and returned `match_count = 5`. The first request returned the workspace startup page and took 3.22 s; after startup, the aggregate request completed in 324 ms end-to-end. This verifies the interpreted-query route and a representative aggregate, not LLM query-generation quality or a matched answer benchmark.
 
 Follow-up query correction (2026-09-29): trace review found lookup misses where question wording supplied possessive gender (`Women's` / `Men's`) but Event stores the category (`Women` / `Men`). Client normalization and case-insensitive lookup GSQL are covered by regression tests. The corrected `get_event_attribute` query has now been reinstalled on Savanna. Read-only checks returned the 2012 women's trampoline result with `Rosannagh MacLennan` and the 1996 men's rifle result with 30 nations (114 ms end-to-end for the latter). The Cohere Agentic benchmark now provides fresh end-to-end answers; RAG and GraphRAG answer benchmarks remain pending.
 
@@ -61,7 +65,7 @@ The fundamental research thesis is to prove where Agentic GraphRAG provides posi
 - Runtime: Python 3.12+ managed exclusively via `uv` (0.9.5+).
 - Graph & Vector Engine: TigerGraph Savanna (GSQL compiled queries + TigerVector HNSW embedding space).
 - Agent Harness: bounded cyclic ReAct loop with LLM-selected tools and session-locked LLM calls.
-- Hybrid Search Coprocessor: BM25Plus (`rank-bm25`), packed integer category masks, Reciprocal Rank Fusion (RRF), optional Cross-Encoder reranker (`sentence-transformers`).
+- Hybrid Search Coprocessor: compact BM25Plus inverted postings, packed integer category masks, Reciprocal Rank Fusion (RRF), required int8 ONNX MiniLM cross-encoder reranker (`onnxruntime`).
 - Backend API: FastAPI (async ASGI) + Pydantic v2.
 - Frontend target: premium React/TypeScript dashboard based on Lunarbit samples under `samples/frontend/`. Current app is a single HTML file served by FastAPI.
 - Quality Tooling: `ruff` (linter and formatter), `mypy` (strict static typing), `pytest` (test runner).
@@ -98,7 +102,7 @@ stellium/
 │   ├── models/__init__.py           # Pydantic domain models (AgentState, DTOs, etc.)
 │   ├── ingest/                      # Corpus parser, table-aware chunker, header injector
 │   ├── graph/                       # TigerGraph Savanna client, DDL scripts, mock adapter
-│   ├── coprocessor/                 # BM25Plus, packed integer masks, RRF, optional reranker
+│   ├── coprocessor/                 # Compact BM25Plus postings, packed masks, RRF, local reranker
 │   ├── pipelines/                   # Pipeline 1 (RAG), Pipeline 2 (GraphRAG), Pipeline 3 (Agentic)
 │   ├── llm/                         # Multi-provider LLM router with circuit breaker
 │   ├── guardrails/                  # Input sanitizer, output leak guard
@@ -449,44 +453,41 @@ To avoid chunk boundary truncation and support chronological progression, chunks
 - In TigerGraph, materialized as `prev_event_id` attribute and `PRECEDES` / `SUCCEEDS` directed edges.
 
 ### Behavioral Differentiation Across Pipelines
-- Pipeline 1 (RAG): the baseline currently retrieves vector top-5 and does not expand adjacent chunks. The coprocessor stores chunk pointers and offers an expected O(1) in-memory neighbor lookup; wiring that behavior into a pipeline remains future work.
-- Pipeline 2 (GraphRAG): performs one LLM-selected typed GSQL operation (including temporal predecessor traversal) plus hybrid passage retrieval (dense HNSW + BM25Plus/RRF + optional cross-encoder); it does not use chunk-level neighbor expansion or multi-step backtracking.
-- Pipeline 3 (Agentic GraphRAG): can use the temporal GSQL tool. Chunk-neighbor expansion is not yet exposed to the ReAct loop, and the evidence critic remains a roadmap item.
+- Pipeline 1 (RAG): retrieves up to 30 dense and 30 BM25Plus candidates, fuses them with RRF, requires the local int8 MiniLM cross-encoder reranker, then answers from up to five passages. No graph query is used.
+- Pipeline 2 (GraphRAG): uses exactly two chat calls: generate a complete read-only GSQL query, then synthesize from graph output plus the same mandatory hybrid retrieval path. Generated GSQL is validated before execution. This is a fixed, acyclic pipeline with no planning loop.
+- Pipeline 3 (Agentic GraphRAG): performs mandatory hybrid retrieval and reranking before its first ReAct decision, then runs a bounded cyclic reasoning/tool loop. Its GSQL query tool validates LLM-generated queries before execution; the agent can request further hybrid retrieval, a deliberate dense-only fallback, or finish.
+- All three pipelines use the same local cross-encoder implementation for reranking; a non-empty candidate list with an unavailable model is a pipeline error, never a silent skip. Current measured answer scores in this file predate this change and are not evidence of post-change quality.
 [/ORCHESTRA:LINKED_CHUNKS]
 
 ---
 
 [ORCHESTRA:PIPELINES]
-## 1. Pipeline 1: Baseline Vector RAG (Deliberately Simple)
-The baseline must be vanilla to create maximum contrast with Agentic GraphRAG.
-- Retrieval: TigerVector HNSW cosine similarity search ONLY. Top-k = 5. No BM25, no RRF, no reranker, no graph traversal.
-- Generation: Single-turn LLM call: inject top-k chunks as context → generate answer.
-- Tools Allowed: `vector_search` only.
-- Expected Weaknesses: Fails on aggregation (can't count), temporal (conflates years), multi-hop (misses second entity).
-- Metrics: context length (currently estimated from characters), provider-reported LLM input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
+## 1. Pipeline 1: Hybrid RAG Control
+- Retrieval: up to 30 TigerVector HNSW candidates plus up to 30 BM25Plus candidates, fused with RRF, then required local int8 MiniLM cross-encoder reranking to five passages. No graph query.
+- Generation: one answer call grounded in the reranked passages.
+- Metrics: candidate counts per retriever, fused count, actual reranker execution and latency, estimated context length, provider-reported LLM input/output tokens, wall-clock latency, and scored answers.
 
 ## 2. Pipeline 2: GraphRAG (Fixed Pipeline, Non-Agentic)
 Uses graph structure and text retrieval in a fixed sequence — no multi-turn planning or backtracking.
 - Retrieval (Fixed Sequence):
-  1. Ask the configured LLM once to extract typed operation and parameters (`aggregation`, `superlative`, `temporal`, `multi_hop`, `lookup`, or no graph operation).
-  2. Dispatch exactly one corresponding compiled GSQL query when the extracted operation has sufficient parameters.
-  3. Retrieve up to 30 dense candidates, fuse them with BM25Plus using RRF, optionally rerank, and combine up to 5 passages with graph facts.
-- Generation: Single-turn LLM call: inject fused graph + text context → generate answer.
-- Current code does not implement a distinct fuzzy entity-linker or generic 1-hop traversal agent.
+  1. Ask the configured LLM to generate a complete GSQL query grounded in the declared graph schema and question constraints.
+  2. Validate the generated query against read-only, graph-object, field, statement, and row-limit rules. Reject it without execution if validation fails.
+  3. Execute the query through TigerGraph's interpreted-query API; concurrently in the fixed sequence, retrieve up to 30 dense and 30 sparse candidates, fuse with RRF, require local reranking, and combine up to five passages with graph facts.
+- Generation: A second LLM call synthesizes the final answer from graph and passage evidence. The pipeline is fixed and acyclic: exactly two chat calls.
+- Current code does not implement a separate fuzzy entity-linker or adaptive multi-step investigation in this pipeline.
 - Expected Weaknesses: No backtracking if extraction/retrieval fails. No strategy adaptation. Fixed retrieval order.
 - Metrics: graph/subgraph counts when exposed, estimated context length, both entity-planning and synthesis LLM input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
-- Measurement status: the published 32/100 GraphRAG baseline predates typed operation dispatch; this implementation change needs a fresh public run before any accuracy claim.
+- Measurement status: 43/100 RAG, 53/100 GraphRAG, and 90/100 Agentic are historical, pre-change scores. All current paths need a fresh matched public benchmark before making a score or quality claim.
 
 ## 3. Pipeline 3: Autonomous Agentic GraphRAG (Full Arsenal, Dynamic)
 The agent plans its own investigation, selects retrieval methods dynamically, and adapts based on what it finds.
 - Retrieval & Reasoning (Dynamic, Agent-Controlled):
   1. The ReAct LLM reads the question and selects an action; there is no separate regex query classifier.
   2. Dynamic Tool Dispatch: The agent chooses from implemented tools and observes returned evidence:
-     - `hybrid_search` (default passage retrieval: BM25Plus + dense HNSW + RRF + optional cross-encoder)
+     - `gsql_query` (LLM-generated complete read-only query, validated before execution)
+     - `hybrid_search` (mandatory initial passage retrieval: BM25Plus + dense HNSW + RRF + required local cross-encoder)
      - `vector_search` (dense-only fallback when deliberately selected)
-     - `gsql_aggregate` (deterministic event aggregation via compiled GSQL)
-     - `gsql_temporal` (PRECEDES/SUCCEEDS edge traversal — 0 LLM tokens)
-     - `gsql_superlative`, `gsql_multihop`, and `gsql_lookup` (compiled structured queries)
+     - `vector_search` (deliberate dense-only fallback)
      - `finish` (agent-supplied answer and citations)
   3. Bounded Cycle: The loop appends observations and asks the LLM for its next action until a finish, deterministic fast stop, explicit grounded final answer, or iteration limit. Thought-only/malformed nonterminal responses are rejected and retried.
   4. Evidence review and distinct specialist agent components are incomplete; they remain roadmap work.
@@ -500,7 +501,7 @@ The agent plans its own investigation, selects retrieval methods dynamically, an
 
 [ORCHESTRA:COPROCESSOR]
 ## 1. Local Retrieval Coprocessor Architecture
-The local coprocessor supplements TigerGraph Savanna with sparse retrieval, compact metadata masks, rank fusion, and optional reranking. The complete retrieval pipeline is not O(1); complexity and latency claims must be qualified by implementation and benchmark scope.
+The local coprocessor supplements TigerGraph Savanna with sparse retrieval, compact metadata masks, rank fusion, and mandatory local reranking on non-empty candidate lists. The complete retrieval pipeline is not O(1); complexity and latency claims must be qualified by implementation and benchmark scope.
 
 ```mermaid
 flowchart LR
@@ -663,14 +664,14 @@ class SnapshotDTO(BaseModel):
 
 [ORCHESTRA:AGENT:002]
 ## Stream 2: High-Speed Hybrid Coprocessor
-Current baseline has BM25Plus scoring, packed year/season integer masks, RRF, and an optional cross-encoder. The current implementation has no fixed sport-name bit map; sport matching remains corpus-derived. Remaining work: benchmark the 22,016-chunk corpus end-to-end and report latency/recall without unsupported sub-millisecond claims.
+Current code has BM25Plus scoring, packed year/season integer masks, RRF, and a required local int8 ONNX cross-encoder for all three pipelines. No fixed sport-name bit map is used; sport matching remains corpus-derived. Remaining work: matched end-to-end quality/latency benchmark and retrieval ablations; do not claim gains from feature presence alone.
 [/ORCHESTRA:AGENT:002]
 
 ---
 
 [ORCHESTRA:AGENT:003]
 ## Stream 3: ReAct Agent Loop & GSQL Reasoning Tools
-Current baseline is the bounded cyclic ReAct loop and compiled GSQL tool set. Remaining work: evidence-quality critic, real specialist components, robust loop/repetition controls, calibrated stopping, and complete trace/citation validation.
+Current code has bounded cyclic ReAct, mandatory initial hybrid retrieval, and guarded LLM-generated GSQL. Additional deterministic compiled-query handlers remain in the executor for compatibility. Remaining work: evidence-quality critic, specialist contracts, calibrated stopping, and complete trace/citation validation.
 [/ORCHESTRA:AGENT:003]
 
 ---
