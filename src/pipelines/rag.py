@@ -10,13 +10,9 @@ from src.guardrails import sanitize_output
 from src.llm import LockedLLMSession
 from src.models import PipelineResult
 
-_RAG_SYSTEM_PROMPT = """You are a precise sports historian with access to Wikipedia articles about Olympic events.
-Answer the question using ONLY the provided context passages.
-If the answer is not in the context, respond with "Not found in corpus".
-Be concise, but preserve the complete canonical entity name exactly as it appears in the source.
-For an Olympic event, include the sport and Olympic edition when they are part of the source title;
-do not shorten the answer to only the event suffix. Do not add competitor counts unless asked.
-For a question asking for a number, return only the number."""
+_RAG_SYSTEM_PROMPT = """Answer the question using only the context passages provided.
+Return only the answer, with no sentence around it: the full canonical event title for "which event", a bare number for counts, the name(s) for people.
+If the passages do not establish the answer, return "Not found in corpus"."""
 
 _RAG_USER_TEMPLATE = """Context passages:
 {context}
