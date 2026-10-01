@@ -120,6 +120,21 @@ class MockTigerGraphConnection:
     def getEdgeCount(self, edge_type: str) -> int:
         return sum(1 for e in self.edges if e[2] == edge_type)
 
+    def getEdgesByType(self, edge_type: str) -> list[dict[str, Any]]:
+        # Same row shape as pyTigerGraph's getEdgesByType JSON output.
+        return [
+            {
+                "e_type": kind,
+                "from_type": source_type,
+                "from_id": source_id,
+                "to_type": target_type,
+                "to_id": target_id,
+                "attributes": dict(attributes),
+            }
+            for source_type, source_id, kind, target_type, target_id, attributes in self.edges
+            if kind == edge_type
+        ]
+
     def getVertices(self, vertex_type: str) -> list[dict[str, Any]]:
         store = self.vertices.get(vertex_type, {})
         return [{"v_id": k, "attributes": v} for k, v in store.items()]
