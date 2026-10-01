@@ -28,7 +28,7 @@ The agent was rerun after one fix (`cc74fd5`: reject tool arguments a tool canno
 | Superlative (ranking) | 10 | 3/10 · 2,769 tok | 9/10 · 1,031 tok | 9/10 · 911 tok |
 | Temporal (previous Games) | 22 | 17/22 · 2,608 tok | 22/22 · 1,055 tok | 22/22 · 1,319 tok |
 
-Exact match compares answer content (case, accents, punctuation, and separators ignored); strict EM is the earlier punctuation-sensitive score. Token counts are LLM input + output only; graph queries and retrieval count 0. Latency is wall-clock per question and includes the trial key's 3.25 s request pacing, which penalises pipelines in proportion to their LLM calls; the agent-only run paces fewer calls per question than the matched three-pipeline run.
+Exact match compares answer content (case, accents, punctuation, and separators ignored); strict EM is the earlier punctuation-sensitive score. Token counts are LLM input + output only; graph queries and retrieval count 0. Latency is wall-clock per question and includes client-side request pacing, which penalises pipelines in proportion to their LLM calls; the agent-only run paces fewer calls per question than the matched three-pipeline run.
 
 ### Evidence and cost
 

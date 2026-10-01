@@ -138,7 +138,6 @@ CLOUDFLARE_API_TOKEN=
 
 # Embeddings (Cohere selected when configured; Jina remains the fallback)
 COHERE=
-COHERE_BACKUP=
 COHERE_EMBEDDING_MODEL=embed-v4.0
 COHERE_EMBEDDING_DIMENSION=1024
 COHERE_EMBEDDING_WORKERS=1

@@ -38,7 +38,7 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 | GraphRAG | **98%** | 1,094 | 2 | 6.1 s | $0.35 |
 | Agentic GraphRAG | **98%** | **990** | 1.16 | 4.5 s | **$0.32** |
 
-<sub>Latency is from the matched three-pipeline run and includes the Cohere trial key's 3.25 s request pacing. Agentic accuracy, tokens, and cost are from the final agent run on the same code.</sub>
+<sub>Latency is from the matched three-pipeline run and includes client-side request pacing. Agentic accuracy, tokens, and cost are from the final agent run on the same code.</sub>
 
 ### By question type
 
@@ -195,6 +195,6 @@ uv run uvicorn src.api.main:app --port 8000
 | Limitation | Effect |
 |---|---|
 | One gold string per question | Honest tie reports score zero on exact match (2 public questions) |
-| Trial-key request pacing | Pipelines with more LLM calls look slower |
+| Client-side request pacing | Pipelines with more LLM calls look slower |
 | Template-shaped benchmark | Passage search and generated GSQL are rarely exercised |
 | Round 2 conflict handling | Schema and resolver exist, not yet wired into evidence evaluation |
