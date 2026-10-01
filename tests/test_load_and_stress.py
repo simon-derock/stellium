@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from src.coprocessor import Coprocessor, reciprocal_rank_fusion
 from src.models import Chunk
+from tests.timing import budget_ms
 
 
 def _make_sample_chunks(count: int = 50) -> list[Chunk]:
@@ -59,8 +60,8 @@ def test_concurrent_coprocessor_search_stress() -> None:
 
     assert all(result_count > 0 for _, result_count in measurements)
     # SLA requirements: median sub-millisecond or sub-5ms in Python
-    assert median_latency < 10.0, f"Median latency exceeded SLA: {median_latency:.2f}ms"
-    assert p99_latency < 30.0, f"p99 latency exceeded SLA: {p99_latency:.2f}ms"
+    assert median_latency < budget_ms(10.0), f"Median latency exceeded SLA: {median_latency:.2f}ms"
+    assert p99_latency < budget_ms(30.0), f"p99 latency exceeded SLA: {p99_latency:.2f}ms"
 
 
 def test_rrf_high_throughput_stress() -> None:

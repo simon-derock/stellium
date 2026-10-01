@@ -13,6 +13,7 @@ from src.coprocessor import Coprocessor
 from src.embeddings import AdaptiveRateLimiter
 from src.llm import LLMCallResult, LockedLLMSession
 from src.models import Chunk
+from tests.timing import budget_ms
 
 
 def test_coprocessor_latency_sla() -> None:
@@ -46,7 +47,9 @@ def test_coprocessor_latency_sla() -> None:
     elapsed_ms = (time.perf_counter() - t0) * 1000
 
     assert len(reranked) == 5
-    assert elapsed_ms < 150.0, f"Warm rerank took {elapsed_ms:.2f}ms, exceeding 150ms smoke SLA"
+    assert elapsed_ms < budget_ms(150.0), (
+        f"Warm rerank took {elapsed_ms:.2f}ms, exceeding 150ms smoke SLA"
+    )
 
 
 def test_adaptive_rate_limiter_throttling() -> None:

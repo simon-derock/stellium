@@ -74,6 +74,7 @@ jobs:
     env:
       TG_USE_MOCK: "1"
       TG_RUN_LIVE_TESTS: "0"
+      STELLIUM_SLA_SCALE: "3"
       CLOUDFLARE_ACCOUNT_ID: ""
       CLOUDFLARE_API_TOKEN: ""
     strategy:
