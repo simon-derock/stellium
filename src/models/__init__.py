@@ -124,6 +124,7 @@ class PipelineResult(BaseModel):
     context_tokens: int = 0
     latency_ms: float = 0.0
     retrieved_doc_ids: list[str] = Field(default_factory=list)
+    retrieval_metadata: dict[str, Any] = Field(default_factory=dict)
     # Agentic only — empty for rag/graphrag
     agentic_trace: dict[str, Any] | None = None
     model_name: str = ""

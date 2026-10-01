@@ -1,6 +1,4 @@
-# Pipeline 1: Baseline Vector RAG (deliberately simple).
-# TigerVector HNSW top-k → single-turn LLM answer. No graph, no BM25, no reranker.
-# Weakness exposed: fails on aggregation, superlative, multi-hop, temporal.
+# Pipeline 1: Hybrid RAG control. Dense + BM25 → RRF → local reranker → answer.
 from __future__ import annotations
 
 import time
@@ -15,7 +13,10 @@ from src.models import PipelineResult
 _RAG_SYSTEM_PROMPT = """You are a precise sports historian with access to Wikipedia articles about Olympic events.
 Answer the question using ONLY the provided context passages.
 If the answer is not in the context, respond with "Not found in corpus".
-Be concise: give the direct answer, not a full sentence when a name or number suffices."""
+Be concise, but preserve the complete canonical entity name exactly as it appears in the source.
+For an Olympic event, include the sport and Olympic edition when they are part of the source title;
+do not shorten the answer to only the event suffix. Do not add competitor counts unless asked.
+For a question asking for a number, return only the number."""
 
 _RAG_USER_TEMPLATE = """Context passages:
 {context}
@@ -34,31 +35,34 @@ class RAGPipeline:
     async def run(self, qid: str, question: str) -> PipelineResult:
         t_start = time.perf_counter()
 
-        # Step 1: Embed query → TigerVector HNSW search (top-5)
+        if self.coprocessor is None:
+            raise RuntimeError("Hybrid RAG requires the in-memory BM25 coprocessor")
+
+        # Step 1: Dense and sparse candidates → RRF → mandatory local reranking.
         embeddings = await self.llm.embed([question])
         query_vector = embeddings[0]
-        dense_results = self.graph.vector_search(query_vector, top_k=5)
+        dense_results = self.graph.vector_search(query_vector, top_k=30)
+        retrieval = self.coprocessor.hybrid_search(
+            query=question,
+            dense_results=dense_results,
+            candidate_k=30,
+            final_top_k=5,
+        )
 
         # Step 2: Resolve chunk texts and collect doc IDs
         doc_ids: list[str] = []
         context_parts: list[str] = []
         context_tokens = 0
 
-        for chunk_id, score in dense_results:
-            # chunk_id format: "{doc_id}#{index}"
-            doc_id = chunk_id.rsplit("#", 1)[0]
+        for chunk, score in retrieval.chunks:
+            doc_id = chunk.doc_id
             if doc_id not in doc_ids:
                 doc_ids.append(doc_id)
-
-            if self.coprocessor:
-                chunk = self.coprocessor.get_chunk(chunk_id)
-                if chunk:
-                    context_parts.append(f"[Score: {score:.3f} | Doc: {doc_id}]\n{chunk.text}")
-                    context_tokens += len(chunk.text) // 4
-                    continue
-
-            context_parts.append(f"[Score: {score:.3f} | Doc: {doc_id}]")
-            context_tokens += 80  # estimated
+            context_parts.append(
+                f"[Reranker score: {score:.3f} | Chunk: {chunk.chunk_id} | Doc: {doc_id}]\n"
+                f"{chunk.text}"
+            )
+            context_tokens += len(chunk.text) // 4
 
         context_text = "\n\n".join(context_parts)
 
@@ -85,6 +89,14 @@ class RAGPipeline:
             context_tokens=context_tokens,
             latency_ms=latency_ms,
             retrieved_doc_ids=doc_ids,
+            retrieval_metadata={
+                "dense_candidates": retrieval.dense_candidate_count,
+                "bm25_candidates": retrieval.sparse_candidate_count,
+                "rrf_candidates": retrieval.fused_candidate_count,
+                "reranker": retrieval.reranker_model,
+                "reranker_executed": retrieval.reranker_executed,
+                "reranker_latency_ms": retrieval.reranker_latency_ms,
+            },
             model_name=llm_result.model_name,
             provider=llm_result.provider,
         )

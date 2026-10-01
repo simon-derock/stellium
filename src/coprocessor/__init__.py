@@ -1,13 +1,17 @@
-# Local retrieval coprocessor: packed category masks, BM25Plus, RRF, and optional reranking.
+# Local retrieval coprocessor: packed category masks, BM25Plus, RRF, and required reranking.
 # Runs entirely in Python memory — no network calls.
 # Complements TigerVector HNSW which handles dense semantic search.
 from __future__ import annotations
 
 import heapq
+import math
+import os
+import time
+from array import array
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-
-from rank_bm25 import BM25Plus
+from typing import Any
 
 from src.guardrails import normalize
 from src.models import Chunk
@@ -81,25 +85,34 @@ def season_mask(season: str) -> int:
 
 @dataclass
 class BM25Index:
-    # BM25Plus scoring over normalized chunk tokens.
+    # Compact BM25Plus postings avoid retaining millions of repeated Python token strings.
     _chunks: list[Chunk] = field(default_factory=list)
-    _bm25: BM25Plus | None = None
+    _postings: dict[str, array[int]] = field(default_factory=dict)
+    _doc_lengths: list[int] = field(default_factory=list)
+    _avgdl: float = 0.0
 
     def build(self, chunks: Iterable[Chunk]) -> None:
         self._chunks = list(chunks)
-        if not self._chunks:
-            self._bm25 = None
-            return
-        # Tokenize raw text consistently with queries, without metadata headers.
-        tokenized = [_tokenize(c.raw_text) for c in self._chunks]
-        self._bm25 = BM25Plus(tokenized)
+        self._postings = {}
+        self._doc_lengths = []
+        for doc_index, chunk in enumerate(self._chunks):
+            # Keep only one vocabulary string and two compact integers per term/document pair.
+            frequencies = Counter(_tokenize(chunk.raw_text))
+            self._doc_lengths.append(sum(frequencies.values()))
+            for token, frequency in frequencies.items():
+                posting = self._postings.get(token)
+                if posting is None:
+                    posting = array("I")
+                    self._postings[token] = posting
+                posting.extend((doc_index, frequency))
+        self._avgdl = sum(self._doc_lengths) / len(self._doc_lengths) if self._chunks else 0.0
 
     def search(self, query: str, top_k: int = 50) -> list[tuple[Chunk, float]]:
         # Returns top_k (chunk, bm25_score) pairs, descending by score.
-        if self._bm25 is None or not self._chunks:
+        if not self._chunks or top_k <= 0:
             return []
         tokens = _tokenize(query)
-        scores = self._bm25.get_scores(tokens)
+        scores = self._score(tokens)
         indexed = _top_positive_scores(
             ((i, float(score)) for i, score in enumerate(scores) if score > 0), top_k
         )
@@ -112,10 +125,10 @@ class BM25Index:
         top_k: int = 50,
     ) -> list[tuple[Chunk, float]]:
         # Score all chunks, then apply packed-mask filtering during bounded top-k selection.
-        if self._bm25 is None or not self._chunks:
+        if not self._chunks or top_k <= 0:
             return []
         tokens = _tokenize(query)
-        scores = self._bm25.get_scores(tokens)
+        scores = self._score(tokens)
         if filter_mask == 0:
             indexed = _top_positive_scores(
                 ((i, float(score)) for i, score in enumerate(scores) if score > 0), top_k
@@ -136,6 +149,39 @@ class BM25Index:
                 top_k,
             )
         return [(self._chunks[i], float(s)) for i, s in indexed]
+
+    def _score(self, tokens: list[str]) -> list[float]:
+        # Exact BM25Plus scoring: IDF=log((N+1)/df), k1=1.5, b=0.75, delta=1.
+        # The shared delta baseline applies to every document; postings add term-frequency gain.
+        document_count = len(self._chunks)
+        if not tokens or not self._postings:
+            return [0.0] * document_count
+        k1 = 1.5
+        b = 0.75
+        delta = 1.0
+        scores = [0.0] * document_count
+        term_data: list[tuple[float, array[int]]] = []
+        baseline = 0.0
+        for token in tokens:
+            posting = self._postings.get(token)
+            if posting is None:
+                continue
+            inverse_document_frequency = math.log((document_count + 1) / (len(posting) // 2))
+            baseline += inverse_document_frequency * delta
+            term_data.append((inverse_document_frequency, posting))
+        if not term_data:
+            return scores
+        scores[:] = [baseline] * document_count
+        average_length = self._avgdl or 1.0
+        for inverse_document_frequency, posting in term_data:
+            for offset in range(0, len(posting), 2):
+                doc_index = posting[offset]
+                frequency = posting[offset + 1]
+                length_norm = k1 * (1.0 - b + b * self._doc_lengths[doc_index] / average_length)
+                scores[doc_index] += (
+                    inverse_document_frequency * frequency * (k1 + 1.0) / (frequency + length_norm)
+                )
+        return scores
 
 
 # ---------------------------------------------------------------------------
@@ -161,24 +207,105 @@ def reciprocal_rank_fusion(
 
 
 # ---------------------------------------------------------------------------
-# Cross-Encoder Reranker (lazy-loaded to avoid import cost at startup)
+# Quantized local cross-encoder reranker (lazy-loaded on first hybrid query).
 # ---------------------------------------------------------------------------
 
-_reranker: object | None = None
-_reranker_loaded = False
+_RERANKER_REPO = "cross-encoder/ms-marco-MiniLM-L6-v2"
+_RERANKER_FILE = "onnx/model_quint8_avx2.onnx"
+_reranker: LocalCrossEncoder | None = None
+_reranker_load_error: str | None = None
 
 
-def _get_reranker() -> object:
-    global _reranker, _reranker_loaded
-    if not _reranker_loaded:
+@dataclass
+class LocalCrossEncoder:
+    # Int8 MiniLM cross-encoder; ONNX Runtime avoids the much larger PyTorch dependency.
+    session: Any
+    tokenizer: Any
+    model_name: str = _RERANKER_REPO
+    latency_ms: float = 0.0
+
+    @classmethod
+    def load(cls) -> LocalCrossEncoder:
+        import onnxruntime as ort
+        from huggingface_hub import hf_hub_download
+        from tokenizers import Tokenizer
+
+        model_path = hf_hub_download(repo_id=_RERANKER_REPO, filename=_RERANKER_FILE)
+        tokenizer_path = hf_hub_download(repo_id=_RERANKER_REPO, filename="tokenizer.json")
+        options = ort.SessionOptions()
+        options.intra_op_num_threads = max(1, int(os.environ.get("RERANKER_CPU_THREADS", "2")))
+        options.inter_op_num_threads = 1
+        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # Avoid ONNX Runtime's extra CPU arena and dynamic-shape buffers on small hosted instances.
+        options.enable_cpu_mem_arena = False
+        options.enable_mem_pattern = False
+        session = ort.InferenceSession(
+            model_path, sess_options=options, providers=["CPUExecutionProvider"]
+        )
+        tokenizer = Tokenizer.from_file(tokenizer_path)
+        tokenizer.enable_truncation(max_length=512)
+        return cls(session=session, tokenizer=tokenizer)
+
+    def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
+        import numpy as np
+
+        started = time.perf_counter()
+        if not pairs:
+            self.latency_ms = 0.0
+            return []
+        encodings = [self.tokenizer.encode(query, document) for query, document in pairs]
+        names = {item.name for item in self.session.get_inputs()}
+        batch_size = max(1, min(16, int(os.environ.get("RERANKER_BATCH_SIZE", "1"))))
+        normalized_scores: list[float] = []
+        for start in range(0, len(encodings), batch_size):
+            batch = encodings[start : start + batch_size]
+            max_length = max(len(encoding.ids) for encoding in batch)
+            input_ids = np.zeros((len(batch), max_length), dtype=np.int64)
+            attention_mask = np.zeros_like(input_ids)
+            token_type_ids = np.zeros_like(input_ids)
+            for row, encoding in enumerate(batch):
+                size = len(encoding.ids)
+                input_ids[row, :size] = encoding.ids
+                attention_mask[row, :size] = encoding.attention_mask
+                token_type_ids[row, :size] = encoding.type_ids
+            values = {
+                "input_ids": input_ids,
+                "attention_mask": attention_mask,
+                "token_type_ids": token_type_ids,
+            }
+            scores = self.session.run(None, {name: values[name] for name in names})[0]
+            normalized_scores.extend(np.asarray(scores).reshape(-1).astype(float).tolist())
+        self.latency_ms = (time.perf_counter() - started) * 1000
+        if len(normalized_scores) != len(pairs):
+            raise RuntimeError("Local reranker returned a score count that does not match inputs")
+        return normalized_scores
+
+
+@dataclass
+class HybridRetrievalResult:
+    # Captures whether the required reranking stage actually executed.
+    chunks: list[tuple[Chunk, float]]
+    dense_candidate_count: int
+    sparse_candidate_count: int
+    fused_candidate_count: int
+    reranker_model: str
+    reranker_executed: bool
+    reranker_latency_ms: float
+
+
+def _get_reranker() -> LocalCrossEncoder:
+    global _reranker, _reranker_load_error
+    if _reranker is None:
+        if _reranker_load_error:
+            raise RuntimeError(f"Required local reranker is unavailable: {_reranker_load_error}")
         try:
-            from sentence_transformers import CrossEncoder
-
-            # Lightweight cross-encoder: fast, accurate enough for top-30→top-2 reranking.
-            _reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-        except Exception:
-            _reranker = None
-        _reranker_loaded = True
+            _reranker = LocalCrossEncoder.load()
+        except Exception as exc:
+            _reranker_load_error = f"{type(exc).__name__}: {exc}"
+            raise RuntimeError(
+                f"Required local reranker failed to load: {_reranker_load_error}"
+            ) from exc
     return _reranker
 
 
@@ -187,19 +314,12 @@ def rerank(
     candidates: list[Chunk],
     top_k: int = 5,
 ) -> list[tuple[Chunk, float]]:
-    # Cross-encoder reranking: scores each (query, chunk_text) pair.
-    # Falls back to input order if reranker unavailable.
+    # Every nonempty candidate set must pass through the local cross-encoder.
     if not candidates:
         return []
     reranker = _get_reranker()
-    if reranker is None:
-        return [(c, 1.0) for c in candidates[:top_k]]
-
-    from sentence_transformers import CrossEncoder
-
-    assert isinstance(reranker, CrossEncoder)
-    pairs = [(query, c.raw_text[:512]) for c in candidates]
-    scores: list[float] = reranker.predict(pairs).tolist()
+    pairs = [(query, c.raw_text) for c in candidates]
+    scores = reranker.predict(pairs)
     ranked = sorted(zip(candidates, scores), key=lambda x: x[1], reverse=True)
     return ranked[:top_k]
 
@@ -257,14 +377,28 @@ class Coprocessor:
         filter_mask: int = 0,
         final_top_k: int = 5,
     ) -> list[tuple[Chunk, float]]:
+        return self.hybrid_search(
+            query=query,
+            dense_results=dense_results,
+            filter_mask=filter_mask,
+            final_top_k=final_top_k,
+        ).chunks
+
+    def hybrid_search(
+        self,
+        query: str,
+        dense_results: list[tuple[str, float]],
+        filter_mask: int = 0,
+        candidate_k: int = 30,
+        final_top_k: int = 5,
+    ) -> HybridRetrievalResult:
         # Full pipeline: BM25 → RRF fusion with dense results → cross-encoder rerank.
         # dense_results: [(chunk_id, cosine_score)] from TigerGraph
-        # BM25 sparse search
-        sparse_results = self.bm25_search(query, filter_mask, top_k=30)
+        sparse_results = self.bm25_search(query, filter_mask, top_k=candidate_k)
 
         # Normalize dense scores to [0,1] for RRF (already cosine similarity 0-1)
         # RRF only uses rank position, so raw scores are fine
-        fused = reciprocal_rank_fusion(dense_results, sparse_results, top_k=30)
+        fused = reciprocal_rank_fusion(dense_results, sparse_results, top_k=2 * candidate_k)
 
         # Resolve chunk_ids to Chunk objects
         candidates: list[Chunk] = []
@@ -273,6 +407,29 @@ class Coprocessor:
             if chunk:
                 candidates.append(chunk)
 
-        # Cross-encoder rerank top-30 candidates to top final_top_k
-        reranked = rerank(query, candidates, top_k=final_top_k)
-        return reranked
+        # Cross-encoder rerank the fused candidates to top final_top_k.
+        if not candidates:
+            return HybridRetrievalResult(
+                chunks=[],
+                dense_candidate_count=len(dense_results),
+                sparse_candidate_count=len(sparse_results),
+                fused_candidate_count=0,
+                reranker_model=_RERANKER_REPO,
+                reranker_executed=False,
+                reranker_latency_ms=0.0,
+            )
+        reranker = _get_reranker()
+        pairs = [(query, chunk.raw_text) for chunk in candidates]
+        scores = reranker.predict(pairs)
+        reranked = sorted(zip(candidates, scores), key=lambda item: item[1], reverse=True)[
+            :final_top_k
+        ]
+        return HybridRetrievalResult(
+            chunks=reranked,
+            dense_candidate_count=len(dense_results),
+            sparse_candidate_count=len(sparse_results),
+            fused_candidate_count=len(candidates),
+            reranker_model=reranker.model_name,
+            reranker_executed=True,
+            reranker_latency_ms=reranker.latency_ms,
+        )
