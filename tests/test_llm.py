@@ -2,11 +2,14 @@
 # Strictly zero triple-quote docstrings per project coding standards.
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
 
+from src import llm as llm_module
 from src.llm import (
     CLOUDFLARE_PRIMARY_MODEL,
     GEMINI_MODEL,
@@ -59,6 +62,8 @@ async def test_cloudflare_offline_mock_fallback(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.delenv("CLOUDFLARE_API_TOKEN", raising=False)
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("MISTRAL_API_KEY", raising=False)
+    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
 
     session = make_session("cloudflare")
     messages = [{"role": "user", "content": "Who won the 200m sprint in 2012?"}]
@@ -105,6 +110,40 @@ async def test_cloudflare_openai_compatible_endpoint(monkeypatch: pytest.MonkeyP
         assert res.content == "Usain Bolt won the gold medal."
         assert res.input_tokens == 42
         assert res.output_tokens == 12
+
+
+@pytest.mark.asyncio
+async def test_persistent_response_cache_survives_cache_registry_reload(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cache_path = tmp_path / "llm_calls.jsonl"
+    monkeypatch.setenv("STELLIUM_LLM_RESPONSE_CACHE", str(cache_path))
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "mock-account-id")
+    monkeypatch.setenv("CLOUDFLARE_API_TOKEN", "mock-api-token")
+    llm_module._response_cache_registry.clear()
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+        "choices": [{"message": {"content": "cached answer"}}],
+        "usage": {"prompt_tokens": 31, "completion_tokens": 4},
+    }
+
+    with patch("httpx.AsyncClient.post", return_value=response) as post:
+        first = await make_session("cloudflare").chat(
+            [{"role": "user", "content": "same prompt"}], max_tokens=32
+        )
+        llm_module._response_cache_registry.clear()
+        second = await make_session("cloudflare").chat(
+            [{"role": "user", "content": "same prompt"}], max_tokens=32
+        )
+
+    assert first.content == second.content == "cached answer"
+    assert first.input_tokens == second.input_tokens == 31
+    assert first.output_tokens == second.output_tokens == 4
+    assert post.await_count == 1
+    cache_record = json.loads(cache_path.read_text(encoding="utf-8").splitlines()[0])
+    assert cache_record["content"] == "cached answer"
+    assert len(cache_record["cache_key"]) == 64
 
 
 # Test resilient fallback to native REST model endpoint when OpenAI route returns non-200
@@ -224,7 +263,10 @@ async def test_gemini_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch
 
 @pytest.mark.asyncio
 async def test_mistral_provider_request_and_usage(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
+    monkeypatch.setattr(llm_module, "_mistral_key_cursor", 0)
     response = MagicMock()
     response.raise_for_status.return_value = None
     response.json.return_value = {
@@ -241,22 +283,163 @@ async def test_mistral_provider_request_and_usage(monkeypatch: pytest.MonkeyPatc
     assert (result.input_tokens, result.output_tokens) == (29, 5)
     assert post.call_args.args[0] == "https://api.mistral.ai/v1/chat/completions"
     assert post.call_args.kwargs["headers"]["Authorization"] == "Bearer test-mistral-key"
+    assert result.credential_alias == "MISTRAL_API_KEY"
+
+
+@pytest.mark.asyncio
+async def test_mistral_key_pool_rotates_distinct_numbered_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("MISTRAL_API_KEY_1", "mistral-account-one")
+    monkeypatch.setenv("MISTRAL_API_KEY_2", "mistral-account-two")
+    monkeypatch.setenv("MISTRAL_API_KEY_3", "mistral-account-one")
+    monkeypatch.setattr(llm_module, "_mistral_key_cursor", 0)
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "choices": [{"message": {"content": "ok"}}],
+        "usage": {"prompt_tokens": 2, "completion_tokens": 1},
+    }
+
+    with patch("httpx.AsyncClient.post", return_value=response) as post:
+        results = [
+            await make_session("mistral").chat([{"role": "user", "content": "question"}])
+            for _ in range(2)
+        ]
+
+    assert [result.credential_alias for result in results] == [
+        "MISTRAL_API_KEY_1",
+        "MISTRAL_API_KEY_2",
+    ]
+    assert [call.kwargs["headers"]["Authorization"] for call in post.call_args_list] == [
+        "Bearer mistral-account-one",
+        "Bearer mistral-account-two",
+    ]
+
+
+def test_mistral_key_pool_recognizes_user_named_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("KEY_ONE", "mistral-one")
+    monkeypatch.setenv("KEY_TWENTYTHREE", "mistral-twenty-three")
+    monkeypatch.setenv("MISTRAL_API_KEY", "legacy-key")
+
+    assert llm_module._configured_mistral_api_keys() == [
+        ("KEY_ONE", "mistral-one"),
+        ("KEY_TWENTYTHREE", "mistral-twenty-three"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_cohere_chat_round_robins_distinct_configured_keys(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("COHERE_CHAT_API_KEY", raising=False)
+    monkeypatch.setenv("COHERE", "cohere-primary-test-key")
+    monkeypatch.setenv("COHERE_BACKUP", "cohere-backup-test-key")
+    monkeypatch.setenv("COHERE_KEY", "cohere-third-test-key")
+    monkeypatch.setattr(llm_module, "COHERE_CHAT_REQUEST_INTERVAL_S", 0.0)
+    monkeypatch.setattr(llm_module, "_cohere_key_cursor", 0)
+    llm_module._cohere_last_start_by_key.clear()
+    llm_module._cohere_key_locks.clear()
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "message": {"content": [{"type": "text", "text": "ok"}]},
+        "usage": {"billed_units": {"input_tokens": 2, "output_tokens": 1}},
+    }
+
+    with patch("httpx.AsyncClient.post", return_value=response) as post:
+        results = [
+            await make_session("cohere").chat([{"role": "user", "content": "question"}])
+            for _ in range(3)
+        ]
+
+    assert [result.credential_alias for result in results] == [
+        "COHERE",
+        "COHERE_BACKUP",
+        "COHERE_KEY",
+    ]
+    assert [call.kwargs["headers"]["Authorization"] for call in post.call_args_list] == [
+        "Bearer cohere-primary-test-key",
+        "Bearer cohere-backup-test-key",
+        "Bearer cohere-third-test-key",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_cohere_key_pool_deduplicates_shared_secret_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("COHERE_CHAT_API_KEY", raising=False)
+    monkeypatch.setenv("COHERE", "shared-test-key")
+    monkeypatch.setenv("COHERE_BACKUP", "shared-test-key")
+    monkeypatch.setenv("COHERE_KEY", "distinct-test-key")
+
+    assert llm_module._configured_cohere_api_keys() == [
+        ("COHERE", "shared-test-key"),
+        ("COHERE_KEY", "distinct-test-key"),
+    ]
 
 
 @pytest.mark.asyncio
 async def test_mistral_retry_error_reports_status_without_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("MISTRAL_API_KEY", "test-mistral-key")
+    monkeypatch.setattr(llm_module, "_mistral_key_cursor", 0)
     request = httpx.Request("POST", "https://api.mistral.ai/v1/chat/completions")
     response = httpx.Response(429, request=request, headers={"retry-after": "0"})
     session = make_session("mistral")
 
     with (
-        patch("httpx.AsyncClient.post", return_value=response),
+        patch("httpx.AsyncClient.post", return_value=response) as post,
         patch("src.llm.asyncio.sleep", new_callable=AsyncMock),
         pytest.raises(RuntimeError, match="HTTP status 429") as error,
     ):
         await session.chat([{"role": "user", "content": "question"}], max_retries=2)
 
+    assert post.await_count == 1
     assert "test-mistral-key" not in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_mistral_rate_limit_moves_to_distinct_configured_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in llm_module._MISTRAL_KEY_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("MISTRAL_API_KEY_1", "mistral-first-account")
+    monkeypatch.setenv("MISTRAL_API_KEY_2", "mistral-second-account")
+    monkeypatch.setattr(llm_module, "_mistral_key_cursor", 0)
+    request = httpx.Request("POST", "https://api.mistral.ai/v1/chat/completions")
+    limited = httpx.Response(429, request=request)
+    successful = httpx.Response(
+        200,
+        json={
+            "choices": [{"message": {"content": "ok"}}],
+            "usage": {"prompt_tokens": 2, "completion_tokens": 1},
+        },
+        request=request,
+    )
+    session = make_session("mistral")
+
+    with (
+        patch("httpx.AsyncClient.post", side_effect=[limited, successful]) as post,
+        patch("src.llm.asyncio.sleep", new_callable=AsyncMock) as sleep,
+    ):
+        result = await session.chat([{"role": "user", "content": "question"}])
+
+    assert result.content == "ok"
+    assert result.credential_alias == "MISTRAL_API_KEY_2"
+    assert [call.kwargs["headers"]["Authorization"] for call in post.call_args_list] == [
+        "Bearer mistral-first-account",
+        "Bearer mistral-second-account",
+    ]
+    sleep.assert_not_awaited()

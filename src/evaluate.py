@@ -25,7 +25,7 @@ from src.embeddings import (
 from src.graph import GraphClient, connect, create_mock_graph_client
 from src.guardrails import normalize
 from src.ingest import load_all_chunks
-from src.llm import LockedLLMSession, make_session
+from src.llm import LockedLLMSession, make_session, mistral_api_keys_configured
 from src.models import EvalQuestion, PipelineResult
 from src.pipelines.agentic import AgenticPipeline
 from src.pipelines.graphrag import GraphRAGPipeline
@@ -203,12 +203,18 @@ class EvaluationHarness:
             provider_credentials = {
                 "cloudflare": ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"),
                 "gemini": ("GEMINI_API_KEY",),
-                "mistral": ("MISTRAL_API_KEY",),
                 "cohere": ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY"),
             }
-            required_credentials = provider_credentials[provider]
-            if not any(os.environ.get(name, "").strip() for name in required_credentials):
+            if provider == "mistral":
+                provider_is_configured = mistral_api_keys_configured()
+                names = "KEY_ONE..KEY_TWENTYTHREE or MISTRAL_API_KEY"
+            else:
+                required_credentials = provider_credentials[provider]
+                provider_is_configured = any(
+                    os.environ.get(name, "").strip() for name in required_credentials
+                )
                 names = " or ".join(required_credentials)
+            if not provider_is_configured:
                 raise RuntimeError(
                     f"Live evaluation requires one credential for provider {provider}: {names}"
                 )
