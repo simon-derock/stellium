@@ -13,6 +13,7 @@ from src.evaluate import (
     compute_mrr,
     compute_precision_at_k,
     compute_recall_at_k,
+    compute_strict_exact_match,
     compute_token_f1,
 )
 from src.models import EvalQuestion, PipelineResult
@@ -28,6 +29,22 @@ def test_exact_match() -> None:
     assert compute_exact_match("  5  ", ["5"]) == 1.0
     # Mismatch
     assert compute_exact_match("Usain Bolt", ["Chen Ding"]) == 0.0
+
+
+def test_exact_match_ignores_typography_but_not_content() -> None:
+    title = "Fencing at the 2008 Summer Olympics – Men's épée"
+    # Curly apostrophe, ASCII hyphen, trailing period, and missing accent are typography only.
+    assert compute_exact_match("Fencing at the 2008 Summer Olympics - Men’s epee.", [title]) == 1.0
+    # Gold team answers concatenate names; a comma-separated prediction has the same content.
+    team = ["Dani KingLaura TrottJoanna Rowsell"]
+    assert compute_exact_match("Dani King, Laura Trott, Joanna Rowsell", team) == 1.0
+    # Different content still fails: a suffix is not the canonical title, and numbers differ.
+    assert compute_exact_match("Men's épée", [title]) == 0.0
+    assert compute_exact_match("41", ["4"]) == 0.0
+    assert compute_exact_match("", [""]) == 0.0
+    # The legacy metric keeps its punctuation sensitivity for audit comparability.
+    assert compute_strict_exact_match("Chen Ding.", ["Chen Ding"]) == 0.0
+    assert compute_strict_exact_match("chen ding", ["Chen Ding"]) == 1.0
 
 
 def test_token_f1() -> None:

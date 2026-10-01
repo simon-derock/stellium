@@ -36,14 +36,29 @@ from src.pipelines.rag import RAGPipeline
 # ---------------------------------------------------------------------------
 
 
+_ANSWER_PUNCTUATION_MAP = str.maketrans({"‘": "'", "’": "'", "–": "-", "—": "-", "−": "-"})
+
+
+def normalize_answer(text: str) -> str:
+    # Compare answer content, not typography: diacritics, case, punctuation, and spacing are
+    # ignored, so "Men’s épée." equals "Men's epee" and gold team strings written without
+    # separators ("Dani KingLaura Trott") equal comma-separated predictions.
+    folded = normalize(text.translate(_ANSWER_PUNCTUATION_MAP)).casefold()
+    return "".join(char for char in folded if char.isalnum())
+
+
 def compute_exact_match(prediction: str, ground_truths: Sequence[str]) -> float:
-    # Normalized exact match: diacritics stripped, lowercased, whitespace normalized.
+    # Normalized exact match over answer content (see normalize_answer).
+    pred_norm = normalize_answer(prediction)
+    if not pred_norm:
+        return 0.0
+    return float(any(pred_norm == normalize_answer(gt) for gt in ground_truths))
+
+
+def compute_strict_exact_match(prediction: str, ground_truths: Sequence[str]) -> float:
+    # Legacy metric kept for comparison with earlier audits: punctuation-sensitive equality.
     pred_norm = normalize(prediction).lower().strip()
-    for gt in ground_truths:
-        gt_norm = normalize(gt).lower().strip()
-        if pred_norm == gt_norm:
-            return 1.0
-    return 0.0
+    return float(any(pred_norm == normalize(gt).lower().strip() for gt in ground_truths))
 
 
 def compute_token_f1(prediction: str, ground_truths: Sequence[str]) -> float:
@@ -356,6 +371,7 @@ class EvaluationHarness:
                 # Compute metrics if ground truth is present
                 if q.answer:
                     em = compute_exact_match(res.answer, q.answer)
+                    record[f"{p}_em_strict"] = compute_strict_exact_match(res.answer, q.answer)
                     f1 = compute_token_f1(res.answer, q.answer)
                     mrr = compute_mrr(res.retrieved_doc_ids, q.gold_doc_ids or [])
                     rec5 = compute_recall_at_k(res.retrieved_doc_ids, q.gold_doc_ids or [], k=5)
