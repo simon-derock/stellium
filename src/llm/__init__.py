@@ -33,7 +33,8 @@ CLOUDFLARE_OPENAI_URL = (
 GEMINI_MODEL = "gemini-3.8-flash"
 MISTRAL_MODEL = "mistral-medium-latest"
 COHERE_MODEL = os.environ.get("COHERE_CHAT_MODEL", "command-a-03-2025")
-COHERE_CHAT_REQUEST_INTERVAL_S = 3.25
+# Trial keys allow 20 calls per minute; production keys can set this to 0.
+COHERE_CHAT_REQUEST_INTERVAL_S = float(os.environ.get("COHERE_CHAT_REQUEST_INTERVAL_S", "3.25"))
 _COHERE_KEY_ENV_NAMES = ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY")
 _MISTRAL_NAMED_KEY_SUFFIXES = (
     "ONE",
