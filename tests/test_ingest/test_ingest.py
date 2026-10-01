@@ -43,6 +43,31 @@ def test_infobox_extraction() -> None:
     assert infobox.gold_athlete == "Rudolf Dombi, Roland Kökény"
 
 
+def test_infobox_corrects_zero_padded_competitor_count_when_intro_confirms() -> None:
+    text = """[Infobox Olympic event]
+  event: Men's épée
+  games: 2008 Summer
+  competitors: 41000000
+  nations: 23
+
+The men's épée at the 2008 Summer Olympics. There were 41 competitors from 23 nations.
+"""
+
+    assert parse_infobox(text).competitor_count == 41
+
+
+def test_infobox_keeps_small_competitor_count_conflict() -> None:
+    text = """[Infobox Olympic event]
+  event: Men's 100 metre freestyle
+  games: 1996 Summer
+  competitors: 61
+
+There were 60 competitors from 48 nations.
+"""
+
+    assert parse_infobox(text).competitor_count == 61
+
+
 def test_infobox_preserves_internal_capital_when_article_confirms_full_name() -> None:
     text = """[Infobox Olympic event]
   event: Women's trampoline

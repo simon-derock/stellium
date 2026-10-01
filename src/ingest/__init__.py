@@ -124,14 +124,17 @@ def parse_infobox(text: str, title: str = "") -> ParsedInbox:
     # Returns ParsedInbox with None values for missing fields.
     fields: dict[str, str] = {}
     in_infobox = False
+    intro_text = ""
 
-    for line in text.splitlines():
+    lines = text.splitlines()
+    for line_index, line in enumerate(lines):
         if _INFOBOX_START.search(line):
             in_infobox = True
             continue
         if in_infobox:
             # Infobox ends at first blank line after start.
             if not line.strip():
+                intro_text = "\n".join(lines[line_index + 1 :]).split("\n\n", 1)[0]
                 break
             m = _FIELD_LINE.match(line)
             if m:
@@ -186,6 +189,25 @@ def parse_infobox(text: str, title: str = "") -> ParsedInbox:
         m = re.search(r"\d+", raw)
         return int(m.group()) if m else None
 
+    competitor_count = _parse_int(fields.get("competitors"))
+    # Some scraped infoboxes append several zeroes to a count. Correct only when
+    # the opening paragraph independently states the exact unpadded count.
+    intro_count = re.search(
+        r"\bthere (?:were|was)\s+(\d[\d,]*)\s+competitors?\s+from\b",
+        intro_text,
+        re.IGNORECASE,
+    )
+    if competitor_count is not None and intro_count is not None:
+        stated_count = int(intro_count.group(1).replace(",", ""))
+        padded_count = str(competitor_count)
+        if (
+            competitor_count != stated_count
+            and len(padded_count) - len(str(stated_count)) >= 3
+            and padded_count.startswith(str(stated_count))
+            and set(padded_count[len(str(stated_count)) :]) == {"0"}
+        ):
+            competitor_count = stated_count
+
     # Parse prev/next years
     prev_year: int | None = None
     next_year: int | None = None
@@ -221,7 +243,7 @@ def parse_infobox(text: str, title: str = "") -> ParsedInbox:
         event_name=event_name or None,
         venue=fields.get("venue"),
         start_date=fields.get("dates"),
-        competitor_count=_parse_int(fields.get("competitors")),
+        competitor_count=competitor_count,
         nation_count=_parse_int(fields.get("nations")),
         gold_athlete=_athlete(fields.get("gold")),
         silver_athlete=_athlete(fields.get("silver")),
