@@ -6,8 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from src.coprocessor import Coprocessor
-from src.graph import create_mock_graph_client
 from src.llm import LLMCallResult, LockedLLMSession
 from src.pipelines.agentic import AgenticPipeline, parse_react_response
 
@@ -86,44 +84,34 @@ async def test_llm_rate_limit_and_server_error_chaos(monkeypatch: pytest.MonkeyP
 
 @pytest.mark.asyncio
 async def test_agentic_pipeline_resilience_on_database_chaos() -> None:
-    # Simulates database outage (network timeout / 502) during agentic tool execution.
-    # The agent should record backend unavailability and stop instead of inventing a fallback answer.
-    graph = create_mock_graph_client()
-    # Inject failure into run_aggregation
+    # A TigerGraph outage mid-investigation must stop the run, not invent a fallback answer.
+    from tests.graph_fixtures import seeded_graph
+
+    graph, catalog, coprocessor = seeded_graph()
     graph.run_aggregation = MagicMock(side_effect=RuntimeError("TigerGraph connection timeout"))  # type: ignore[method-assign]
-
     session = LockedLLMSession(provider="cloudflare", model="mock-llama")
-    session.chat = AsyncMock()  # type: ignore[method-assign]
-
-    # Model attempts gsql_aggregate; an unavailable graph backend must stop the run.
-    first_resp = LLMCallResult(
-        content='Thought: Look up aggregate count.\nAction: gsql_aggregate\nAction Input: {"sport": "Biathlon", "min_competitors": 74}',
-        input_tokens=20,
-        output_tokens=30,
-        model_name="mock-llama",
-        provider="mock",
-        latency_ms=10.0,
+    session.chat = AsyncMock(  # type: ignore[method-assign]
+        return_value=LLMCallResult(
+            content=(
+                "Thought: Count matching events.\nAction: count_events\n"
+                'Action Input: {"sport": "Rowing", "threshold": 25}'
+            ),
+            input_tokens=20,
+            output_tokens=30,
+            model_name="mock-llama",
+            provider="mock",
+            latency_ms=10.0,
+        )
     )
-    session.chat.side_effect = [first_resp]
 
-    coprocessor = Coprocessor()
-    coprocessor.build([])
-    pipeline = AgenticPipeline(graph=graph, coprocessor=coprocessor, llm=session)
-    result = await pipeline.run(
-        "pub-test-chaos", "How many biathlon events had more than 73 competitors?"
-    )
+    pipeline = AgenticPipeline(graph=graph, coprocessor=coprocessor, llm=session, catalog=catalog)
+    result = await pipeline.run("chaos", "How many rowing events had more than 25 competitors?")
 
     assert result.answer == "Not found in corpus"
     assert result.agentic_trace is not None
-    assert len(result.agentic_trace["tools_called"]) >= 1
-    # Check that error was captured in observation
-    assert any(
-        "error" in call["output_summary"].lower()
-        for call in result.agentic_trace["tools_called"]
-        if call["tool_name"] == "gsql_aggregate"
-    )
+    assert "error" in result.agentic_trace["tools_called"][0]["output_summary"].lower()
     assert session.chat.await_count == 1
-    assert "workspace was unavailable" in result.agentic_trace["stopping_reason"]
+    assert "unavailable" in result.agentic_trace["stopping_reason"]
 
 
 def test_chunk_filter_mask_bit_invariants_under_fuzz() -> None:

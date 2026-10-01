@@ -7,8 +7,10 @@ os.environ["TG_USE_MOCK"] = "1"
 import pytest
 
 import src.api.main as api_main
+import src.pipelines.agentic as agentic_module
 from src.api.main import app
 from src.coprocessor import Coprocessor
+from src.linking import EventCatalog, EventRecord
 from src.llm import LLMCallResult, LockedLLMSession
 from src.models import Chunk
 from tests.asgi_client import InProcessASGIClient
@@ -38,6 +40,20 @@ def _wire_retrieval_api(
         "gold_doc_ids": ["Q123"],
     }
     graph.run_lookup.return_value = {"events": [], "gold_athletes": [], "gold_doc_ids": []}
+    graph.conn.getVerticesById.return_value = [
+        {"v_id": "Q123", "attributes": {"gold_athlete": "Samuel Wanjiru"}}
+    ]
+    marathon = EventRecord(
+        "Q123",
+        "Athletics at the 2008 Summer Olympics – Men's marathon",
+        2008,
+        "Summer",
+        "Athletics",
+        "Men",
+        "Beijing National Stadium",
+        "24 August",
+    )
+    monkeypatch.setattr(agentic_module, "catalog_for", lambda graph: EventCatalog([marathon]))
     session = LockedLLMSession(provider="cloudflare", model="test-model")
     chat = AsyncMock(side_effect=chat_results)
     monkeypatch.setattr(api_main, "get_graph", lambda: graph)
@@ -86,41 +102,39 @@ def test_blocked_query_returns_400() -> None:
     assert "database command" in resp.json()["detail"]
 
 
-def test_agentic_query_mock_execution() -> None:
-    from unittest.mock import patch
+def test_agentic_query_runs_typed_graph_tool(monkeypatch: pytest.MonkeyPatch) -> None:
+    from tests.graph_fixtures import seeded_graph
 
-    from src.llm import LLMCallResult, LockedLLMSession
-
-    mock_res = LLMCallResult(
-        content='Thought: I need to count the biathlon events with >73 competitors in 2018.\nAction: gsql_aggregate\nAction Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, "max_competitors": 0}',
+    graph, _, coprocessor = seeded_graph()
+    plan = LLMCallResult(
+        content=(
+            "Thought: Count the matching events in the graph.\nAction: count_events\n"
+            'Action Input: {"sport": "Rowing", "year": 2004, "comparison": "more_than", '
+            '"threshold": 25}'
+        ),
         input_tokens=45,
         output_tokens=30,
         model_name="mock-model",
         provider="mock",
         latency_ms=10.0,
     )
-    mock_final = LLMCallResult(
-        content="Thought: The event count matches the requested threshold.\nFinal Answer: 5",
-        input_tokens=60,
-        output_tokens=12,
-        model_name="mock-model",
-        provider="mock",
-        latency_ms=8.0,
+    session = LockedLLMSession(provider="cloudflare", model="mock-model")
+    monkeypatch.setattr(api_main, "get_graph", lambda: graph)
+    monkeypatch.setattr(api_main, "get_coprocessor", lambda: coprocessor)
+    monkeypatch.setattr(api_main, "make_session", lambda provider: session)
+    monkeypatch.setattr(session, "chat", AsyncMock(return_value=plan))
+
+    resp = client.post(
+        "/api/v1/query/agentic",
+        json={"query": "How many rowing events in 2004 had more than 25 competitors?"},
     )
-    with patch.object(LockedLLMSession, "chat", side_effect=[mock_res, mock_final]):
-        resp = client.post(
-            "/api/v1/query/agentic",
-            json={
-                "query": "According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",
-                "qid": "pub-001",
-            },
-        )
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["pipeline"] == "agentic"
-        assert data["answer"] == "5"
-        assert data["total_llm_tokens"] > 0
-        assert "agentic_trace" in data
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["pipeline"] == "agentic"
+    assert data["answer"] == "1"
+    assert data["total_llm_tokens"] == 75
+    assert data["agentic_trace"]["tools_called"][0]["tool_name"] == "count_events"
 
 
 def test_rag_api_sends_retrieved_text_to_synthesis(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -225,24 +239,10 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
             ),
             LLMCallResult(
                 content=(
-                    "Thought: A deterministic event query can answer this count.\n"
-                    "Action: gsql_aggregate\n"
-                    'Action Input: {"sport":"Athletics","target_year":2008,'
-                    '"min_competitors":0,"max_competitors":0}'
-                ),
-                input_tokens=30,
-                output_tokens=18,
-                model_name="test-model",
-                provider="test",
-                latency_ms=1.0,
-            ),
-            LLMCallResult(
-                content=(
-                    "Thought: The count does not answer who won; query the gold medalist.\n"
-                    "Action: gsql_lookup\n"
-                    'Action Input: {"event_name_fragment":"men\'s marathon",'
-                    '"target_year":2008,"sport":"Athletics",'
-                    '"gender":"Men","attribute":"gold_athlete"}'
+                    "Thought: Look up the gold medallist of the named event.\n"
+                    "Action: event_attribute\n"
+                    'Action Input: {"event":"men\'s marathon","year":2008,'
+                    '"sport":"Athletics","attribute":"gold_athlete"}'
                 ),
                 input_tokens=42,
                 output_tokens=24,
@@ -280,11 +280,14 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
     assert payload["rag"]["retrieved_doc_ids"] == ["Q123"]
     assert payload["graphrag"]["retrieved_doc_ids"] == ["Q123"]
     trace = payload["agentic"]["agentic_trace"]
-    assert trace["agents_invoked"] == ["ReActOrchestrator"]
-    assert trace["tools_called"][0]["tool_name"] == "hybrid_search"
+    assert trace["agents_invoked"][:3] == [
+        "OrchestratorAgent",
+        "EntityLinkingAgent",
+        "GraphTraversalAgent",
+    ]
+    assert trace["tools_called"][0]["tool_name"] == "event_attribute"
     assert trace["tools_called"][0]["llm_tokens"] == 0
-    assert trace["tools_called"][1]["tool_name"] == "gsql_aggregate"
-    assert chat.await_count == 5
+    assert chat.await_count == 4
 
 
 def test_batch_eval_bypasses_input_guards() -> None:

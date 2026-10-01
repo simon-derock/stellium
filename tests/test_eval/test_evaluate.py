@@ -174,32 +174,28 @@ def test_live_evaluation_rejects_embedding_index_mismatch(
 @pytest.mark.asyncio
 async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) -> None:
     from src.llm import LLMCallResult, LockedLLMSession
+    from tests.graph_fixtures import seeded_graph
 
     q = EvalQuestion(
         qid="test-001",
-        question="According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",
+        question="How many rowing events at the 2004 Summer Olympics had more than 25 competitors?",
         qtype="aggregation",
-        answer=["5"],
-        gold_doc_ids=["Q47091419"],
+        answer=["1"],
+        gold_doc_ids=["R04M"],
     )
-    mock_res = LLMCallResult(
-        content='Thought: Count biathlon events in 2018 with >73 competitors.\nAction: gsql_aggregate\nAction Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, "max_competitors": 0}',
+    plan = LLMCallResult(
+        content=(
+            "Thought: Count rowing events.\nAction: count_events\n"
+            'Action Input: {"sport": "Rowing", "year": 2004, "threshold": 25}'
+        ),
         input_tokens=50,
         output_tokens=30,
         model_name="mock-model",
         provider="mock",
         latency_ms=12.0,
     )
-    final_res = LLMCallResult(
-        content="Thought: The aggregate matches the requested condition.\nFinal Answer: 5",
-        input_tokens=70,
-        output_tokens=12,
-        model_name="mock-model",
-        provider="mock",
-        latency_ms=8.0,
-    )
     session = LockedLLMSession(provider="cloudflare", model="mock-model")
-    chat = AsyncMock(side_effect=[mock_res, final_res])
+    chat = AsyncMock(return_value=plan)
     monkeypatch.setattr(session, "chat", chat)
 
     harness = EvaluationHarness(
@@ -207,14 +203,14 @@ async def test_evaluation_harness_offline_mock(monkeypatch: pytest.MonkeyPatch) 
         use_mock=True,
         session_factory=lambda provider: session,
     )
+    harness.graph, _, harness.coprocessor = seeded_graph()
 
     results = await harness.evaluate_question(q, ["agentic"])
-    assert "agentic" in results
-    assert results["agentic"].answer == "5"
-    assert results["agentic"].total_llm_tokens > 0
+    assert results["agentic"].answer == "1"
+    assert results["agentic"].total_llm_tokens == 80
     assert results["agentic"].agentic_trace is not None
     assert results["agentic"].agentic_trace["stopping_reason"] != ""
-    assert chat.await_count == 2
+    assert chat.await_count == 1
 
 
 @pytest.mark.asyncio
