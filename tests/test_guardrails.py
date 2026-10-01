@@ -2,6 +2,7 @@
 from src.guardrails import (
     check_query,
     normalize,
+    normalize_gsql_string_quotes,
     normalize_text,
     sanitize_output,
 )
@@ -71,3 +72,26 @@ def test_output_sanitization_redacts_keys() -> None:
     assert "sk-" not in sanitized
     assert "[REDACTED]" in sanitized
     assert "Chen Ding" in sanitized
+
+
+def test_generated_gsql_normalizes_unambiguous_single_quoted_literals() -> None:
+    query = (
+        "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
+        "Matched = SELECT e FROM Events:e WHERE lower(e.sport) == 'fencing' "
+        'AND lower(e.name) LIKE "%men\'s epee%" LIMIT 10; PRINT Matched[Matched.name]; }'
+    )
+
+    normalized, changed = normalize_gsql_string_quotes(query)
+
+    assert changed
+    assert 'lower(e.sport) == "fencing"' in normalized
+    assert 'LIKE "%men\'s epee%"' in normalized
+
+
+def test_generated_gsql_leaves_ambiguous_single_quote_input_unchanged() -> None:
+    query = "INTERPRET QUERY () FOR GRAPH OlympicsGraph { PRINT 'men's epee'; }"
+
+    normalized, changed = normalize_gsql_string_quotes(query)
+
+    assert not changed
+    assert normalized == query

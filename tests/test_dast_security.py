@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from src.guardrails import check_query, sanitize_output
+from src.guardrails import check_query, sanitize_output, validate_generated_gsql
 from src.pipelines.agentic import parse_react_response
 
 
@@ -24,6 +24,40 @@ def test_dast_gsql_injection_payloads() -> None:
         is_safe, reason = check_query(payload, is_batch=False)
         assert not is_safe, f"Payload was not blocked: {payload}"
         assert "structural database command" in reason
+
+
+def test_generated_gsql_allows_bounded_read_only_query_and_rejects_injection() -> None:
+    safe_query = (
+        "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
+        "Matched = SELECT e FROM Events:e WHERE e.year == 2012 AND "
+        'lower(e.sport) == "fencing" LIMIT 20; '
+        "PRINT Matched[Matched.name, Matched.gold_athlete]; }"
+    )
+    assert validate_generated_gsql(safe_query) == (True, "ok")
+    assert validate_generated_gsql(safe_query.replace('"fencing"', "'fencing'")) == (True, "ok")
+
+    aggregate_query = (
+        "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
+        "SumAccum<INT> @@matches = 0; "
+        "Matched = SELECT e FROM Events:e WHERE e.year == 2018 "
+        'AND lower(e.sport) == "biathlon" AND e.competitor_count > 73 '
+        "ACCUM @@matches += 1 LIMIT 2500; "
+        "PRINT @@matches AS match_count; }"
+    )
+    assert validate_generated_gsql(aggregate_query) == (True, "ok")
+    assert not validate_generated_gsql(aggregate_query.replace("ACCUM", "EXECUTE_SYSTEM"))[0]
+
+    hostile_queries = [
+        safe_query.replace("LIMIT 20", "LIMIT 3000"),
+        safe_query.replace("Event.*", "ChatMessage.*"),
+        safe_query[:-1] + "; DROP GRAPH OlympicsGraph",
+        safe_query.replace('"fencing"', '"x; DROP GRAPH OlympicsGraph"'),
+        safe_query.replace('"fencing"', "'x; DROP GRAPH OlympicsGraph'"),
+        safe_query.replace("Matched.name", "Matched.password"),
+    ]
+    for query in hostile_queries:
+        safe, _ = validate_generated_gsql(query)
+        assert not safe
 
 
 def test_dast_jailbreak_and_prompt_injection_payloads() -> None:
