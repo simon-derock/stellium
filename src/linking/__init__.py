@@ -303,5 +303,11 @@ class EventCatalog:
                 continue
             if years and not years <= (record_years | {str(record.year)}):
                 continue
-            relaxed.append(EventMatch(record=record, score=0.8))
+            # Exact surface forms are stronger evidence than containment or reordering: a question
+            # written from one article copies that article's venue wording ("Olympic Aquatic
+            # Centre", not "Athens Olympic Aquatic Centre"), even when the date was paraphrased.
+            exactness = (record_venue == venue_key) + (compact(record.dates) == date_key)
+            relaxed.append(EventMatch(record=record, score=round(0.6 + 0.1 * exactness, 1)))
+        best = max((match.score for match in relaxed), default=0.0)
+        relaxed = [match for match in relaxed if match.score == best]
         return LinkResult(matches=tuple(relaxed), method="venue_and_equivalent_date")

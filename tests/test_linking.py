@@ -157,3 +157,30 @@ def test_link_event_accepts_canonical_titles_and_title_shaped_phrases() -> None:
     assert CATALOG.link_event(title, year=2012).resolved is None
     # A year inside a free phrase becomes a constraint instead of breaking the number check.
     assert CATALOG.link_event("2008 men's +100 kg judo").resolved == CATALOG.get("e5")
+
+
+def test_exact_venue_wording_outranks_a_containing_venue_name() -> None:
+    catalog = EventCatalog(
+        [
+            _event(
+                "a",
+                "Swimming at the 2004 Summer Olympics – Men's 400 metre freestyle",
+                "Athens Pool",
+                "14 August (heats & final)",
+            ),
+            _event(
+                "b",
+                "Swimming at the 2004 Summer Olympics – Men's 400 metre medley",
+                "Pool",
+                "14 August (heats & final)",
+            ),
+        ]
+    )
+    # The paraphrased date misses the exact tier; the exact venue wording still decides.
+    result = catalog.link_venue_date("Pool", "August 14, 2004")
+    assert result.resolved == catalog.get("b")
+    # With no surface-form difference the ambiguity is still reported.
+    assert catalog.link_venue_date(
+        "Pool", "August 14, 2004 (heats & final)"
+    ).resolved == catalog.get("b")
+    assert catalog.link_venue_date("Athens Pool", "14 August").resolved == catalog.get("a")
