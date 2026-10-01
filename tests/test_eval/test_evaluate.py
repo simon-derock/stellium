@@ -141,6 +141,7 @@ def test_live_evaluation_does_not_replace_graph_failure_with_mock(
         raise ConnectionError("test connection failure")
 
     monkeypatch.setattr(evaluate_module, "connect", fail_connect)
+    monkeypatch.setattr(evaluate_module, "wait_for_graph_ready", lambda host: 0.0)
     with pytest.raises(ConnectionError, match="test connection failure"):
         EvaluationHarness(corpus_path="missing-corpus.jsonl")
 

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from src.graph import GraphClient
 from src.models import Chunk, ParsedInbox
 
@@ -316,3 +318,42 @@ def test_vector_search_sorts_hits_by_similarity_instead_of_graph_row_order() -> 
     results = client.vector_search([0.1] * 1024, top_k=2)
 
     assert results == [("Q_HIGH#0", 0.9), ("Q_LOW#0", 0.4)]
+
+
+def test_wait_for_graph_ready_polls_through_workspace_startup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import requests
+
+    from src.graph import wait_for_graph_ready
+
+    statuses = iter([503, 502, 200])
+    calls: list[str] = []
+
+    class _Response:
+        def __init__(self, status_code: int) -> None:
+            self.status_code = status_code
+
+    def fake_get(url: str, timeout: float) -> _Response:
+        calls.append(url)
+        return _Response(next(statuses))
+
+    monkeypatch.setattr(requests, "get", fake_get)
+    monkeypatch.setattr("src.graph.time.sleep", lambda _: None)
+
+    wait_for_graph_ready("https://graph.example/", timeout_s=60.0, poll_interval_s=1.0)
+
+    assert calls == ["https://graph.example/api/ping"] * 3
+
+
+def test_wait_for_graph_ready_fails_closed_after_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    import requests
+
+    from src.graph import wait_for_graph_ready
+
+    def unreachable(url: str, timeout: float) -> None:
+        raise requests.ConnectionError("unreachable")
+
+    monkeypatch.setattr(requests, "get", unreachable)
+    with pytest.raises(RuntimeError, match="did not become ready"):
+        wait_for_graph_ready("https://graph.example", timeout_s=0.0, poll_interval_s=1.0)

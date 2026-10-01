@@ -59,6 +59,7 @@ __all__ = [
     "parse_temporal_datetime",
     "resolve_conflicts_for_facts",
     "resolve_fact_conflict",
+    "wait_for_graph_ready",
 ]
 
 # ---------------------------------------------------------------------------
@@ -67,6 +68,32 @@ __all__ = [
 
 _GRAPH_NAME = "OlympicsGraph"
 _MAX_MULTIHOP_GRAPH_MATCHES = 20
+
+
+def wait_for_graph_ready(
+    host: str, timeout_s: float = 300.0, poll_interval_s: float = 5.0
+) -> float:
+    # Savanna suspends idle workspaces and answers with an HTML "Starting workspace" page until
+    # resumed; wait for the ping endpoint so the first real query does not fail on that page.
+    import requests
+
+    started = time.perf_counter()
+    deadline = started + timeout_s
+    last_status = "no response"
+    while True:
+        try:
+            response = requests.get(f"{host.rstrip('/')}/api/ping", timeout=10)
+            if response.status_code == 200:
+                return time.perf_counter() - started
+            last_status = f"HTTP {response.status_code}"
+        except requests.RequestException as exc:
+            last_status = type(exc).__name__
+        if time.perf_counter() + poll_interval_s > deadline:
+            raise RuntimeError(
+                f"TigerGraph workspace did not become ready within {timeout_s:.0f}s "
+                f"(last status: {last_status})"
+            )
+        time.sleep(poll_interval_s)
 
 
 def connect() -> tg.TigerGraphConnection:

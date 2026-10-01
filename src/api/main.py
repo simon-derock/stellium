@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.coprocessor import Coprocessor
-from src.graph import GraphClient, connect, create_mock_graph_client
+from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
 from src.guardrails import check_query
 from src.ingest import load_all_chunks
 from src.llm import make_session
@@ -72,6 +72,7 @@ def get_graph() -> GraphClient:
             "Set TG_USE_MOCK=1 only for explicit local testing."
         )
     try:
+        wait_for_graph_ready(os.environ["TG_HOST"], timeout_s=120.0)
         _graph = GraphClient(conn=connect())
     except Exception as exc:
         raise RuntimeError(

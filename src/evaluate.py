@@ -22,7 +22,7 @@ from src.embeddings import (
     embedding_client_from_env,
     is_graph_embedding_compatible,
 )
-from src.graph import GraphClient, connect, create_mock_graph_client
+from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
 from src.guardrails import normalize
 from src.ingest import load_all_chunks
 from src.llm import LockedLLMSession, make_session, mistral_api_keys_configured
@@ -268,6 +268,8 @@ class EvaluationHarness:
         if use_mock:
             self.graph = self._make_mock_graph()
         else:
+            waited_s = wait_for_graph_ready(os.environ["TG_HOST"])
+            print(f"TigerGraph workspace ready after {waited_s:.1f}s", file=sys.stderr)
             self.graph = GraphClient(conn=connect())
 
     def _make_mock_graph(self) -> GraphClient:
