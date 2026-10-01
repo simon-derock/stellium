@@ -1,4 +1,5 @@
 # Unit tests for evaluation metrics: Exact Match, Token F1, MRR, Recall@k.
+import hashlib
 import json
 from pathlib import Path
 from typing import Literal, cast
@@ -264,6 +265,10 @@ async def test_benchmark_runner_writes_public_and_hidden_records(tmp_path: Path)
     )
 
     assert len(records) == 2
+    manifest = json.loads((tmp_path / "results" / "benchmark.jsonl.manifest.json").read_text())
+    assert manifest["pipelines"] == ["rag", "graphrag", "agentic"]
+    assert manifest["dataset"]["sha256"] == hashlib.sha256(dataset_path.read_bytes()).hexdigest()
+    assert "finished_at" in manifest and "git_commit" in manifest
     assert records[0]["rag_em"] == 1.0
     assert records[0]["agentic_recall@5"] == 1.0
     assert records[0]["agentic_trace"] == {"step_count": 1}

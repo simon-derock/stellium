@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import hashlib
 import json
 import os
+import subprocess  # nosec B404
 import sys
 import time
 from collections import Counter
@@ -199,6 +201,64 @@ def _summarize_records(
     return stats, qtype_counts, qtype_stats
 
 
+def _sha256(path: str) -> str | None:
+    file_path = Path(path)
+    if not file_path.exists():
+        return None
+    return hashlib.sha256(file_path.read_bytes()).hexdigest()
+
+
+def _git(*args: str) -> str:
+    try:
+        return subprocess.run(
+            ["git", *args], capture_output=True, text=True, check=True, timeout=10
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _write_manifest(
+    out_file: Path,
+    dataset_path: str,
+    corpus_path: str,
+    provider: str,
+    pipelines: list[str],
+    done: bool = False,
+) -> None:
+    # Everything needed to reproduce or audit a run sits next to its results.
+    manifest_path = out_file.with_suffix(out_file.suffix + ".manifest.json")
+    manifest: dict[str, Any] = {}
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    session = make_session(provider)
+    manifest.setdefault("started_at", time.strftime("%Y-%m-%dT%H:%M:%S%z"))
+    manifest.update(
+        {
+            "git_commit": _git("rev-parse", "HEAD"),
+            "git_dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
+            "provider": provider,
+            "model": session.model,
+            "pipelines": pipelines,
+            "dataset": {"path": dataset_path, "sha256": _sha256(dataset_path)},
+            "corpus": {"path": corpus_path, "sha256": _sha256(corpus_path)},
+            "settings": {
+                name: os.environ.get(name, "")
+                for name in (
+                    "STELLIUM_AGENT_INITIAL_HYBRID",
+                    "COHERE_CHAT_REQUEST_INTERVAL_S",
+                    "STELLIUM_QUERY_EMBEDDING_CACHE",
+                    "STELLIUM_LLM_RESPONSE_CACHE",
+                    "RERANKER_CPU_THREADS",
+                )
+            },
+            "python": sys.version.split()[0],
+        }
+    )
+    if done:
+        manifest["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S%z")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+
 # ---------------------------------------------------------------------------
 # Evaluation Runner
 # ---------------------------------------------------------------------------
@@ -329,6 +389,7 @@ class EvaluationHarness:
         completed_records: dict[str, dict[str, Any]] = {}
         if out_file:
             out_file.parent.mkdir(parents=True, exist_ok=True)
+            _write_manifest(out_file, dataset_path, self.corpus_path, self.provider, pipeline_names)
             if resume and out_file.exists():
                 completed_records = _load_checkpoint(out_file, questions, pipeline_names)
             else:
@@ -377,6 +438,7 @@ class EvaluationHarness:
                 record[f"{p}_model"] = res.model_name
                 record[f"{p}_provider"] = res.provider
                 record[f"{p}_retrieved_doc_ids"] = res.retrieved_doc_ids
+                record[f"{p}_retrieval_metadata"] = res.retrieval_metadata
 
                 if res.agentic_trace:
                     record["agentic_trace"] = res.agentic_trace
@@ -473,7 +535,10 @@ class EvaluationHarness:
             )
             print("=" * 90 + "\n", file=sys.stderr)
 
-        if output_path:
+        if out_file:
+            _write_manifest(
+                out_file, dataset_path, self.corpus_path, self.provider, pipeline_names, done=True
+            )
             print(f"Results checkpointed to {output_path}", file=sys.stderr)
 
         return all_records
