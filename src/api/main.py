@@ -48,19 +48,43 @@ def _get_mock_graph() -> GraphClient:
     return create_mock_graph_client()
 
 
+def _load_graph_environment() -> None:
+    # Load local credentials before checking TG_HOST; connect() loads them too late for routing.
+    try:
+        import dotenv
+
+        dotenv.load_dotenv()
+    except ImportError:
+        pass
+
+
 def get_graph() -> GraphClient:
     global _graph
-    if os.environ.get("TG_USE_MOCK"):
+    if _graph is not None:
+        return _graph
+    _load_graph_environment()
+    use_mock = os.environ.get("TG_USE_MOCK", "").casefold() in {"1", "true", "yes"}
+    if use_mock:
         return _get_mock_graph()
-    if _graph is None:
-        if os.environ.get("TG_HOST"):
-            try:
-                _graph = GraphClient(conn=connect())
-            except Exception:
-                _graph = _get_mock_graph()
-        else:
-            _graph = _get_mock_graph()
+    if not os.environ.get("TG_HOST", "").strip():
+        raise RuntimeError(
+            "TG_HOST is not configured; refusing to answer from the mock graph. "
+            "Set TG_USE_MOCK=1 only for explicit local testing."
+        )
+    try:
+        _graph = GraphClient(conn=connect())
+    except Exception as exc:
+        raise RuntimeError(
+            "TigerGraph client initialization failed; refusing to substitute mock graph data."
+        ) from exc
     return _graph
+
+
+def _get_request_graph() -> GraphClient:
+    try:
+        return get_graph()
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 def get_coprocessor() -> Coprocessor:
@@ -76,9 +100,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if os.path.exists(corpus_path):
         chunks = load_all_chunks(corpus_path)
         _coprocessor.build(chunks)
-
-    # Pre-warm graph client
-    _ = get_graph()
 
     yield
 
@@ -143,7 +164,7 @@ async def query_rag(req: QueryRequest) -> PipelineResult:
     if not safe:
         raise HTTPException(status_code=400, detail=reason)
 
-    graph = get_graph()
+    graph = _get_request_graph()
     session = make_session(req.provider)
     async with session:
         pipe = RAGPipeline(graph=graph, llm=session, coprocessor=get_coprocessor())
@@ -156,7 +177,7 @@ async def query_graphrag(req: QueryRequest) -> PipelineResult:
     if not safe:
         raise HTTPException(status_code=400, detail=reason)
 
-    graph = get_graph()
+    graph = _get_request_graph()
     session = make_session(req.provider)
     async with session:
         pipe = GraphRAGPipeline(graph=graph, llm=session, coprocessor=get_coprocessor())
@@ -169,7 +190,7 @@ async def query_agentic(req: QueryRequest) -> PipelineResult:
     if not safe:
         raise HTTPException(status_code=400, detail=reason)
 
-    graph = get_graph()
+    graph = _get_request_graph()
     coproc = get_coprocessor()
     session = make_session(req.provider)
     async with session:
@@ -184,7 +205,7 @@ async def query_compare(req: QueryRequest) -> CompareResult:
     if not safe:
         raise HTTPException(status_code=400, detail=reason)
 
-    graph = get_graph()
+    graph = _get_request_graph()
     coproc = get_coprocessor()
     session = make_session(req.provider)
     async with session:
@@ -211,7 +232,7 @@ async def query_compare(req: QueryRequest) -> CompareResult:
 @app.post("/api/v1/evaluate/batch")
 async def evaluate_batch(req: BatchEvalRequest) -> list[dict[str, Any]]:
     # Batch evaluation: bypasses input guardrails (trusted eval questions)
-    graph = get_graph()
+    graph = _get_request_graph()
     coproc = get_coprocessor()
     session = make_session(req.provider)
     results: list[dict[str, Any]] = []
