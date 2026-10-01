@@ -86,3 +86,55 @@ def test_evidence_table_credits_ties_and_checks_cited_text(tmp_path: Path) -> No
     row = next(line for line in output.splitlines() if line.startswith("| Agentic GraphRAG | 67%"))
     # 2/3 contain gold, 2/2 claims grounded, 1 abstention, 1.0 citations, $0.35 per 100 questions.
     assert "| 100% (2/2) | 1 | 1.0 | 2.0 s / 3.0 s | $0.35 |" in row
+
+
+def test_retrieval_table_scores_ranked_citations_against_gold_documents(tmp_path: Path) -> None:
+    corpus = _write_jsonl(
+        tmp_path / "corpus.jsonl",
+        [{"doc_id": d, "title": d, "text": f"Gold: Winner {d}"} for d in ("D1", "D2", "D3")],
+    )
+    dataset = _write_jsonl(
+        tmp_path / "questions.jsonl",
+        [
+            {
+                "qid": "q1",
+                "question": "?",
+                "qtype": "multi_hop",
+                "answer": ["Winner D2"],
+                "gold_doc_ids": ["D2"],
+            }
+        ],
+    )
+    results = _write_jsonl(
+        tmp_path / "results.jsonl",
+        [
+            {
+                "qid": "q1",
+                "qtype": "multi_hop",
+                "rag_answer": "Winner D2",
+                "rag_em": 1.0,
+                "rag_tokens": 10,
+                "rag_latency_ms": 1000,
+                "rag_retrieved_doc_ids": ["D1", "D2", "D3"],
+            }
+        ],
+    )
+
+    output = subprocess.run(
+        [
+            sys.executable,
+            "scripts/summarize_results.py",
+            str(results),
+            "--dataset",
+            str(dataset),
+            "--corpus",
+            str(corpus),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    row = next(line for line in output.splitlines() if line.startswith("| RAG | 0.000"))
+    # Gold at rank 2: hit@1 0, hit@5 1, MRR 0.5, nDCG 1/log2(3), recall 1, precision 1/3, AP 0.5.
+    assert "| 0.000 | 1.000 | 0.500 | 0.631 | 1.000 | 0.333 | 100% (1 q) | 0.500 |" in row

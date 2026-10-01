@@ -81,10 +81,74 @@ def evidence_and_cost(
     return lines
 
 
+def retrieval_quality(
+    rows: list[dict[str, Any]],
+    gold_docs: dict[str, list[str]],
+    gold: dict[str, list[str]],
+    articles: dict[str, str],
+    pipelines: list[str],
+) -> list[str]:
+    # Standard IR metrics over each pipeline's cited documents, plus RAGAS-style context
+    # recall (is the gold answer stated anywhere in the retrieved context?) and context
+    # precision (average precision of gold documents in the top five).
+    from math import log2
+
+    from src.linking import compact
+
+    lines = [
+        "",
+        "| Pipeline | Hit@1 | Hit@5 | MRR | nDCG@5 | Recall@5 | Precision@5 "
+        "| Context recall | Context precision@5 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ]
+    for p in pipelines:
+        scores: dict[str, list[float]] = defaultdict(list)
+        for row in rows:
+            relevant = set(gold_docs.get(row["qid"], []))
+            if not relevant:
+                continue
+            ranked = list(dict.fromkeys(row[f"{p}_retrieved_doc_ids"]))
+            top = ranked[:5]
+            hits = [doc in relevant for doc in top]
+            first = next((rank for rank, doc in enumerate(ranked, 1) if doc in relevant), None)
+            ideal = sum(1 / log2(rank + 1) for rank in range(1, min(len(relevant), 5) + 1))
+            precisions = [sum(hits[:k]) / k for k in range(1, len(top) + 1) if hits[k - 1]]
+            scores["hit1"].append(float(bool(top) and hits[0]))
+            scores["hit5"].append(float(any(hits)))
+            scores["mrr"].append(1 / first if first else 0.0)
+            scores["ndcg"].append(
+                sum(1 / log2(rank + 1) for rank, hit in enumerate(hits, 1) if hit) / ideal
+            )
+            scores["recall"].append(len(relevant & set(top)) / len(relevant))
+            scores["precision"].append(sum(hits) / len(top) if top else 0.0)
+            scores["ap"].append(sum(precisions) / min(len(relevant), 5) if precisions else 0.0)
+            answers = [a for a in gold.get(row["qid"], []) if not a.replace(",", "").isdigit()]
+            if answers:
+                context = "".join(compact(articles.get(doc, "")) for doc in ranked)
+                scores["context_recall"].append(
+                    float(any(compact(answer) in context for answer in answers))
+                )
+        lines.append(
+            f"| {_LABELS[p]} | "
+            + " | ".join(
+                f"{mean(scores[key]):.3f}" if scores[key] else "n/a"
+                for key in ("hit1", "hit5", "mrr", "ndcg", "recall", "precision")
+            )
+            + (
+                f" | {mean(scores['context_recall']):.0%} ({len(scores['context_recall'])} q)"
+                if scores["context_recall"]
+                else " | n/a"
+            )
+            + (f" | {mean(scores['ap']):.3f} |" if scores["ap"] else " | n/a |")
+        )
+    return lines
+
+
 def summarize(
     rows: list[dict[str, Any]],
     gold: dict[str, list[str]] | None = None,
     articles: dict[str, str] | None = None,
+    gold_docs: dict[str, list[str]] | None = None,
 ) -> str:
     pipelines = [p for p in _PIPELINES if any(f"{p}_answer" in row for row in rows)]
     scored = [row for row in rows if any(f"{p}_em" in row for p in pipelines)]
@@ -116,6 +180,8 @@ def summarize(
 
     if gold is not None and articles is not None:
         lines += evidence_and_cost(rows, gold, articles, pipelines)
+        if gold_docs:
+            lines += retrieval_quality(rows, gold_docs, gold, articles, pipelines)
 
     traces = [row["agentic_trace"] for row in rows if row.get("agentic_trace")]
     if traces:
@@ -163,17 +229,18 @@ def main() -> None:
     parser.add_argument("--corpus", default="hackathon-resources/corpus/corpus.jsonl")
     args = parser.parse_args()
     rows = [json.loads(line) for line in Path(args.results).read_text().splitlines() if line]
-    gold = articles = None
+    gold = articles = gold_docs = None
     if args.dataset:
         questions = [
             json.loads(line) for line in Path(args.dataset).read_text().splitlines() if line
         ]
         gold = {q["qid"]: q.get("answer") or [] for q in questions}
+        gold_docs = {q["qid"]: q.get("gold_doc_ids") or [] for q in questions}
         articles = {
             doc["doc_id"]: f"{doc['title']}\n{doc['text']}"
             for doc in map(json.loads, Path(args.corpus).read_text().splitlines())
         }
-    print(summarize(rows, gold, articles))
+    print(summarize(rows, gold, articles, gold_docs))
 
 
 if __name__ == "__main__":
