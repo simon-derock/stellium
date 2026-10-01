@@ -1,0 +1,262 @@
+{
+  "pipelines": {
+    "rag": {
+      "label": "RAG",
+      "overall": {
+        "questions": 100,
+        "scored": 100,
+        "exact_match": 67.0,
+        "exact_match_strict": 66.0,
+        "token_f1": 0.6749804964539007,
+        "tokens_mean": 2580.53,
+        "latency_mean_s": 4.798179276080264,
+        "latency_p50_s": 4.436044697002217,
+        "latency_p95_s": 6.4234708869989845,
+        "cost_per_100_usd": 0.6490700000000001,
+        "citations_mean": 5
+      },
+      "by_type": {
+        "aggregation": {
+          "questions": 21,
+          "exact_match": 2.0,
+          "tokens_mean": 2640.5714285714284
+        },
+        "lookup": {
+          "questions": 19,
+          "exact_match": 19.0,
+          "tokens_mean": 2489.157894736842
+        },
+        "multi_hop": {
+          "questions": 28,
+          "exact_match": 26.0,
+          "tokens_mean": 2508.9285714285716
+        },
+        "superlative": {
+          "questions": 10,
+          "exact_match": 3.0,
+          "tokens_mean": 2768.7
+        },
+        "temporal": {
+          "questions": 22,
+          "exact_match": 17.0,
+          "tokens_mean": 2607.7272727272725
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 67,
+        "grounded": 51,
+        "grounding_checked": 54,
+        "abstained": 7
+      },
+      "retrieval": {
+        "hit_at_1": 0.8,
+        "hit_at_5": 0.98,
+        "mrr": 0.869,
+        "ndcg_at_5": 0.8427654392782911,
+        "recall_at_5": 0.7505592263453701,
+        "precision_at_5": 0.428,
+        "context_precision_at_5": 0.7934333333333333,
+        "context_recall": 0.8333333333333334,
+        "context_recall_questions": 60
+      }
+    },
+    "graphrag": {
+      "label": "GraphRAG",
+      "overall": {
+        "questions": 100,
+        "scored": 100,
+        "exact_match": 98.0,
+        "exact_match_strict": 97.0,
+        "token_f1": 0.9825,
+        "tokens_mean": 1093.64,
+        "latency_mean_s": 6.211597199290045,
+        "latency_p50_s": 6.128422155001317,
+        "latency_p95_s": 7.541040274998522,
+        "cost_per_100_usd": 0.3489875,
+        "citations_mean": 2.15
+      },
+      "by_type": {
+        "aggregation": {
+          "questions": 21,
+          "exact_match": 21.0,
+          "tokens_mean": 1450.2857142857142
+        },
+        "lookup": {
+          "questions": 19,
+          "exact_match": 19.0,
+          "tokens_mean": 970.3157894736842
+        },
+        "multi_hop": {
+          "questions": 28,
+          "exact_match": 27.0,
+          "tokens_mean": 962.5
+        },
+        "superlative": {
+          "questions": 10,
+          "exact_match": 9.0,
+          "tokens_mean": 1031
+        },
+        "temporal": {
+          "questions": 22,
+          "exact_match": 22.0,
+          "tokens_mean": 1055.090909090909
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 100,
+        "grounded": 60,
+        "grounding_checked": 60,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 0.99,
+        "hit_at_5": 1.0,
+        "mrr": 0.995,
+        "ndcg_at_5": 0.8296063721490032,
+        "recall_at_5": 0.6613064661856332,
+        "precision_at_5": 0.995,
+        "context_precision_at_5": 0.781,
+        "context_recall": 1.0,
+        "context_recall_questions": 60
+      }
+    },
+    "agentic": {
+      "label": "Agentic GraphRAG",
+      "overall": {
+        "questions": 100,
+        "scored": 100,
+        "exact_match": 98.0,
+        "exact_match_strict": 97.0,
+        "token_f1": 0.9825,
+        "tokens_mean": 989.95,
+        "latency_mean_s": 3.880174049709967,
+        "latency_p50_s": 3.369789379001304,
+        "latency_p95_s": 7.348835347998829,
+        "cost_per_100_usd": 0.32071,
+        "citations_mean": 2.15
+      },
+      "by_type": {
+        "aggregation": {
+          "questions": 21,
+          "exact_match": 21.0,
+          "tokens_mean": 811.952380952381
+        },
+        "lookup": {
+          "questions": 19,
+          "exact_match": 19.0,
+          "tokens_mean": 1037.2105263157894
+        },
+        "multi_hop": {
+          "questions": 28,
+          "exact_match": 27.0,
+          "tokens_mean": 860.8928571428571
+        },
+        "superlative": {
+          "questions": 10,
+          "exact_match": 9.0,
+          "tokens_mean": 911.3
+        },
+        "temporal": {
+          "questions": 22,
+          "exact_match": 22.0,
+          "tokens_mean": 1319.0454545454545
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 100,
+        "grounded": 60,
+        "grounding_checked": 60,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 0.99,
+        "hit_at_5": 1.0,
+        "mrr": 0.995,
+        "ndcg_at_5": 0.8296063721490032,
+        "recall_at_5": 0.6613064661856332,
+        "precision_at_5": 0.995,
+        "context_precision_at_5": 0.781,
+        "context_recall": 1.0,
+        "context_recall_questions": 60
+      }
+    }
+  },
+  "agent": {
+    "questions": 100,
+    "steps_mean": 2.3,
+    "steps_median": 2.0,
+    "steps_max": 6,
+    "llm_calls_mean": 1.16,
+    "single_call_answers": 86,
+    "strategy_changes": 10,
+    "tools": {
+      "event_at_venue_date": 28,
+      "event_attribute": 24,
+      "count_events": 21,
+      "previous_edition": 19,
+      "find_events": 12,
+      "rank_events": 10
+    },
+    "specialists": {
+      "OrchestratorAgent": 100,
+      "EntityLinkingAgent": 69,
+      "GraphTraversalAgent": 69,
+      "EvidenceEvaluationAgent": 68,
+      "AggregationAgent": 31
+    },
+    "stopping_reasons": {
+      "event_at_venue_date returned one verified graph value": 27,
+      "event_attribute returned one verified graph value": 24,
+      "count_events returned one verified graph value": 21,
+      "previous_edition returned one verified graph value": 17,
+      "rank_events returned one verified graph value": 9,
+      "Orchestrator finished with an answer grounded in tool observations": 2
+    }
+  },
+  "graph_pipeline_misses": [
+    {
+      "qid": "pub-044",
+      "qtype": "superlative",
+      "pipeline": "graphrag",
+      "answer": "Fencing at the 2008 Summer Olympics \u2013 Men's \u00e9p\u00e9e; Fencing at the 2008 Summer Olympics \u2013 Women's foil"
+    },
+    {
+      "qid": "pub-044",
+      "qtype": "superlative",
+      "pipeline": "agentic",
+      "answer": "Fencing at the 2008 Summer Olympics \u2013 Men's \u00e9p\u00e9e; Fencing at the 2008 Summer Olympics \u2013 Women's foil"
+    },
+    {
+      "qid": "pub-099",
+      "qtype": "multi_hop",
+      "pipeline": "graphrag",
+      "answer": "Marit Bj\u00f8rgen; Erik Lesser, Daniel B\u00f6hm, Arnd Peiffer, Simon Schempp"
+    },
+    {
+      "qid": "pub-099",
+      "qtype": "multi_hop",
+      "pipeline": "agentic",
+      "answer": "Marit Bj\u00f8rgen; Erik Lesser, Daniel B\u00f6hm, Arnd Peiffer, Simon Schempp"
+    }
+  ],
+  "provenance": [
+    {
+      "pipelines": [
+        "rag",
+        "graphrag",
+        "agentic"
+      ],
+      "commit": "4923d3a",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
+      "finished_at": "2026-10-02T01:13:04+0530"
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "cc74fd5",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
+      "finished_at": "2026-10-02T01:19:54+0530"
+    }
+  ]
+}
