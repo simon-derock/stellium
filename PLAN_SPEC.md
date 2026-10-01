@@ -205,22 +205,9 @@ jobs:
   `git worktree add ../wt-agent-003 -b agent/003/langgraph-agent`
   `git worktree add ../wt-agent-004 -b agent/004/eval-dashboard`
 
-## 3. Micro-Commit Protocol & Attribution Signature
-Every commit must be atomic, tied to a green TDD/lint cycle, and appended with the authoring agent's identifier:
-`<type>(<scope>): <concise message> [committed by <agent-id>]`
-
-Valid Agent Identifiers:
-- `master-agent-001` : Lead Architect & Master Coordinator
-- `agent-001`        : Ingestion & Schema Worker
-- `agent-002`        : Hybrid Search Coprocessor Worker
-- `agent-003`        : ReAct Agent Loop & GSQL Tools Worker
-- `agent-004`        : Evaluation & Dashboard Worker
-
-Examples:
-- `feat(ingest): add table-aware wikipedia parser [committed by agent-001]`
-- `test(coproc): verify roaring bitmask year filtering [committed by agent-002]`
-- `feat(agent): implement langgraph state machine with backtracking [committed by agent-003]`
-- `chore(master): verify quality gates and merge agent-001 [committed by master-agent-001]`
+## 3. Micro-Commit Protocol
+- One logical change per commit, gated by the same checks CI runs (pytest, ruff check, ruff format --check, mypy on src and tests, vulture, bandit), then pushed.
+- Conventional subject `<type>(<scope>): <summary>` plus at most three body lines covering what changed and why. No signature trailers.
 [/ORCHESTRA:REPO_GIT]
 
 ---
@@ -318,120 +305,18 @@ When a question asks about something not in the corpus (e.g., 2024 Olympics not 
 ---
 
 [ORCHESTRA:SCHEMA]
-## 1. TigerGraph Savanna DDL Schema (OlympicsGraph)
+## 1. Live TigerGraph Schema (OlympicsGraph, Savanna 4.2.5)
+`src/graph/__init__.py` holds the authoritative DDL; the live graph was reconciled against it on 2026-10-01 (`scripts/reconcile_graph_attributes.py` reports zero differences).
 
-```gsql
-CREATE GRAPH OlympicsGraph()
+- Vertices: `Document` (doc_id = Wikidata QID, title, url, filter_mask), `Chunk` (chunk_id, doc_id, chunk_index, text with title/metadata header, raw_text, prev/next chunk ids, 1024-d `embedding` with a cosine HNSW index), `Event` (one per event article: name = canonical title, year, season, sport, gender, venue, competitor_count, nation_count, gold/silver/bronze athlete and NOC, bitemporal validity fields), `Venue`, `Session`, `ChatMessage`.
+- Edges: `HAS_CHUNK` (Document→Chunk), `DOCUMENTED_IN` (Event→Document), `HELD_AT` (Event→Venue, start_date), `PRECEDES` (Event→its previous edition), `SUCCEEDS`, `HAS_MESSAGE`, `CONFLICTS_WITH`.
+- Embeddings: Cohere `embed-v4.0`, 1024 dimensions, `search_document` for passages and `search_query` for questions. No `Person`, `COMPETED_IN`, or `MENTIONS` types exist; medallists are Event attributes.
+- Year and season come from the canonical title; 26 events whose infobox lacked or misstated the Games were corrected on 2026-10-01.
 
-# Embedding Space Definition (TigerVector HNSW)
-CREATE EMBEDDING SPACE OlympicChunkSpace (
-  DIMENSION = 1024,
-  MODEL = 'jina-embeddings-v5-text-small',
-    INDEX = HNSW,
-    DATATYPE = FLOAT,
-    METRIC = COSINE
-)
-
-# Vertex Types
-CREATE VERTEX Document (
-    PRIMARY_ID doc_id STRING,
-    title STRING,
-    url STRING,
-    wikidata_qid STRING,
-    wikipedia_pageid INT,
-    approx_tokens INT,
-    filter_mask UINT
-) WITH STATS="OUTDEGREE"
-
-CREATE VERTEX Chunk (
-    PRIMARY_ID chunk_id STRING,
-    doc_id STRING,
-    chunk_index INT,
-    section_title STRING,
-    text STRING,
-    prev_chunk_id STRING,
-    next_chunk_id STRING,
-    filter_mask UINT
-) WITH STATS="OUTDEGREE"
-
-ALTER VERTEX Chunk
-ADD EMBEDDING ATTRIBUTE embedding
-IN EMBEDDING SPACE OlympicChunkSpace
-
-CREATE VERTEX Event (
-    PRIMARY_ID event_id STRING,
-    name STRING,
-    year INT,
-    season STRING,
-    sport STRING,
-    gender STRING,
-    competitor_count INT,
-    nation_count INT,
-    prev_event_id STRING,
-    next_event_id STRING,
-    filter_mask UINT
-) WITH STATS="OUTDEGREE"
-
-CREATE VERTEX Person (
-    PRIMARY_ID person_id STRING,
-    name STRING,
-    nationality STRING
-) WITH STATS="OUTDEGREE"
-
-CREATE VERTEX Venue (
-    PRIMARY_ID venue_id STRING,
-    name STRING,
-    city STRING,
-    country STRING
-) WITH STATS="OUTDEGREE"
-
-# Edge Types
-CREATE UNDIRECTED EDGE HAS_CHUNK (FROM Document, TO Chunk)
-CREATE DIRECTED EDGE DOCUMENTED_IN (FROM Event, TO Document)
-CREATE DIRECTED EDGE HELD_AT (FROM Event, TO Venue, start_date STRING, end_date STRING)
-CREATE DIRECTED EDGE COMPETED_IN (FROM Person, TO Event, medal STRING, rank INT, score STRING)
-CREATE DIRECTED EDGE PRECEDES (FROM Event, TO Event, time_diff INT)
-CREATE DIRECTED EDGE SUCCEEDS (FROM Event, TO Event, time_diff INT)
-CREATE DIRECTED EDGE MENTIONS (FROM Chunk, TO Person | TO Venue | TO Event)
-```
-
-## 2. Compiled GSQL Stored Queries
-
-```gsql
-# Query 1: Deterministic Aggregation
-CREATE QUERY get_event_aggregates(STRING sport, INT target_year, INT min_competitors) 
-  FOR GRAPH OlympicsGraph {
-  SumAccum<INT> @@match_count = 0;
-  ListAccum<STRING> @@event_names;
-  ListAccum<STRING> @@gold_doc_ids;
-
-  Events = {Event.*};
-  Filtered = SELECT e FROM Events:e -(DOCUMENTED_IN:d)- Document:doc
-             WHERE e.sport == sport AND e.year == target_year AND e.competitor_count > min_competitors
-             ACCUM @@match_count += 1,
-                   @@event_names += e.name,
-                   @@gold_doc_ids += doc.wikidata_qid;
-
-  PRINT @@match_count AS answer, @@event_names AS matching_events, @@gold_doc_ids AS gold_doc_ids;
-}
-
-# Query 2: Temporal Predecessor Winner Lookup
-CREATE QUERY get_preceding_winner(STRING sport, STRING event_name, INT current_year)
-  FOR GRAPH OlympicsGraph {
-  ListAccum<STRING> @@winner_names;
-  ListAccum<STRING> @@gold_doc_ids;
-
-  Events = SELECT prior FROM Event:curr -(PRECEDES)-> Event:prior -(DOCUMENTED_IN:d)- Document:doc
-           WHERE curr.sport == sport AND curr.year == current_year
-           ACCUM @@gold_doc_ids += doc.wikidata_qid;
-
-  Winners = SELECT p FROM Events:e -(COMPETED_IN:c)- Person:p
-            WHERE c.medal == "Gold"
-            ACCUM @@winner_names += p.name;
-
-  PRINT @@winner_names AS winners, @@gold_doc_ids AS gold_doc_ids;
-}
-```
+## 2. Graph Access
+- Compiled queries: `get_event_aggregates`, `get_preceding_event`, `get_event_by_venue_date`, `get_event_attribute`, `vector_search_chunks`, and `get_superlative_event`. The superlative query's ACCUM lists do not preserve ORDER BY order, so rankings read stored counts for the linked pool instead.
+- `EventCatalog` (`src/linking`) loads all Event vertices and HELD_AT dates once (~0.7 s) for in-memory entity linking; values returned to callers are always read back from TigerGraph.
+- Guarded generated GSQL (`INTERPRET QUERY`, allowlisted, read-only) remains available to the agent as a fallback. The live server also accepts `INTERPRET OPENCYPHER QUERY`.
 [/ORCHESTRA:SCHEMA]
 
 ---
@@ -453,48 +338,30 @@ To avoid chunk boundary truncation and support chronological progression, chunks
 - In TigerGraph, materialized as `prev_event_id` attribute and `PRECEDES` / `SUCCEEDS` directed edges.
 
 ### Behavioral Differentiation Across Pipelines
-- Pipeline 1 (RAG): retrieves up to 30 dense and 30 BM25Plus candidates, fuses them with RRF, requires the local int8 MiniLM cross-encoder reranker, then answers from up to five passages. No graph query is used.
-- Pipeline 2 (GraphRAG): uses exactly two chat calls: generate a complete read-only GSQL query, then synthesize from graph output plus the same mandatory hybrid retrieval path. Generated GSQL is validated before execution. This is a fixed, acyclic pipeline with no planning loop.
-- Pipeline 3 (Agentic GraphRAG): performs mandatory hybrid retrieval and reranking before its first ReAct decision, then runs a bounded cyclic reasoning/tool loop. Its GSQL query tool validates LLM-generated queries before execution; the agent can request further hybrid retrieval, a deliberate dense-only fallback, or finish.
-- All three pipelines use the same local cross-encoder implementation for reranking; a non-empty candidate list with an unavailable model is a pipeline error, never a silent skip. Current measured answer scores in this file predate this change and are not evidence of post-change quality.
+See `[ORCHESTRA:PIPELINES]`.
 [/ORCHESTRA:LINKED_CHUNKS]
 
 ---
 
 [ORCHESTRA:PIPELINES]
-## 1. Pipeline 1: Hybrid RAG Control
-- Retrieval: up to 30 TigerVector HNSW candidates plus up to 30 BM25Plus candidates, fused with RRF, then required local int8 MiniLM cross-encoder reranking to five passages. No graph query.
-- Generation: one answer call grounded in the reranked passages.
-- Metrics: candidate counts per retriever, fused count, actual reranker execution and latency, estimated context length, provider-reported LLM input/output tokens, wall-clock latency, and scored answers.
+All three pipelines use the same LLM for every call (host rule), report LLM tokens only (graph and retrieval steps count 0), and share one answer contract: the bare value, the full canonical title for "which event", or "Not found in corpus".
 
-## 2. Pipeline 2: GraphRAG (Fixed Pipeline, Non-Agentic)
-Uses graph structure and text retrieval in a fixed sequence — no multi-turn planning or backtracking.
-- Retrieval (Fixed Sequence):
-  1. Ask the configured LLM to generate a complete GSQL query grounded in the declared graph schema and question constraints.
-  2. Validate the generated query against read-only, graph-object, field, statement, and row-limit rules. Reject it without execution if validation fails.
-  3. Execute the query through TigerGraph's interpreted-query API; concurrently in the fixed sequence, retrieve up to 30 dense and 30 sparse candidates, fuse with RRF, require local reranking, and combine up to five passages with graph facts.
-- Generation: A second LLM call synthesizes the final answer from graph and passage evidence. The pipeline is fixed and acyclic: exactly two chat calls.
-- Current code does not implement a separate fuzzy entity-linker or adaptive multi-step investigation in this pipeline.
-- Expected Weaknesses: No backtracking if extraction/retrieval fails. No strategy adaptation. Fixed retrieval order.
-- Metrics: graph/subgraph counts when exposed, estimated context length, both entity-planning and synthesis LLM input/output tokens, `total_llm_tokens`, wall-clock latency, and scored answer metrics.
-- Measurement status: 43/100 RAG, 53/100 GraphRAG, and 90/100 Agentic are historical, pre-change scores. All current paths need a fresh matched public benchmark before making a score or quality claim.
+## 1. Pipeline 1: RAG
+TigerGraph vector search (30) + BM25Plus (30) → RRF → int8 MiniLM cross-encoder → five passages, one per article → one LLM call. No graph structure. Expected to fail set questions (counts and rankings need 10–40 documents, five passages hold about a third).
 
-## 3. Pipeline 3: Autonomous Agentic GraphRAG (Full Arsenal, Dynamic)
-The agent plans its own investigation, selects retrieval methods dynamically, and adapts based on what it finds.
-- Retrieval & Reasoning (Dynamic, Agent-Controlled):
-  1. The ReAct LLM reads the question and selects an action; there is no separate regex query classifier.
-  2. Dynamic Tool Dispatch: The agent chooses from implemented tools and observes returned evidence:
-     - `gsql_query` (LLM-generated complete read-only query, validated before execution)
-     - `hybrid_search` (mandatory initial passage retrieval: BM25Plus + dense HNSW + RRF + required local cross-encoder)
-     - `vector_search` (dense-only fallback when deliberately selected)
-     - `vector_search` (deliberate dense-only fallback)
-     - `finish` (agent-supplied answer and citations)
-  3. Bounded Cycle: The loop appends observations and asks the LLM for its next action until a finish, deterministic fast stop, explicit grounded final answer, or iteration limit. Thought-only/malformed nonterminal responses are rejected and retried.
-  4. Evidence review and distinct specialist agent components are incomplete; they remain roadmap work.
-- Chunk-neighbor expansion exists in the local coprocessor but is not exposed as a ReAct tool.
-- Stopping confidence values are assigned by current code paths and are not calibrated probabilities.
-- Stopping Criteria: Current hard stops are finish/direct-answer actions, selected deterministic GSQL results, or maximum iterations; calibrated evidence-based stopping remains a goal.
-- Metrics: Full agentic trace (per `[ORCHESTRA:AGENTIC_TRACE]` spec).
+## 2. Pipeline 2: GraphRAG (fixed, acyclic, two LLM calls)
+1. LLM extraction: the question becomes one JSON lookup (operation, sport, year, season, gender, event, venue, date, attribute, comparison, threshold, order).
+2. One typed `GraphToolkit` operation: entity linking, then the TigerGraph read.
+3. Supporting text: the opening section of each cited article; questions with no graph operation fall back to RAG's hybrid passages.
+4. LLM synthesis. An answer neither the graph value nor a passage supports is replaced by the verified graph value (`answer_source` records which).
+No loop, no retry, no strategy change.
+
+## 3. Pipeline 3: Agentic GraphRAG (bounded, adaptive)
+An `OrchestratorAgent` LLM plans one step at a time from the question, the evidence so far, and what is missing, choosing among specialist tools: `count_events`, `rank_events` (AggregationAgent); `event_attribute`, `previous_edition`, `event_at_venue_date` (GraphTraversalAgent, after EntityLinkingAgent); `find_events` (EntityLinkingAgent); `hybrid_search` (DocumentRetrievalAgent); `vector_search` (SimilaritySearchAgent); `gsql_query` (QueryGenerationAgent); `finish`.
+- Every graph value is checked against the cited article by the EvidenceEvaluationAgent.
+- Stops as soon as one verified value answers the question; ambiguous candidates go back to the planner, and unresolved ties are reported in full rather than guessed.
+- Answers no observation supports are rejected; a failed, empty, or ambiguous step followed by another tool is recorded as a strategy change.
+- Initial passages before the first decision are an opt-in ablation (`STELLIUM_AGENT_INITIAL_HYBRID=1`).
 [/ORCHESTRA:PIPELINES]
 
 ---
@@ -538,12 +405,8 @@ flowchart LR
 ---
 
 [ORCHESTRA:AGENT_HARNESS]
-## 1. Bounded Cyclic ReAct Loop
-**Current implementation: bounded cyclic ReAct, not LangGraph.** `AgentState`, `EvidenceItem`, and `ToolAuditCall` are defined in `src/models/__init__.py`. The loop in `src/pipelines/agentic.py` sends the question and prior tool observations to the LLM, validates/parses the next action, executes it, records telemetry, and repeats until an explicit finish, a deterministic fast stop, a direct answer, or the maximum iteration count.
-
-**Current gaps:** there is no separately implemented evidence-critic node or specialist-agent set; the next ReAct decision serves as the current evidence review. Exact repeated tool actions with canonicalized arguments reuse a cached observation, but semantic no-new-evidence detection is not implemented. Confidence values are code-assigned and not calibrated. Chunk-window expansion is available in the coprocessor but not exposed as an agent action.
-
-**Target improvements:** keep the loop flexible and bounded; add typed tool argument validation, a deduplicated evidence ledger, semantic no-new-evidence detection, specialist capabilities with explicit contracts, evidence-supported stopping, and calibration based on measured validation outcomes. Do not introduce heuristic question-text routing or hard-coded answer paths.
+## 1. Bounded Planning Loop
+`src/pipelines/agentic.py`: up to five planning calls, a per-run cache that refuses identical repeated tool calls, grounding checks on every final answer, a backend-unavailable stop, and one value-only synthesis call if the budget runs out. The trace records step count, tools and arguments, specialists invoked, per-call LLM tokens and latency (wall and provider), zero-token tool latency, citations, strategy changes with rationale, and the stopping reason.
 [/ORCHESTRA:AGENT_HARNESS]
 
 ---
@@ -783,7 +646,7 @@ Example record shape for the specified Agentic-only hidden run (values below are
 
 [ORCHESTRA:ROUND2_PREP]
 ## 1. Round 2: Reasoning Over Evolving, Conflicting & Uncertain Facts
-Round 2 (Oct 1-7, Top 15 finalists only) introduces a harder dataset requiring temporal reasoning over facts that change, conflict, or carry uncertainty. Building this foundation in Round 1 earns Innovation (15%) points and gives us a head start.
+Round 2 (1–10 October 2026, top 15 finalists only) introduces a harder dataset requiring temporal reasoning over facts that change, conflict, or carry uncertainty. Building this foundation in Round 1 earns Innovation (15%) points and gives us a head start.
 
 ### Bitemporal Graph Extension
 Add temporal validity and provenance tracking to the schema:
@@ -825,7 +688,7 @@ When the agent encounters conflicting facts:
 [ORCHESTRA:DELIVERABLES]
 ## 1. Required Submission Artifacts Checklist
 
-### Round 1 Deliverables (Deadline: Sep 30)
+### Round 1 Deliverables (Deadline: 3 October 2026, IST)
 - [ ] Working Agentic GraphRAG system (hosted live web app).
 - [ ] GitHub repository: `https://github.com/simon-derock/stellium.git` (public, clean, well-documented).
 - [ ] Architecture diagram: Mermaid source in PLAN_SPEC.md + exported SVG/PNG in `docs/architecture.svg`.
@@ -834,7 +697,7 @@ When the agent encounters conflicting facts:
 - [ ] Evaluation output: `results/public_results.jsonl` (100 questions) and `results/hidden_submission.jsonl` (50 questions).
 - [ ] Optional: Social media post tagging @TigerGraph (counts in our favour).
 
-### Round 2 Deliverables (Deadline: Oct 7, if we advance)
+### Round 2 Deliverables (window 1–10 October 2026, if we advance)
 - [ ] Refined Agentic GraphRAG system with bitemporal conflict resolution.
 - [ ] Updated GitHub repository with Round 2 extensions.
 - [ ] Updated architecture diagram.
@@ -862,9 +725,9 @@ These rulings are HARD CONSTRAINTS that override any prior assumptions.
 - Current implementation uses a cyclic ReAct LLM loop with dynamic tool selection and parameterized GSQL. Keep it free of question-ID answers, heuristic query classifiers, and static sport/entity lists.
 - The current coprocessor encodes year and season in packed integer masks and does not encode sport names in a static bit map. Keep sport/entity matching corpus-derived and re-audit any taxonomy optimization against the no-static-list rule.
 
-### Rule 2: Benchmark Runs Follow the Supplied Hackathon Instructions
-- Public: run all three pipelines on all 100 visible questions.
-- Hidden: use the specified Agentic-only command for all 50 questions and preserve raw answers, token counts, and complete agentic traces. Change this only if a newer, verifiable organizer instruction overrides the supplied command.
+### Rule 2: Benchmark Runs Cover All Three Pipelines on All 150 Questions
+- Organizer clarification: run RAG, GraphRAG, and Agentic GraphRAG on the 100 public and 50 hidden questions.
+- The hidden-set export (`scripts/export_submission.py`) is committed as JSON and CSV with answers, LLM tokens, latency, citations, and the full agentic trace.
 - Current artifacts are missing; do not claim benchmark completion until the output files and run metadata exist and are audited.
 
 ### Rule 3: Same Model Everywhere Per Pipeline Run
