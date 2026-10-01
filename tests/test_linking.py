@@ -146,3 +146,14 @@ def test_catalog_loads_events_and_dates_from_graph_connection() -> None:
     record = catalog.get("Q1")
     assert record is not None
     assert (record.dates, record.label, record.year) == ("14 August", "Men's 100 kg", 2008)
+
+
+def test_link_event_accepts_canonical_titles_and_title_shaped_phrases() -> None:
+    title = "Judo at the 2008 Summer Olympics – Men's 100 kg"
+    exact = CATALOG.link_event(title)
+    assert (exact.method, exact.resolved) == ("exact_title", CATALOG.get("e6"))
+    # Typography differences and a wrong-year constraint are handled, not silently accepted.
+    assert CATALOG.link_event(title.replace("–", "-")).resolved == CATALOG.get("e6")
+    assert CATALOG.link_event(title, year=2012).resolved is None
+    # A year inside a free phrase becomes a constraint instead of breaking the number check.
+    assert CATALOG.link_event("2008 men's +100 kg judo").resolved == CATALOG.get("e5")

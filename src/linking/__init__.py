@@ -29,6 +29,8 @@ _MONTHS = (
 _FRAMING_WORDS = frozenset(
     {"the", "at", "in", "of", "event", "olympic", "olympics", "game", "games", "edition"}
 )
+# Canonical title grammar, e.g. "Judo at the 2016 Summer Olympics – Women's 57 kg".
+_TITLE = re.compile(r"^(.+?)\s+at the\s+(\d{4})\s+(\w+)\s+Olympics\s*[–—-]\s*(.+)$", re.I)
 _MIN_LINK_SCORE = 0.5
 _UNIQUE_MARGIN = 0.15
 
@@ -128,6 +130,8 @@ class EventCatalog:
         self.sports = sorted({record.sport for record in self.records if record.sport})
         self.genders = sorted({record.gender for record in self.records if record.gender})
         self._by_id = {record.event_id: record for record in self.records}
+        self._by_title = {compact(record.name): record for record in self.records}
+        self._years = {record.year for record in self.records if record.year}
 
     @classmethod
     def from_graph(cls, conn: Any) -> EventCatalog:
@@ -232,6 +236,21 @@ class EventCatalog:
     ) -> LinkResult:
         # Rank events in the constrained pool by F1 overlap between the phrase and each title's
         # event label. Numbers must agree exactly: "200 metre" never links to "4 × 200 metre".
+        exact = self._by_title.get(compact(phrase))
+        if exact is not None and (not year or exact.year == year):
+            return LinkResult(matches=(EventMatch(record=exact, score=1.0),), method="exact_title")
+        titled = _TITLE.match(phrase.strip())
+        if titled:
+            # A phrase in title form carries its own sport, Games, and season constraints.
+            sport = sport or self.resolve_sport(titled.group(1))
+            year = year or int(titled.group(2))
+            season = season or self.resolve_season(titled.group(3))
+            phrase = titled.group(4)
+        if not year:
+            # A single Games year inside a free phrase constrains the year, not the event label.
+            named_years = {int(t) for t in tokens(phrase) if len(t) == 4 and t.isdigit()}
+            if len(named_years & self._years) == 1:
+                year = (named_years & self._years).pop()
         if not sport:
             sport = self._sport_named_in(phrase)
         pool = self.events(sport=sport, year=year, season=season, gender=gender)
