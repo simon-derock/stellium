@@ -266,6 +266,21 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
         "gold_doc_ids": ["Q123"],
     }
 
+    # The pipelines run concurrently, so each gets its own session and scripted replies.
+    replies = list(chat.side_effect)
+    scripted = {"rag": replies[:1], "graphrag": replies[1:3], "agentic": replies[3:]}
+    sessions = []
+    chats = []
+    for name in ("rag", "graphrag", "agentic"):
+        session = LockedLLMSession(provider="cohere", model="test-model")
+        scripted_chat = AsyncMock(side_effect=scripted[name])
+        monkeypatch.setattr(session, "embed", AsyncMock(return_value=[[0.0] * 1024]))
+        monkeypatch.setattr(session, "chat", scripted_chat)
+        sessions.append(session)
+        chats.append(scripted_chat)
+    created = iter(sessions)
+    monkeypatch.setattr(api_main, "make_session", lambda provider: next(created))
+
     response = client.post(
         "/api/v1/query/compare",
         json={"query": "Who won the 2008 Olympic men's marathon?", "qid": "compare-001"},
@@ -287,7 +302,7 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
     ]
     assert trace["tools_called"][0]["tool_name"] == "event_attribute"
     assert trace["tools_called"][0]["llm_tokens"] == 0
-    assert chat.await_count == 4
+    assert [scripted_chat.await_count for scripted_chat in chats] == [1, 2, 1]
 
 
 def test_batch_eval_bypasses_input_guards() -> None:
@@ -395,3 +410,30 @@ def test_live_graph_is_created_once_after_workspace_is_ready(
     assert first is second
     assert first.conn is connection
     assert readiness == ["https://graph.example"]
+
+
+def test_queries_default_to_the_benchmark_provider_and_reject_unknown_ones(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("STELLIUM_LLM_PROVIDER", raising=False)
+    assert api_main.QueryRequest(query="q").provider == "cohere"
+    resp = client.post("/api/v1/query/rag", json={"query": "Who won?", "provider": "nope"})
+    assert resp.status_code == 400
+
+
+def test_exhausted_language_model_returns_503_not_a_fabricated_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _wire_retrieval_api(monkeypatch, [])
+    session = LockedLLMSession(provider="cohere", model="test-model")
+    monkeypatch.setattr(session, "embed", AsyncMock(return_value=[[0.0] * 1024]))
+    monkeypatch.setattr(
+        session, "chat", AsyncMock(side_effect=RuntimeError("monthly call limit reached"))
+    )
+    monkeypatch.setattr(api_main, "make_session", lambda provider: session)
+
+    resp = client.post("/api/v1/query/rag", json={"query": "Who won the marathon in 2008?"})
+
+    assert resp.status_code == 503
+    assert resp.headers["retry-after"] == "30"
+    assert "monthly call limit" in resp.json()["detail"]

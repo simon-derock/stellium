@@ -9,6 +9,7 @@
 # - GET  /api/v1/sessions/{session_id}/history (persistent session hydration)
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from collections.abc import AsyncIterator
@@ -19,7 +20,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.coprocessor import Coprocessor
 from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
@@ -137,16 +138,55 @@ async def serve_dashboard() -> FileResponse:
     raise HTTPException(status_code=404, detail="Dashboard UI not found")
 
 
+_PROVIDERS = {"cohere", "cloudflare", "gemini", "mistral", "offline"}
+
+
+def _default_provider() -> str:
+    # The demo answers with the same model the benchmark was measured on unless configured.
+    return os.environ.get("STELLIUM_LLM_PROVIDER", "cohere")
+
+
 class QueryRequest(BaseModel):
     query: str
     qid: str = "custom-001"
-    provider: str = "cloudflare"
+    provider: str = Field(default_factory=_default_provider)
 
 
 class BatchEvalRequest(BaseModel):
     questions: list[EvalQuestion]
     pipeline: str = "agentic"  # "rag" | "graphrag" | "agentic" | "all"
-    provider: str = "cloudflare"
+    provider: str = Field(default_factory=_default_provider)
+
+
+# Bursts queue behind a fixed number of in-flight questions instead of overrunning provider
+# rate limits; a request that cannot start in time gets a clean 503 with Retry-After.
+_query_slots = asyncio.Semaphore(int(os.environ.get("STELLIUM_MAX_CONCURRENT_QUERIES", "4")))
+_QUEUE_TIMEOUT_S = float(os.environ.get("STELLIUM_QUEUE_TIMEOUT_S", "60"))
+
+
+@asynccontextmanager
+async def _admitted(provider: str) -> AsyncIterator[None]:
+    if provider not in _PROVIDERS:
+        raise HTTPException(status_code=400, detail=f"Unknown provider {provider!r}")
+    try:
+        await asyncio.wait_for(_query_slots.acquire(), timeout=_QUEUE_TIMEOUT_S)
+    except TimeoutError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="All query slots are busy; retry shortly.",
+            headers={"Retry-After": "10"},
+        ) from exc
+    try:
+        yield
+    except RuntimeError as exc:
+        # Provider quota or outage after bounded retries: report it, never a fabricated answer.
+        raise HTTPException(
+            status_code=503,
+            detail=f"Language model unavailable: {exc}",
+            headers={"Retry-After": "30"},
+        ) from exc
+    finally:
+        _query_slots.release()
 
 
 # ---------------------------------------------------------------------------
@@ -166,8 +206,7 @@ async def query_rag(req: QueryRequest) -> PipelineResult:
         raise HTTPException(status_code=400, detail=reason)
 
     graph = _get_request_graph()
-    session = make_session(req.provider)
-    async with session:
+    async with _admitted(req.provider), make_session(req.provider) as session:
         pipe = RAGPipeline(graph=graph, llm=session, coprocessor=get_coprocessor())
         return await pipe.run(req.qid, req.query)
 
@@ -179,8 +218,7 @@ async def query_graphrag(req: QueryRequest) -> PipelineResult:
         raise HTTPException(status_code=400, detail=reason)
 
     graph = _get_request_graph()
-    session = make_session(req.provider)
-    async with session:
+    async with _admitted(req.provider), make_session(req.provider) as session:
         pipe = GraphRAGPipeline(graph=graph, llm=session, coprocessor=get_coprocessor())
         return await pipe.run(req.qid, req.query)
 
@@ -193,8 +231,7 @@ async def query_agentic(req: QueryRequest) -> PipelineResult:
 
     graph = _get_request_graph()
     coproc = get_coprocessor()
-    session = make_session(req.provider)
-    async with session:
+    async with _admitted(req.provider), make_session(req.provider) as session:
         pipe = AgenticPipeline(graph=graph, coprocessor=coproc, llm=session)
         return await pipe.run(req.qid, req.query)
 
@@ -208,15 +245,22 @@ async def query_compare(req: QueryRequest) -> CompareResult:
 
     graph = _get_request_graph()
     coproc = get_coprocessor()
-    session = make_session(req.provider)
-    async with session:
-        rag_pipe = RAGPipeline(graph=graph, llm=session, coprocessor=coproc)
-        graphrag_pipe = GraphRAGPipeline(graph=graph, llm=session, coprocessor=coproc)
-        agentic_pipe = AgenticPipeline(graph=graph, coprocessor=coproc, llm=session)
-
-        rag_res = await rag_pipe.run(req.qid, req.query)
-        graphrag_res = await graphrag_pipe.run(req.qid, req.query)
-        agentic_res = await agentic_pipe.run(req.qid, req.query)
+    async with (
+        _admitted(req.provider),
+        make_session(req.provider) as rag_llm,
+        make_session(req.provider) as graphrag_llm,
+        make_session(req.provider) as agentic_llm,
+    ):
+        # Same model in every pipeline; separate sessions let the three run side by side.
+        rag_res, graphrag_res, agentic_res = await asyncio.gather(
+            RAGPipeline(graph=graph, llm=rag_llm, coprocessor=coproc).run(req.qid, req.query),
+            GraphRAGPipeline(graph=graph, llm=graphrag_llm, coprocessor=coproc).run(
+                req.qid, req.query
+            ),
+            AgenticPipeline(graph=graph, coprocessor=coproc, llm=agentic_llm).run(
+                req.qid, req.query
+            ),
+        )
 
     return CompareResult(
         qid=req.qid,
