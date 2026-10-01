@@ -231,11 +231,14 @@ def _write_manifest(
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     session = make_session(provider)
+    # Code identity is captured when the run starts; later edits must not relabel its results.
     manifest.setdefault("started_at", time.strftime("%Y-%m-%dT%H:%M:%S%z"))
+    manifest.setdefault("git_commit", _git("rev-parse", "HEAD"))
+    manifest.setdefault(
+        "git_dirty_files", _git("status", "--porcelain", "--untracked-files=no").splitlines()
+    )
     manifest.update(
         {
-            "git_commit": _git("rev-parse", "HEAD"),
-            "git_dirty": bool(_git("status", "--porcelain", "--untracked-files=no")),
             "provider": provider,
             "model": session.model,
             "pipelines": pipelines,
