@@ -1,712 +1,669 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>STELLIUM — Autonomous Agentic GraphRAG Intelligence Platform</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg: #090b10;
-      --card-bg: rgba(18, 22, 34, 0.75);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --card-border-hover: rgba(245, 158, 11, 0.3);
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --accent-gold: #f59e0b;
-      --accent-cyan: #06b6d4;
-      --accent-purple: #8b5cf6;
-      --accent-green: #10b981;
-      --accent-red: #ef4444;
-      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
-    }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>STELLIUM</title>
+<style>
+  /* Lunarbit-derived surface: near-black paper, square edges, quiet hairlines, gold accent.
+     Series colours are validated for colour-blind separation on this surface. */
+  :root {
+    color-scheme: dark;
+    --bg: #08090a;
+    --surface: #0e1011;
+    --surface-2: #131618;
+    --border: #22262a;
+    --fg: #eceded;
+    --muted: #84898c;
+    --faint: #5b6064;
+    --accent: #cba36a;
+    --danger: #e0806c;
+    --rag: #3987e5;
+    --graphrag: #199e70;
+    --agentic: #c98500;
+    --paper: #07080c;
+    --edge: rgba(160, 178, 206, 0.16);
+    --edge-hot: rgba(226, 236, 255, 0.8);
+    --node-question: #eef2fa;
+    --node-tool: #8f9ec4;
+    --node-event: #7fb3a6;
+    --node-doc: #cba36a;
+    --font-sans: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
+    --font-mono: "SF Mono", "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 var(--font-sans); }
+  button, input, select { font: inherit; color: inherit; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px 64px; }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-sans);
-      min-height: 100vh;
-      overflow-x: hidden;
-      line-height: 1.5;
-    }
+  header { display: flex; align-items: center; gap: 24px; padding: 20px 0 16px;
+           border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .brand { font: 600 15px var(--font-mono); letter-spacing: 0.32em; }
+  .brand small { display: block; font: 12px var(--font-sans); letter-spacing: 0; color: var(--muted); }
+  nav { display: flex; gap: 2px; margin-left: auto; }
+  nav button { background: none; border: 1px solid transparent; padding: 6px 14px; color: var(--muted);
+               cursor: pointer; }
+  nav button[aria-selected="true"] { color: var(--fg); border-color: var(--border); background: var(--surface); }
+  .chip { font: 12px var(--font-mono); color: var(--muted); border: 1px solid var(--border); padding: 3px 8px; }
 
-    /* Ambient glow */
-    .glow-bg {
-      position: fixed;
-      top: -200px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 800px;
-      height: 400px;
-      background: radial-gradient(ellipse, rgba(245, 158, 11, 0.12), rgba(139, 92, 246, 0.06), transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
+  h2 { font: 600 13px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted);
+       margin: 32px 0 12px; }
+  .panel { background: var(--surface); border: 1px solid var(--border); padding: 16px; }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--font-mono); }
 
-    /* Navigation */
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 50;
-      background: rgba(9, 11, 16, 0.85);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--card-border);
-      padding: 14px 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+  /* Ask bar */
+  .ask { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 20px; }
+  .ask input { background: var(--surface); border: 1px solid var(--border); padding: 12px 14px; min-width: 0; }
+  .ask input:focus, .ask select:focus { outline: 1px solid var(--accent); }
+  .ask button { background: var(--fg); color: var(--bg); border: 0; padding: 0 22px; font-weight: 600; cursor: pointer; }
+  .ask button:disabled { opacity: 0.5; cursor: progress; }
+  .ask select { grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border); padding: 8px 10px;
+                color: var(--muted); }
+  .status { min-height: 22px; margin-top: 10px; font: 12px var(--font-mono); color: var(--muted); }
+  .status.error { color: var(--danger); }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .brand-logo {
-      font-size: 24px;
-      background: linear-gradient(135deg, #f59e0b, #ef4444);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-    }
-    .brand-tag {
-      font-size: 11px;
-      font-weight: 600;
-      color: #cbd5e1;
-      background: rgba(255, 255, 255, 0.06);
-      padding: 3px 8px;
-      border-radius: 6px;
-      border: 1px solid var(--card-border);
-    }
-    .creator-badge {
-      font-size: 12px;
-      color: var(--accent-gold);
-      background: rgba(245, 158, 11, 0.1);
-      padding: 4px 10px;
-      border-radius: 20px;
-      border: 1px solid rgba(245, 158, 11, 0.25);
-      font-weight: 600;
-    }
+  /* Answer cards */
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 8px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--series);
+          padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 180px; }
+  .card h3 { margin: 0; font: 600 12px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+  .card h3 span { color: var(--muted); font-weight: 400; letter-spacing: 0; text-transform: none; }
+  .answer { font-size: 18px; line-height: 1.35; overflow-wrap: anywhere; }
+  .answer.placeholder { color: var(--faint); font-size: 14px; }
+  .answer.error { color: var(--danger); font-size: 14px; }
+  .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: auto;
+           border-top: 1px solid var(--border); padding-top: 10px; }
+  .facts div { font: 15px var(--font-mono); }
+  .facts span { display: block; font: 11px var(--font-sans); color: var(--muted); }
 
-    .system-status {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      font-size: 12px;
-    }
-    .status-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--text-muted);
-    }
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--accent-green);
-      box-shadow: 0 0 8px var(--accent-green);
-    }
+  /* Trace + graph */
+  .split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 12px; }
+  .trace { list-style: none; margin: 0; padding: 0; }
+  .trace li { border-left: 1px solid var(--border); padding: 0 0 14px 16px; position: relative; }
+  .trace li::before { content: ""; position: absolute; left: -4px; top: 6px; width: 7px; height: 7px;
+                      background: var(--marker, var(--muted)); }
+  .trace .kind { font: 11px var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .trace .tool { font: 600 13px var(--font-mono); }
+  .trace pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12px var(--font-mono);
+               color: var(--muted); }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .badge { font: 11px var(--font-mono); border: 1px solid var(--border); padding: 2px 7px; color: var(--muted); }
+  .badge.hot { color: var(--accent); border-color: rgba(203, 163, 106, 0.4); }
+  .graph { position: relative; background:
+      radial-gradient(ellipse 120% 110% at 50% 50%, #17213b 0%, #0c1428 52%, #060912 100%);
+      border: 1px solid var(--border); min-height: 420px; }
+  .graph svg { display: block; width: 100%; height: 420px; }
+  .graph .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint);
+                  font: 12px var(--font-mono); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; font: 12px var(--font-sans); color: var(--muted); }
+  .legend i { display: inline-block; width: 9px; height: 9px; margin-right: 6px; vertical-align: -1px; border-radius: 50%; }
+  .legend i.sq { border-radius: 2px; }
 
-    /* Main Container */
-    main {
-      position: relative;
-      z-index: 1;
-      max-width: 1440px;
-      margin: 0 auto;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
+  /* Benchmark */
+  .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .tile { background: var(--surface); border: 1px solid var(--border); border-top: 2px solid var(--series); padding: 16px; }
+  .tile h3 { margin: 0 0 10px; font: 600 12px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+  .tile .hero { font: 600 40px/1 var(--font-mono); }
+  .tile .hero small { font-size: 14px; color: var(--muted); font-weight: 400; }
+  .tile dl { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; margin: 14px 0 0; font-size: 13px; }
+  .tile dt { color: var(--muted); }
+  .tile dd { margin: 0; font-family: var(--font-mono); text-align: right; }
+  .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .chart { position: relative; }
+  .chart h3 { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+  .chart p { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+  .chart svg { display: block; width: 100%; }
+  .chart details { margin-top: 8px; font-size: 12px; color: var(--muted); }
+  .tip { position: absolute; pointer-events: none; background: #1b1f22; border: 1px solid var(--border);
+         padding: 6px 9px; font: 12px var(--font-mono); white-space: nowrap; z-index: 5; display: none; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font: 600 11px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  td { font-family: var(--font-mono); }
+  td:first-child { font-family: var(--font-sans); }
+  .scroll { overflow-x: auto; }
+  .finding { border-left: 2px solid var(--accent); padding: 4px 0 4px 14px; margin: 0; font-size: 15px; }
+  .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 8px; }
+  footer { margin-top: 40px; font: 12px var(--font-mono); color: var(--faint); }
+  [hidden] { display: none !important; }
 
-    /* Query Control Center */
-    .control-panel {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 20px;
-      backdrop-filter: blur(12px);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-    .control-row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    .preset-select {
-      flex: 1;
-      min-width: 280px;
-      background: #0f1422;
-      border: 1px solid var(--card-border);
-      color: var(--text);
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-family: var(--font-sans);
-      font-size: 13px;
-      outline: none;
-      cursor: pointer;
-    }
-    .preset-select:focus { border-color: var(--accent-gold); }
-
-    .query-box {
-      width: 100%;
-      background: #0f1422;
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      color: var(--text);
-      padding: 14px 16px;
-      font-size: 14px;
-      font-family: var(--font-sans);
-      resize: vertical;
-      min-height: 52px;
-      outline: none;
-    }
-    .query-box:focus { border-color: var(--accent-gold); }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 13px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .btn-primary {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      color: #000;
-    }
-    .btn-primary:hover {
-      filter: brightness(1.1);
-      transform: translateY(-1px);
-    }
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--text);
-      border: 1px solid var(--card-border);
-    }
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.12);
-    }
-
-    /* 3-Way Comparative Cards Grid */
-    .benchmark-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-    }
-    @media (max-width: 1024px) {
-      .benchmark-grid { grid-template-columns: 1fr; }
-    }
-
-    .pipeline-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      position: relative;
-      overflow: hidden;
-      transition: border-color 0.2s ease;
-    }
-    .pipeline-card:hover { border-color: var(--card-border-hover); }
-
-    .pipeline-card.highlight {
-      border-color: rgba(245, 158, 11, 0.4);
-      box-shadow: 0 0 24px rgba(245, 158, 11, 0.08);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .card-title {
-      font-size: 14px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .badge {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 6px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .badge-vanilla { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-    .badge-graph { background: rgba(99, 102, 241, 0.15); color: #818cf8; }
-    .badge-agentic { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-
-    .card-metrics {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 10px;
-      background: rgba(0, 0, 0, 0.25);
-      border-radius: 8px;
-      padding: 10px 12px;
-    }
-    .metric-col { display: flex; flex-direction: column; }
-    .metric-label { font-size: 10px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; }
-    .metric-val { font-size: 15px; font-weight: 700; font-family: var(--font-mono); }
-    .metric-val.zero-token { color: var(--accent-green); }
-
-    .answer-block {
-      background: #0d111c;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 8px;
-      padding: 14px;
-      min-height: 80px;
-      font-size: 13px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .answer-label { font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
-    .answer-text { font-size: 14px; font-weight: 600; color: #fff; }
-
-    /* Graph Surface & Trace Split */
-    .deep-view-grid {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr;
-      gap: 20px;
-      min-height: 480px;
-    }
-    @media (max-width: 1024px) {
-      .deep-view-grid { grid-template-columns: 1fr; }
-    }
-
-    .graph-container {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      position: relative;
-    }
-    .container-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    #graphCanvas {
-      width: 100%;
-      height: 400px;
-      background: #0a0d16;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      cursor: grab;
-    }
-
-    .trace-container {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      max-height: 460px;
-      overflow-y: auto;
-    }
-    .trace-step {
-      background: #0d111c;
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-left: 3px solid var(--accent-gold);
-      border-radius: 6px;
-      padding: 10px 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 12px;
-    }
-    .step-header {
-      display: flex;
-      justify-content: space-between;
-      font-weight: 600;
-      font-size: 11px;
-      color: var(--accent-gold);
-    }
-    .step-detail { color: #cbd5e1; }
-    .step-stats {
-      font-size: 10px;
-      color: var(--text-muted);
-      font-family: var(--font-mono);
-      display: flex;
-      gap: 10px;
-    }
-
-    /* Footer */
-    footer {
-      border-top: 1px solid var(--card-border);
-      padding: 24px;
-      text-align: center;
-      font-size: 12px;
-      color: var(--text-muted);
-      margin-top: 40px;
-    }
-  </style>
+  @media (max-width: 900px) {
+    .cards, .tiles, .charts, .split { grid-template-columns: 1fr; }
+    .facts { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
 </head>
 <body>
-  <div class="glow-bg"></div>
-
+<div class="wrap">
   <header>
-    <div class="brand">
-      <div class="brand-logo">🐯 STELLIUM</div>
-      <div class="brand-tag">v0.1.0</div>
-      <div class="creator-badge">Built by Philip Simon Derock</div>
-    </div>
-    <div class="system-status">
-      <div class="status-item"><span class="status-dot"></span> TigerGraph Savanna</div>
-      <div class="status-item"><span class="status-dot"></span> Silicon Coprocessor (<1μs)</div>
-      <div class="status-item"><span class="status-dot"></span> Llama-3.1-8B-Fast</div>
-    </div>
+    <div class="brand">STELLIUM<small>Agentic GraphRAG on TigerGraph</small></div>
+    <span class="chip" id="model-chip">model loading</span>
+    <nav role="tablist">
+      <button role="tab" aria-selected="true" data-view="investigate">Investigate</button>
+      <button role="tab" aria-selected="false" data-view="benchmark">Benchmark</button>
+    </nav>
   </header>
 
-  <main>
-    <!-- Control Panel -->
-    <section class="control-panel">
-      <div class="control-row">
-        <select id="presetSelect" class="preset-select" onchange="loadPresetQuestion()">
-          <option value="">⚡ Select an Evaluation Question (100 Public + 50 Hidden)...</option>
-          <optgroup label="Aggregation (Verified COUNT in GSQL - 0 Tokens)">
-            <option value="pub-001">pub-001: Biathlon events at 2018 Winter Olympics with >73 competitors?</option>
-            <option value="pub-003">pub-003: Shooting events at 2004 Summer Olympics with >37 competitors?</option>
-          </optgroup>
-          <optgroup label="Temporal (PRECEDES Edge Traversal)">
-            <option value="pub-002">pub-002: Gold medalist in men's 20km walk held immediately before 2016?</option>
-            <option value="pub-015">pub-015: Gold medalist in women's 57kg judo held immediately before 2020?</option>
-          </optgroup>
-          <optgroup label="Superlative (ORDER BY in GSQL)">
-            <option value="pub-004">pub-004: Which 2008 athletics event had the highest number of competitors?</option>
-            <option value="pub-021">pub-021: Which 2000 sailing event had the highest number of competitors?</option>
-          </optgroup>
-          <optgroup label="Multi-Hop (Venue + Date Traversal)">
-            <option value="pub-005">pub-005: Gold medal at Olympic Weightlifting Gymnasium on 20 September 1988?</option>
-          </optgroup>
-          <optgroup label="Lookup (Direct Attribute Resolution)">
-            <option value="pub-007">pub-007: How many nations competed in Sailing at 2016 Summer Olympics – Women's RS:X?</option>
-          </optgroup>
-        </select>
-        <button class="btn btn-primary" onclick="runBenchmark()">▶ Run 3-Way Benchmark</button>
-        <button class="btn btn-secondary" onclick="loadGraphSnapshot()">🔄 Refresh Graph</button>
-      </div>
-      <textarea id="queryInput" class="query-box" placeholder="Ask any historical Olympic question across the 2,951 documents..."></textarea>
-    </section>
+  <!-- Investigate -->
+  <section id="view-investigate">
+    <form class="ask" id="ask">
+      <input id="question" autocomplete="off" placeholder="Ask about any Olympic event in the corpus" aria-label="Question">
+      <button id="run" type="submit">Compare</button>
+      <select id="presets" aria-label="Public benchmark questions"><option value="">Or choose a public benchmark question</option></select>
+    </form>
+    <div class="status" id="status" role="status"></div>
 
-    <!-- 3-Way Benchmark Cards Grid -->
-    <section class="benchmark-grid">
-      <!-- Pipeline 1: Vanilla Vector RAG -->
-      <div class="pipeline-card">
-        <div class="card-header">
-          <div class="card-title">1. Baseline Vector RAG</div>
-          <span class="badge badge-vanilla">Vanilla HNSW</span>
-        </div>
-        <div class="card-metrics">
-          <div class="metric-col">
-            <span class="metric-label">Latency</span>
-            <span id="ragLatency" class="metric-val">-- ms</span>
-          </div>
-          <div class="metric-col">
-            <span class="metric-label">Tokens</span>
-            <span id="ragTokens" class="metric-val">--</span>
-          </div>
-        </div>
-        <div class="answer-block">
-          <span class="answer-label">Retrieved Answer</span>
-          <div id="ragAnswer" class="answer-text">Select or type a question to benchmark...</div>
+    <div class="cards" id="cards"></div>
+
+    <h2>Agent investigation</h2>
+    <div class="split">
+      <div class="panel">
+        <div class="badges" id="trace-badges"></div>
+        <ol class="trace" id="trace"><li class="muted">Run a question to see each planning step, tool call, and why the agent stopped.</li></ol>
+      </div>
+      <div>
+        <div class="graph" id="graph"><div class="empty">Evidence graph appears here</div></div>
+        <div class="legend">
+          <span><i style="background:var(--node-question)"></i>Question</span>
+          <span><i style="background:var(--node-tool)"></i>Specialist step</span>
+          <span><i style="background:var(--node-event)"></i>Graph event</span>
+          <span><i style="background:var(--node-doc)"></i>Cited article</span>
+          <span><i style="background:transparent;border:1px solid var(--edge-hot)"></i>Verified path</span>
         </div>
       </div>
+    </div>
+  </section>
 
-      <!-- Pipeline 2: Hybrid GraphRAG -->
-      <div class="pipeline-card">
-        <div class="card-header">
-          <div class="card-title">2. Hybrid GraphRAG</div>
-          <span class="badge badge-graph">Fixed Graph + Vector</span>
-        </div>
-        <div class="card-metrics">
-          <div class="metric-col">
-            <span class="metric-label">Latency</span>
-            <span id="graphragLatency" class="metric-val">-- ms</span>
-          </div>
-          <div class="metric-col">
-            <span class="metric-label">Tokens</span>
-            <span id="graphragTokens" class="metric-val">--</span>
-          </div>
-        </div>
-        <div class="answer-block">
-          <span class="answer-label">Retrieved Answer</span>
-          <div id="graphragAnswer" class="answer-text">Select or type a question to benchmark...</div>
-        </div>
-      </div>
+  <!-- Benchmark -->
+  <section id="view-benchmark" hidden>
+    <h2>Public benchmark · 100 questions</h2>
+    <div class="tiles" id="tiles"></div>
 
-      <!-- Pipeline 3: Autonomous Agentic GraphRAG -->
-      <div class="pipeline-card highlight">
-        <div class="card-header">
-          <div class="card-title">3. Agentic GraphRAG (Stellium)</div>
-          <span class="badge badge-agentic">Autonomous Agent</span>
-        </div>
-        <div class="card-metrics">
-          <div class="metric-col">
-            <span class="metric-label">Latency</span>
-            <span id="agenticLatency" class="metric-val">-- ms</span>
-          </div>
-          <div class="metric-col">
-            <span class="metric-label">LLM Tokens</span>
-            <span id="agenticTokens" class="metric-val">--</span>
-          </div>
-        </div>
-        <div class="answer-block">
-          <span class="answer-label">Verified Answer</span>
-          <div id="agenticAnswer" class="answer-text">Select or type a question to benchmark...</div>
-        </div>
-      </div>
-    </section>
+    <h2>Where each pipeline wins</h2>
+    <div class="charts">
+      <div class="panel chart" id="chart-accuracy"></div>
+      <div class="panel chart" id="chart-tokens"></div>
+      <div class="panel chart" id="chart-latency"></div>
+      <div class="panel chart" id="chart-tools"></div>
+    </div>
 
-    <!-- Deep Visualization Grid -->
-    <section class="deep-view-grid">
-      <!-- Force-Directed Graph Surface -->
-      <div class="graph-container">
-        <div class="container-title">
-          <span>Evidence Graph</span>
-          <span id="graphMeta" style="font-size: 11px; color: var(--accent-gold);">No query evidence loaded</span>
-        </div>
-        <canvas id="graphCanvas"></canvas>
-      </div>
+    <h2>Evidence and retrieval</h2>
+    <div class="panel scroll" id="table-evidence"></div>
 
-      <!-- Agentic Trace Inspector -->
-      <div class="trace-container">
-        <div class="container-title">
-          <span>Full Agentic Trace Timeline</span>
-          <span id="traceConfidence" style="color: var(--accent-green); font-size: 11px;">No investigation run yet</span>
-        </div>
-        <div id="traceSteps" style="display: flex; flex-direction: column; gap: 8px;">
-          <div class="trace-step">Run a comparison to see the actual agent trace.</div>
-        </div>
-      </div>
-    </section>
-  </main>
+    <h2>Finding</h2>
+    <p class="finding">On template-shaped questions the agent is not more accurate than a well-built GraphRAG.
+      It is cheaper and corrects itself: it stops on the first verified graph value and re-plans when a step fails.</p>
 
-  <footer>
-    <b>STELLIUM</b> — Autonomous Agentic GraphRAG System on TigerGraph Savanna.<br>
-    Designed and Engineered by <b>Philip Simon Derock</b> for the TigerGraph Agentic GraphRAG Hackathon 2026.
-  </footer>
+    <footer id="provenance"></footer>
+  </section>
+</div>
 
-  <script>
-    const PRESETS = {
-      "pub-001": "According to the provided corpus, how many biathlon events at the 2018 Winter Olympics had more than 73 competitors?",
-      "pub-002": "Who won the gold medal in the men's 20 kilometres walk athletics event at the Summer Olympics held immediately before 2016?",
-      "pub-003": "According to the provided corpus, how many shooting events at the 2004 Summer Olympics had more than 37 competitors?",
-      "pub-004": "According to the provided corpus, which athletics event at the 2008 Summer Olympics had the highest number of competitors?",
-      "pub-005": "Who won the gold medal in the event held at Olympic Weightlifting Gymnasium on 20 September 1988?",
-      "pub-007": "How many nations competed in Sailing at the 2016 Summer Olympics – Women's RS:X?",
-      "pub-015": "Who won the gold medal in the women's 57 kg judo event at the Summer Olympics held immediately before 2020?",
-      "pub-021": "According to the provided corpus, which sailing event at the 2000 Summer Olympics had the highest number of competitors?"
-    };
+<div class="tip" id="tip"></div>
 
-    function loadPresetQuestion() {
-      const select = document.getElementById("presetSelect");
-      const key = select.value;
-      if (key && PRESETS[key]) {
-        document.getElementById("queryInput").value = PRESETS[key];
+<script>
+"use strict";
+
+const PIPELINES = [
+  { key: "rag", label: "RAG", color: "var(--rag)", hex: "#3987e5" },
+  { key: "graphrag", label: "GraphRAG", color: "var(--graphrag)", hex: "#199e70" },
+  { key: "agentic", label: "Agentic GraphRAG", color: "var(--agentic)", hex: "#c98500" },
+];
+const QTYPES = [
+  ["aggregation", "Count"], ["lookup", "Lookup"], ["multi_hop", "Multi-hop"],
+  ["superlative", "Ranking"], ["temporal", "Temporal"],
+];
+const SVG = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+
+function esc(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function el(tag, attrs = {}, parent) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  if (parent) parent.appendChild(node);
+  return node;
+}
+const fmt = {
+  int: (v) => Math.round(v).toLocaleString("en-US"),
+  pct: (v) => `${Math.round(v * 100)}%`,
+  sec: (v) => `${v.toFixed(1)} s`,
+  usd: (v) => `$${v.toFixed(2)}`,
+  dec: (v) => (v == null ? "n/a" : v.toFixed(3)),
+};
+
+async function api(path, options) {
+  // Surface the server's own explanation (503 quota, 400 guardrail) instead of failing silently.
+  const resp = await fetch(path, options);
+  let body = null;
+  try { body = await resp.json(); } catch { /* non-JSON error page */ }
+  if (!resp.ok) {
+    const detail = body && body.detail ? body.detail : `HTTP ${resp.status}`;
+    const retry = resp.headers.get("Retry-After");
+    throw new Error(retry ? `${detail} (retry in ${retry} s)` : detail);
+  }
+  return body;
+}
+
+/* ---------------- Tooltip ---------------- */
+const tip = $("tip");
+function showTip(event, html) {
+  tip.innerHTML = html;
+  tip.style.display = "block";
+  const pad = 14;
+  const x = Math.min(event.pageX + pad, window.scrollX + window.innerWidth - tip.offsetWidth - 8);
+  tip.style.left = `${x}px`;
+  tip.style.top = `${event.pageY + pad}px`;
+}
+function hideTip() { tip.style.display = "none"; }
+
+/* ---------------- Tabs ---------------- */
+let metricsLoaded = false;
+document.querySelectorAll("nav button").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-selected", b === button));
+    $("view-investigate").hidden = button.dataset.view !== "investigate";
+    $("view-benchmark").hidden = button.dataset.view !== "benchmark";
+    if (button.dataset.view === "benchmark" && !metricsLoaded) loadMetrics();
+  });
+});
+
+/* ---------------- Investigate ---------------- */
+function renderCards(result, error) {
+  $("cards").innerHTML = PIPELINES.map((p) => {
+    const r = result ? result[p.key] : null;
+    let body = '<div class="answer placeholder">Waiting for a question</div>';
+    let facts = "";
+    if (error) body = `<div class="answer error">${esc(error)}</div>`;
+    else if (r) {
+      const calls = p.key === "agentic" ? (r.agentic_trace?.llm_calls?.length ?? 0) : (p.key === "rag" ? 1 : 2);
+      body = `<div class="answer">${esc(r.answer)}</div>`;
+      facts = `<div class="facts">
+        <div>${fmt.int(r.total_llm_tokens)}<span>LLM tokens</span></div>
+        <div>${calls}<span>LLM calls</span></div>
+        <div>${fmt.sec(r.latency_ms / 1000)}<span>latency</span></div>
+        <div>${r.retrieved_doc_ids.length}<span>citations</span></div></div>`;
+    } else if (result === undefined) body = '<div class="answer placeholder">Investigating…</div>';
+    return `<article class="card" style="--series:${p.color}"><h3>${p.label}</h3>${body}${facts}</article>`;
+  }).join("");
+}
+
+function renderTrace(trace) {
+  const badges = [];
+  for (const agent of trace.agents_invoked || []) badges.push(`<span class="badge">${esc(agent)}</span>`);
+  if (trace.strategy_changed) badges.push('<span class="badge hot">strategy changed</span>');
+  $("trace-badges").innerHTML = badges.join("");
+  const items = [];
+  for (const step of trace.conversation_trace || []) {
+    if (step.event === "plan") {
+      const what = step.final_answer ? `Final answer: ${step.final_answer}` : JSON.stringify(step.action_input || {});
+      items.push(`<li style="--marker:var(--node-question)"><div class="kind">plan</div>
+        <div class="tool">${esc(step.action || "finish")}</div>
+        <pre>${esc(step.thought || "")}\n${esc(what)}</pre></li>`);
+    } else {
+      const obs = step.observation || {};
+      const summary = obs.error ? `error: ${obs.error}`
+        : obs.value != null ? `value: ${obs.value}  (${obs.event || ""})`
+        : obs.count != null ? `count: ${obs.count}`
+        : obs.candidates ? `candidates: ${obs.candidates.join("; ")}`
+        : obs.top ? `top: ${obs.top[0]?.event} (${obs.top[0]?.competitor_count})`
+        : obs.passages ? `${obs.passages.length} passages`
+        : JSON.stringify(obs).slice(0, 160);
+      items.push(`<li style="--marker:var(--node-tool)"><div class="kind">observation · ${Math.round(step.latency_ms)} ms · 0 LLM tokens</div>
+        <div class="tool">${esc(step.tool)}</div><pre>${esc(summary)}</pre></li>`);
+    }
+  }
+  items.push(`<li style="--marker:var(--accent)"><div class="kind">stopped</div>
+    <pre>${esc(trace.stopping_reason || "")}${trace.strategy_change_rationale ? "\n" + esc(trace.strategy_change_rationale) : ""}</pre></li>`);
+  $("trace").innerHTML = items.join("");
+}
+
+function renderGraph(question, trace, answer) {
+  // Lunarbit "orbit" formation: question at the core, specialist steps on the inner ring,
+  // graph events on the middle ring, cited articles on the outer ring, answer at the rim.
+  const nodes = new Map();
+  const edges = [];
+  const add = (id, kind, label, ring) => { if (!nodes.has(id)) nodes.set(id, { id, kind, label, ring }); return id; };
+  const link = (a, b, hot = false) => edges.push({ a, b, hot });
+  add("q", "question", question, 0);
+  const answerId = add("answer", "answer", answer, 4);
+  const cited = new Set(trace.citations || []);
+  let stepIndex = 0;
+  for (const step of trace.conversation_trace || []) {
+    if (step.event !== "observation") continue;
+    const obs = step.observation || {};
+    const tool = add(`t${stepIndex++}`, "tool", step.tool, 1);
+    link("q", tool, !obs.error);
+    const matches = (obs.linking?.matches || []).slice(0, 4);
+    const resolvedName = obs.event;
+    for (const m of matches) {
+      const ev = add(`e:${m.event_id}`, "event", m.event, 2);
+      const hot = m.event === resolvedName;
+      link(tool, ev, hot);
+      if (cited.has(m.event_id)) {
+        const doc = add(`d:${m.event_id}`, "doc", `Article ${m.event_id}`, 3);
+        link(ev, doc, hot);
+        if (hot) link(doc, answerId, true);
       }
     }
-
-    async function runBenchmark() {
-      const query = document.getElementById("queryInput").value.trim();
-      if (!query) return;
-
-      const qid = document.getElementById("presetSelect").value || "custom-query";
-
-      // Set loading states
-      document.getElementById("ragAnswer").innerText = "Retrieving TigerVector HNSW...";
-      document.getElementById("graphragAnswer").innerText = "Running fixed graph and vector retrieval...";
-      document.getElementById("agenticAnswer").innerText = "Executing autonomous investigation...";
-
-      try {
-        const resp = await fetch("/api/v1/query/compare", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query: query, qid: qid })
-        });
-        const data = await resp.json();
-
-        // Populate RAG
-        document.getElementById("ragAnswer").innerText = data.rag.answer;
-        document.getElementById("ragLatency").innerText = Math.round(data.rag.latency_ms) + " ms";
-        document.getElementById("ragTokens").innerText = data.rag.total_llm_tokens;
-
-        // Populate GraphRAG
-        document.getElementById("graphragAnswer").innerText = data.graphrag.answer;
-        document.getElementById("graphragLatency").innerText = Math.round(data.graphrag.latency_ms) + " ms";
-        document.getElementById("graphragTokens").innerText = data.graphrag.total_llm_tokens;
-
-        // Populate Agentic GraphRAG
-        document.getElementById("agenticAnswer").innerText = data.agentic.answer;
-        document.getElementById("agenticLatency").innerText = Math.round(data.agentic.latency_ms) + " ms";
-        document.getElementById("agenticTokens").innerText = data.agentic.total_llm_tokens === 0 
-          ? "0 (GSQL Fast Path)" 
-          : data.agentic.total_llm_tokens;
-
-        // Populate Trace
-        if (data.agentic.agentic_trace) {
-          renderTrace(data.agentic.agentic_trace);
-        }
-
-        // Refresh Graph
-        loadGraphSnapshot();
-      } catch (err) {
-        console.error(err);
-      }
+    for (const name of (obs.matching_events || []).slice(0, 6)) {
+      const ev = add(`n:${name}`, "event", name, 2);
+      link(tool, ev, true);
+      link(ev, answerId, true);
     }
-
-    function renderTrace(trace) {
-      const container = document.getElementById("traceSteps");
-      container.innerHTML = "";
-      if (trace.tools_called && trace.tools_called.length > 0) {
-        trace.tools_called.forEach((t, i) => {
-          const div = document.createElement("div");
-          div.className = "trace-step";
-          div.innerHTML = `
-            <div class="step-header">
-              <span>Step ${i + 1}: ${t.tool_name}</span>
-              <span>${Math.round(t.latency_ms)}ms</span>
-            </div>
-            <div class="step-detail">${t.output_summary}</div>
-            <div class="step-stats">
-              <span>Tokens: ${t.llm_tokens}</span>
-              <span>Input: ${JSON.stringify(t.input_args)}</span>
-            </div>
-          `;
-          container.appendChild(div);
-        });
-      }
-      if (trace.stopping_reason) {
-        document.getElementById("traceConfidence").innerText = trace.stopping_reason;
-      }
+    for (const top of (obs.top || []).slice(0, 3)) {
+      const ev = add(`n:${top.event}`, "event", `${top.event} · ${top.competitor_count}`, 2);
+      link(tool, ev, top === obs.top[0]);
     }
-
-    // Force-Directed Graph Canvas Simulator
-    let nodes = [];
-    let edges = [];
-
-    async function loadGraphSnapshot() {
-      try {
-        const resp = await fetch("/api/v1/graph/snapshot");
-        const data = await resp.json();
-        nodes = data.graph_nodes.map((n, i) => ({
-          ...n,
-          x: 200 + Math.cos(i) * 120,
-          y: 200 + Math.sin(i) * 120,
-          vx: 0,
-          vy: 0
-        }));
-        edges = data.graph_edges;
-        document.getElementById("graphMeta").innerText = nodes.length
-          ? `${nodes.length} Nodes | ${edges.length} Edges`
-          : "No query evidence loaded";
-        drawGraph();
-      } catch (e) {
-        console.error("Snapshot error:", e);
-      }
+    for (const passage of (obs.passages || []).slice(0, 4)) {
+      const doc = add(`d:${passage.doc_id}`, "doc", `Article ${passage.doc_id}`, 3);
+      link(tool, doc);
     }
-
-    const canvas = document.getElementById("graphCanvas");
-    const ctx = canvas.getContext("2d");
-
-    function resizeCanvas() {
-      canvas.width = canvas.parentElement.clientWidth - 32;
-      canvas.height = 400;
-      drawGraph();
+    for (const check of obs.source_check || []) {
+      if (typeof check !== "object") continue;
+      const doc = add(`d:${check.doc_id}`, "doc", `Article ${check.doc_id}: ${check.line}`, 3);
+      link(doc, answerId, true);
     }
-    window.addEventListener("resize", resizeCanvas);
+  }
 
-    const COLOR_MAP = {
-      Event: "#f59e0b",
-      Person: "#10b981",
-      Venue: "#06b6d4",
-      Document: "#8b5cf6",
-      Chunk: "#6366f1"
-    };
+  const box = $("graph");
+  box.innerHTML = "";
+  const W = 760, H = 420, cx = W / 2 - 40, cy = H / 2;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Evidence graph for the agent's answer" }, box);
+  const defs = el("defs", {}, svg);
+  const glow = el("filter", { id: "glow", x: "-80%", y: "-80%", width: "260%", height: "260%" }, defs);
+  el("feGaussianBlur", { stdDeviation: "3.5", result: "b" }, glow);
+  const merge = el("feMerge", {}, glow);
+  el("feMergeNode", { in: "b" }, merge);
+  el("feMergeNode", { in: "SourceGraphic" }, merge);
 
-    function drawGraph() {
-      if (!ctx || !canvas) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      // Center offset
-      const cx = canvas.width / 2;
-      const cy = canvas.height / 2;
-
-      // Draw Edges
-      ctx.lineWidth = 1.5;
-      edges.forEach(e => {
-        const src = nodes.find(n => n.id === e.source) || { x: cx - 60, y: cy };
-        const tgt = nodes.find(n => n.id === e.target) || { x: cx + 60, y: cy };
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.15)";
-        ctx.beginPath();
-        ctx.moveTo(src.x, src.y);
-        ctx.lineTo(tgt.x, tgt.y);
-        ctx.stroke();
-
-        // Edge label
-        const mx = (src.x + tgt.x) / 2;
-        const my = (src.y + tgt.y) / 2;
-        ctx.fillStyle = "#64748b";
-        ctx.font = "9px " + getComputedStyle(document.body).fontFamily;
-        ctx.fillText(e.relationship_type, mx - 15, my - 4);
-      });
-
-      // Draw Nodes
-      nodes.forEach(n => {
-        const color = COLOR_MAP[n.type] || "#f59e0b";
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Node Glow
-        ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Node Label
-        ctx.fillStyle = "#f8fafc";
-        ctx.font = "10px " + getComputedStyle(document.body).fontFamily;
-        ctx.fillText(n.label, n.x + 12, n.y + 3);
-      });
-    }
-
-    // Initialize
-    window.addEventListener("DOMContentLoaded", () => {
-      resizeCanvas();
-      loadPresetQuestion();
-      loadGraphSnapshot();
+  const rings = [0, 0.38, 0.66, 0.92];
+  const byRing = [[], [], [], [], []];
+  nodes.forEach((n) => byRing[n.ring].push(n));
+  byRing.forEach((group, ring) => {
+    group.forEach((n, i) => {
+      if (ring === 0) { n.x = cx; n.y = cy; return; }
+      if (ring === 4) { n.x = W - 70; n.y = cy; return; }
+      const span = Math.PI * 1.5;
+      const a = -span / 2 + Math.PI + (group.length === 1 ? span / 2 : (i / (group.length - 1)) * span) + ring * 0.35;
+      n.x = cx + Math.cos(a) * rings[ring] * 300;
+      n.y = cy + Math.sin(a) * rings[ring] * 170;
     });
-  </script>
+  });
+  for (const r of rings.slice(1)) {
+    el("ellipse", { cx, cy, rx: r * 300, ry: r * 170, fill: "none", stroke: "rgba(160,178,206,0.06)" }, svg);
+  }
+  for (const e of edges) {
+    const a = nodes.get(e.a), b = nodes.get(e.b);
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - 18;
+    el("path", { d: `M${a.x},${a.y} Q${mx},${my} ${b.x},${b.y}`, fill: "none",
+      stroke: e.hot ? "var(--edge-hot)" : "var(--edge)", "stroke-width": e.hot ? 1.4 : 1 }, svg);
+  }
+  const color = { question: "var(--node-question)", tool: "var(--node-tool)", event: "var(--node-event)",
+                  doc: "var(--node-doc)", answer: "var(--accent)" };
+  const size = { question: 9, tool: 6, event: 5, doc: 5, answer: 10 };
+  nodes.forEach((n) => {
+    const g = el("g", { tabindex: 0 }, svg);
+    el("circle", { cx: n.x, cy: n.y, r: size[n.kind] + 8, fill: "transparent" }, g);
+    el("circle", { cx: n.x, cy: n.y, r: size[n.kind], fill: color[n.kind], filter: "url(#glow)" }, g);
+    if (n.kind === "tool" || n.kind === "answer" || n.kind === "question") {
+      const label = n.kind === "question" ? "question" : n.label;
+      const above = n.kind === "question";
+      const t = el("text", { x: n.x, y: above ? n.y - size[n.kind] - 8 : n.y + size[n.kind] + 14, "text-anchor": "middle",
+        fill: n.kind === "answer" ? "var(--accent)" : "var(--muted)", "font-size": 11, "font-family": "var(--font-mono)" }, g);
+      t.textContent = String(label).length > 34 ? String(label).slice(0, 33) + "…" : label;
+    }
+    const kindName = { question: "Question", tool: "Specialist step", event: "Graph event", doc: "Cited article", answer: "Answer" }[n.kind];
+    g.addEventListener("mousemove", (ev) => showTip(ev, `<span class="muted">${kindName}</span><br>${esc(n.label)}`));
+    g.addEventListener("mouseleave", hideTip);
+  });
+}
+
+async function runCompare(question) {
+  $("run").disabled = true;
+  $("status").className = "status";
+  $("status").textContent = "Running RAG, GraphRAG, and Agentic GraphRAG in parallel…";
+  renderCards(undefined);
+  try {
+    const result = await api("/api/v1/query/compare", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: question }),
+    });
+    renderCards(result);
+    $("model-chip").textContent = result.agentic.model_name;
+    // The pipelines run in parallel, so the slowest one sets the wall time.
+    const slowest = Math.max(...PIPELINES.map((p) => result[p.key].latency_ms)) / 1000;
+    $("status").textContent = `All three answered · slowest pipeline ${slowest.toFixed(1)} s`;
+    if (result.agentic.agentic_trace) {
+      renderTrace(result.agentic.agentic_trace);
+      renderGraph(question, result.agentic.agentic_trace, result.agentic.answer);
+    }
+  } catch (err) {
+    renderCards(null, err.message);
+    $("status").className = "status error";
+    $("status").textContent = err.message;
+  } finally {
+    $("run").disabled = false;
+  }
+}
+
+$("ask").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const question = $("question").value.trim();
+  if (question) runCompare(question);
+});
+$("presets").addEventListener("change", (event) => {
+  if (!event.target.value) return;
+  $("question").value = event.target.value;
+  runCompare(event.target.value);
+});
+
+async function loadPresets() {
+  try {
+    const presets = await api("/api/v1/presets");
+    const groups = {};
+    for (const p of presets) (groups[p.qtype] ||= []).push(p);
+    const select = $("presets");
+    for (const [qtype, label] of QTYPES) {
+      if (!groups[qtype]) continue;
+      const og = document.createElement("optgroup");
+      og.label = label;
+      for (const p of groups[qtype]) {
+        const opt = document.createElement("option");
+        opt.value = p.question;
+        opt.textContent = `${p.qid} · ${p.question}`;
+        og.appendChild(opt);
+      }
+      select.appendChild(og);
+    }
+  } catch { /* presets are optional; free-form questions still work */ }
+}
+
+/* ---------------- Benchmark charts ---------------- */
+function niceMax(v) {
+  const pow = 10 ** Math.floor(Math.log10(v || 1));
+  return Math.ceil(v / pow) * pow;
+}
+function roundedTopBar(x, y, w, h, r = 4) {
+  // Rounded data-end, flat baseline anchor.
+  r = Math.min(r, w / 2, h);
+  return `M${x},${y + h} V${y + r} Q${x},${y} ${x + r},${y} H${x + w - r} Q${x + w},${y} ${x + w},${y + r} V${y + h} Z`;
+}
+
+function groupedBars(container, { title, subtitle, categories, series, max, tick, valueText, tipText }) {
+  const W = 560, H = 260, m = { t: 30, r: 8, b: 30, l: 44 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  container.innerHTML = `<h3>${esc(title)}</h3><p>${esc(subtitle)}</p>`;
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML = series.map((s) => `<span><i class="sq" style="background:${s.color}"></i>${esc(s.label)}</span>`).join("");
+  container.appendChild(legend);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title }, container);
+  for (let v = 0; v <= max + 1e-9; v += tick) {
+    const y = m.t + ih - (v / max) * ih;
+    el("line", { x1: m.l, x2: W - m.r, y1: y, y2: y, stroke: v === 0 ? "#3a3f44" : "#1c2023" }, svg);
+    const t = el("text", { x: m.l - 8, y: y + 4, "text-anchor": "end", fill: "var(--muted)", "font-size": 11, "font-family": "var(--font-mono)" }, svg);
+    t.textContent = valueText(v);
+  }
+  const band = iw / categories.length;
+  const barW = Math.min(18, (band - 18) / series.length - 2);
+  categories.forEach((cat, ci) => {
+    const groupW = series.length * barW + (series.length - 1) * 2;
+    const x0 = m.l + ci * band + (band - groupW) / 2;
+    series.forEach((s, si) => {
+      const v = s.values[ci];
+      if (v == null) return;
+      const h = Math.max(1, (v / max) * ih);
+      const x = x0 + si * (barW + 2);
+      const y = m.t + ih - h;
+      const g = el("g", {}, svg);
+      el("rect", { x: x - 1, y: m.t, width: barW + 2, height: ih, fill: "transparent" }, g);
+      el("path", { d: roundedTopBar(x, y, barW, h), fill: s.color }, g);
+      g.addEventListener("mousemove", (ev) => showTip(ev, `${esc(cat)} · ${esc(s.label)}<br>${tipText(s, ci)}`));
+      g.addEventListener("mouseleave", hideTip);
+    });
+    const t = el("text", { x: m.l + ci * band + band / 2, y: H - 10, "text-anchor": "middle", fill: "var(--muted)", "font-size": 12 }, svg);
+    t.textContent = cat;
+  });
+  const rows = categories.map((cat, ci) => `<tr><td>${esc(cat)}</td>${series.map((s) => `<td>${tipText(s, ci)}</td>`).join("")}</tr>`).join("");
+  const details = document.createElement("details");
+  details.innerHTML = `<summary>Table view</summary><div class="scroll"><table><tr><th></th>${series.map((s) => `<th>${esc(s.label)}</th>`).join("")}</tr>${rows}</table></div>`;
+  container.appendChild(details);
+}
+
+function latencyRanges(container, pipelines) {
+  // p50 to p95 per pipeline on one shared seconds axis.
+  const W = 560, H = 200, m = { t: 20, r: 20, b: 30, l: 132 };
+  const iw = W - m.l - m.r;
+  const max = niceMax(Math.max(...PIPELINES.map((p) => pipelines[p.key].overall.latency_p95_s)));
+  container.innerHTML = "<h3>Latency spread</h3><p>Median to 95th percentile per question, seconds, including client-side request pacing. RAG and GraphRAG from the matched three-pipeline run; Agentic from its final agent-only run.</p>";
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Latency spread" }, container);
+  for (let v = 0; v <= max; v += max / 4) {
+    const x = m.l + (v / max) * iw;
+    el("line", { x1: x, x2: x, y1: m.t, y2: H - m.b, stroke: "#1c2023" }, svg);
+    const t = el("text", { x, y: H - 10, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11, "font-family": "var(--font-mono)" }, svg);
+    t.textContent = `${v.toFixed(v < 10 ? 1 : 0)} s`;
+  }
+  const rowH = (H - m.t - m.b) / PIPELINES.length;
+  PIPELINES.forEach((p, i) => {
+    const o = pipelines[p.key].overall;
+    const y = m.t + rowH * i + rowH / 2;
+    const x50 = m.l + (o.latency_p50_s / max) * iw, x95 = m.l + (o.latency_p95_s / max) * iw;
+    const lbl = el("text", { x: m.l - 12, y: y + 4, "text-anchor": "end", fill: "var(--fg)", "font-size": 12 }, svg);
+    lbl.textContent = p.label;
+    const g = el("g", {}, svg);
+    el("rect", { x: m.l, y: y - rowH / 2, width: iw, height: rowH, fill: "transparent" }, g);
+    el("line", { x1: x50, x2: x95, y1: y, y2: y, stroke: p.color, "stroke-width": 2 }, g);
+    el("circle", { cx: x50, cy: y, r: 5, fill: p.color, stroke: "var(--surface)", "stroke-width": 2 }, g);
+    el("circle", { cx: x95, cy: y, r: 5, fill: "var(--surface)", stroke: p.color, "stroke-width": 2 }, g);
+    g.addEventListener("mousemove", (ev) => showTip(ev, `${p.label}<br>p50 ${fmt.sec(o.latency_p50_s)} · p95 ${fmt.sec(o.latency_p95_s)}`));
+    g.addEventListener("mouseleave", hideTip);
+  });
+  const legend = document.createElement("div");
+  legend.className = "legend";
+  legend.innerHTML = '<span><i style="background:var(--muted)"></i>median</span><span><i style="border:2px solid var(--muted)"></i>95th percentile</span>';
+  container.appendChild(legend);
+}
+
+function toolUsage(container, agent) {
+  const entries = Object.entries(agent.tools);
+  const W = 560, rowH = 26, m = { t: 6, r: 48, l: 160 };
+  const H = m.t + entries.length * rowH + 6;
+  const max = Math.max(...entries.map(([, v]) => v));
+  container.innerHTML = `<h3>What the agent chose to do</h3><p>Tool calls across 100 questions · ${agent.single_call_answers} answered with one LLM call · ${agent.strategy_changes} strategy changes</p>`;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Agent tool usage" }, container);
+  entries.forEach(([name, count], i) => {
+    const y = m.t + i * rowH;
+    const w = (count / max) * (W - m.l - m.r);
+    const lbl = el("text", { x: m.l - 10, y: y + 15, "text-anchor": "end", fill: "var(--fg)", "font-size": 12, "font-family": "var(--font-mono)" }, svg);
+    lbl.textContent = name;
+    el("path", { d: `M${m.l},${y + 4} H${m.l + w - 4} Q${m.l + w},${y + 4} ${m.l + w},${y + 8} V${y + 16} Q${m.l + w},${y + 20} ${m.l + w - 4},${y + 20} H${m.l} Z`, fill: "var(--agentic)" }, svg);
+    const v = el("text", { x: m.l + w + 8, y: y + 16, fill: "var(--muted)", "font-size": 12, "font-family": "var(--font-mono)" }, svg);
+    v.textContent = count;
+  });
+}
+
+function renderTiles(pipelines) {
+  $("tiles").innerHTML = PIPELINES.map((p) => {
+    const e = pipelines[p.key];
+    const o = e.overall, ev = e.evidence || {};
+    const grounded = ev.grounding_checked ? fmt.pct(ev.grounded / ev.grounding_checked) : "n/a";
+    return `<article class="tile" style="--series:${p.color}"><h3>${p.label}</h3>
+      <div class="hero">${Math.round((o.exact_match / o.scored) * 100)}<small>% accuracy</small></div>
+      <dl><dt>LLM tokens / answer</dt><dd>${fmt.int(o.tokens_mean)}</dd>
+          <dt>Cost / 100 questions</dt><dd>${fmt.usd(o.cost_per_100_usd)}</dd>
+          <dt>Grounded in cited articles</dt><dd>${grounded}</dd>
+          <dt>Gold among answers</dt><dd>${fmt.pct((ev.gold_among_answers ?? 0) / o.questions)}</dd></dl></article>`;
+  }).join("");
+}
+
+function renderEvidenceTable(pipelines) {
+  const cols = [
+    ["Hit@1", (e) => fmt.dec(e.retrieval?.hit_at_1)], ["MRR", (e) => fmt.dec(e.retrieval?.mrr)],
+    ["nDCG@5", (e) => fmt.dec(e.retrieval?.ndcg_at_5)],
+    ["Context recall", (e) => (e.retrieval?.context_recall == null ? "n/a" : fmt.pct(e.retrieval.context_recall))],
+    ["Context precision@5", (e) => fmt.dec(e.retrieval?.context_precision_at_5)],
+    ["Grounded", (e) => `${e.evidence.grounded}/${e.evidence.grounding_checked}`],
+    ["Abstained", (e) => e.evidence.abstained], ["Citations / answer", (e) => e.overall.citations_mean.toFixed(1)],
+  ];
+  $("table-evidence").innerHTML = `<table><tr><th>Pipeline</th>${cols.map(([h]) => `<th>${h}</th>`).join("")}</tr>${
+    PIPELINES.map((p) => `<tr><td><span class="swatch" style="background:${p.color}"></span>${p.label}</td>${
+      cols.map(([, f]) => `<td>${f(pipelines[p.key])}</td>`).join("")}</tr>`).join("")}</table>`;
+}
+
+async function loadMetrics() {
+  try {
+    const metrics = await api("/api/v1/metrics");
+    metricsLoaded = true;
+    const pipelines = metrics.pipelines;
+    renderTiles(pipelines);
+    const categories = QTYPES.map(([, label]) => label);
+    groupedBars($("chart-accuracy"), {
+      title: "Accuracy by question type", subtitle: "Share of questions answered exactly right",
+      categories, max: 1, tick: 0.25, valueText: (v) => fmt.pct(v),
+      series: PIPELINES.map((p) => ({ label: p.label, color: p.color, values: QTYPES.map(([q]) => {
+        const g = pipelines[p.key].by_type[q]; return g ? g.exact_match / g.questions : null; }) })),
+      tipText: (s, ci) => {
+        const p = PIPELINES.find((x) => x.label === s.label); const g = pipelines[p.key].by_type[QTYPES[ci][0]];
+        return `${g.exact_match}/${g.questions} correct`;
+      },
+    });
+    const tokenMax = niceMax(Math.max(...PIPELINES.flatMap((p) => Object.values(pipelines[p.key].by_type).map((g) => g.tokens_mean))));
+    groupedBars($("chart-tokens"), {
+      title: "LLM tokens per answer", subtitle: "Graph queries and retrieval cost zero LLM tokens",
+      categories, max: tokenMax, tick: tokenMax / 4, valueText: (v) => fmt.int(v),
+      series: PIPELINES.map((p) => ({ label: p.label, color: p.color, values: QTYPES.map(([q]) => pipelines[p.key].by_type[q]?.tokens_mean ?? null) })),
+      tipText: (s, ci) => `${fmt.int(s.values[ci])} tokens`,
+    });
+    latencyRanges($("chart-latency"), pipelines);
+    if (metrics.agent) toolUsage($("chart-tools"), metrics.agent);
+    renderEvidenceTable(pipelines);
+    $("provenance").innerHTML = (metrics.provenance || []).map((p) =>
+      `${esc([].concat(p.pipelines).join(", "))} · commit ${esc(p.commit)} · ${esc(p.model)} · dataset ${esc(String(p.dataset_sha256).slice(0, 12))}`).join("<br>");
+    const model = metrics.provenance?.[0]?.model;
+    if (model && $("model-chip").textContent === "model loading") $("model-chip").textContent = model;
+  } catch (err) {
+    $("tiles").innerHTML = `<p class="status error">${esc(err.message)}</p>`;
+  }
+}
+
+function selectView(view) {
+  document.querySelector(`nav button[data-view="${view}"]`)?.click();
+}
+
+// Shareable links: #benchmark opens the dashboard; #ask=<question> runs a comparison.
+renderCards(null);
+loadPresets();
+loadMetrics();
+if (location.hash === "#benchmark") selectView("benchmark");
+else if (location.hash.startsWith("#ask=")) {
+  const question = decodeURIComponent(location.hash.slice(5));
+  $("question").value = question;
+  runCompare(question);
+}
+</script>
 </body>
 </html>
