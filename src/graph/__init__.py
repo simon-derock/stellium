@@ -29,6 +29,7 @@ from src.graph.bitemporal import (
 )
 from src.graph.mock import MockTigerGraphConnection, create_mock_graph_client
 from src.graph.normalization import normalize_gender_filter
+from src.guardrails import normalize_gsql_string_quotes, validate_generated_gsql
 from src.models import Chunk, ParsedInbox
 
 __all__ = [
@@ -65,6 +66,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 _GRAPH_NAME = "OlympicsGraph"
+_MAX_MULTIHOP_GRAPH_MATCHES = 20
 
 
 def connect() -> tg.TigerGraphConnection:
@@ -434,6 +436,51 @@ CREATE OR REPLACE QUERY get_event_attribute (
 }
 """
 
+
+def _extract_event_candidates(value: Any) -> list[dict[str, Any]]:
+    # Preserve canonical names from projected Event rows as structured evidence for synthesis.
+    candidates: list[dict[str, Any]] = []
+
+    def visit(item: Any) -> None:
+        if isinstance(item, dict):
+            if str(item.get("v_type", "")).casefold() == "event":
+                attrs = item.get("attributes", {})
+                if isinstance(attrs, dict):
+                    name = next(
+                        (
+                            val
+                            for key, val in attrs.items()
+                            if key.rsplit(".", maxsplit=1)[-1].casefold() == "name"
+                            and isinstance(val, str)
+                            and val.strip()
+                        ),
+                        None,
+                    )
+                    if name is not None:
+                        candidate: dict[str, Any] = {"name": name.strip()}
+                        count = next(
+                            (
+                                val
+                                for key, val in attrs.items()
+                                if key.rsplit(".", maxsplit=1)[-1].casefold() == "competitor_count"
+                                and isinstance(val, int)
+                                and not isinstance(val, bool)
+                            ),
+                            None,
+                        )
+                        if count is not None:
+                            candidate["competitor_count"] = count
+                        candidates.append(candidate)
+            for nested in item.values():
+                visit(nested)
+        elif isinstance(item, list):
+            for nested in item:
+                visit(nested)
+
+    visit(value)
+    return candidates[:10]
+
+
 # Vector search query using TigerVector HNSW
 _QUERY_VECTOR_SEARCH = """
 USE GRAPH OlympicsGraph
@@ -458,6 +505,33 @@ CREATE OR REPLACE QUERY vector_search_chunks (
 @dataclass
 class GraphClient:
     conn: tg.TigerGraphConnection = field(default_factory=connect)
+
+    def run_generated_gsql(self, query: str) -> dict[str, Any]:
+        # Execute only bounded, read-only GSQL that passes the application allowlist.
+        query, quotes_normalized = normalize_gsql_string_quotes(query)
+        safe, reason = validate_generated_gsql(query)
+        if not safe:
+            raise ValueError(f"Generated GSQL rejected: {reason}")
+        started = time.perf_counter()
+        if self.conn._version_greater_than_4_0():
+            # pyTigerGraph's v4 runInterpretedQuery selects password auth, while Savanna
+            # deployments commonly configure bearer tokens. Call the same v4 endpoint through
+            # its request layer so the existing token is used and the GSQL request is bounded.
+            rows = self.conn._post(
+                self.conn.gsUrl + "/gsql/v1/queries/interpret",
+                authMode="token",
+                headers={"Content-Type": "text/plain", "GSQL-TIMEOUT": "15000"},
+                data=query,
+            )
+        else:
+            rows = self.conn.runInterpretedQuery(query)
+        return {
+            "rows": rows,
+            "event_candidates": _extract_event_candidates(rows),
+            "row_groups": len(rows),
+            "latency_ms": (time.perf_counter() - started) * 1000,
+            "quotes_normalized": quotes_normalized,
+        }
 
     # ------------------------------------------------------------------
     # Schema setup (one-time)
@@ -731,6 +805,13 @@ class GraphClient:
         if year:
             date_fragment = date_fragment.replace(str(year), "").strip(" ,–—-()")
         t0 = time.perf_counter()
+        if not venue_fragment.strip() and not date_fragment:
+            return {
+                "events": [],
+                "gold_athletes": [],
+                "gold_doc_ids": [],
+                "latency_ms": 0.0,
+            }
         venue_words = venue_fragment.split()
         venue_candidates = [venue_fragment]
         while (date_fragment or year) and len(venue_words) > 3 and len(venue_candidates) < 4:
@@ -752,8 +833,17 @@ class GraphClient:
             if r.get("events"):
                 break
         latency_ms = (time.perf_counter() - t0) * 1000
+        events = r.get("events", [])
+        if len(events) > _MAX_MULTIHOP_GRAPH_MATCHES:
+            # Broad graph matches are weak evidence; let hybrid passages resolve the question.
+            return {
+                "events": [],
+                "gold_athletes": [],
+                "gold_doc_ids": [],
+                "latency_ms": latency_ms,
+            }
         return {
-            "events": r.get("events", []),
+            "events": events,
             "gold_athletes": r.get("gold_athletes", []),
             "gold_doc_ids": r.get("gold_doc_ids", []),
             "latency_ms": latency_ms,
@@ -766,6 +856,16 @@ class GraphClient:
         sport: str = "",
         gender: str = "",
     ) -> dict[str, Any]:
+        if not event_fragment.strip():
+            return {
+                "events": [],
+                "competitor_counts": [],
+                "nation_counts": [],
+                "gold_athletes": [],
+                "venues": [],
+                "gold_doc_ids": [],
+                "latency_ms": 0.0,
+            }
         t0 = time.perf_counter()
         results = self.conn.runInstalledQuery(
             "get_event_attribute",

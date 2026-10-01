@@ -44,6 +44,13 @@ class MockTigerGraphConnection:
         self.gsql_history.append(query)
         return "SUCCESS: Mock schema operation completed."
 
+    def runInterpretedQuery(
+        self, queryText: str, params: dict[str, Any] | None = None
+    ) -> list[Any]:
+        # Records guarded read-only ad hoc queries without simulating TigerGraph's GSQL engine.
+        self.gsql_history.append(queryText)
+        return []
+
     def upsertVertex(self, vertex_type: str, vertex_id: str, attributes: dict[str, Any]) -> int:
         if vertex_type not in self.vertices:
             self.vertices[vertex_type] = {}

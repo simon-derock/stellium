@@ -102,6 +102,63 @@ def test_graph_queries_pass_untrusted_values_only_as_parameters() -> None:
     assert all("timeout" in call.kwargs for call in calls)
 
 
+def test_generated_gsql_uses_bearer_auth_and_bounded_v4_endpoint() -> None:
+    connection = MagicMock()
+    connection._version_greater_than_4_0.return_value = True
+    connection.gsUrl = "https://tigergraph.example"
+    connection._post.return_value = [{"@@match_count": 5}]
+    client = GraphClient(conn=connection)
+    query = (
+        "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
+        "Matched = SELECT e FROM Events:e WHERE e.year == 2018 LIMIT 10; "
+        "PRINT Matched[Matched.name]; }"
+    )
+
+    result = client.run_generated_gsql(query)
+
+    connection._post.assert_called_once_with(
+        "https://tigergraph.example/gsql/v1/queries/interpret",
+        authMode="token",
+        headers={"Content-Type": "text/plain", "GSQL-TIMEOUT": "15000"},
+        data=query,
+    )
+    connection.runInterpretedQuery.assert_not_called()
+    assert result["rows"] == [{"@@match_count": 5}]
+
+
+def test_generated_gsql_normalizes_single_quotes_before_execution() -> None:
+    connection = MagicMock()
+    connection._version_greater_than_4_0.return_value = True
+    connection.gsUrl = "https://tigergraph.example"
+    event_name = "Fencing at the 2008 Summer Olympics – Men's épée"
+    connection._post.return_value = [
+        {
+            "Ranked": [
+                {
+                    "v_id": "Q2570052",
+                    "v_type": "Event",
+                    "attributes": {
+                        "Ranked.name": event_name,
+                        "Ranked.competitor_count": 41,
+                    },
+                }
+            ]
+        }
+    ]
+    client = GraphClient(conn=connection)
+    query = (
+        "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
+        "Matched = SELECT e FROM Events:e WHERE lower(e.sport) == 'fencing' "
+        "AND e.year == 2008 LIMIT 10; PRINT Matched[Matched.name]; }"
+    )
+
+    result = client.run_generated_gsql(query)
+
+    assert result["quotes_normalized"]
+    assert connection._post.call_args.kwargs["data"].find('== "fencing"') >= 0
+    assert result["event_candidates"] == [{"name": event_name, "competitor_count": 41}]
+
+
 def test_multihop_relaxes_venue_fragment_only_after_empty_result() -> None:
     connection = MagicMock()
     connection.runInstalledQuery.side_effect = [
@@ -139,6 +196,57 @@ def test_multihop_does_not_broaden_without_date_or_year_constraints() -> None:
     assert connection.runInstalledQuery.call_count == 1
 
 
+def test_multihop_with_no_constraints_skips_graph_query() -> None:
+    connection = MagicMock()
+    client = GraphClient(conn=connection)
+
+    result = client.run_multihop()
+
+    assert result["events"] == []
+    assert result["gold_athletes"] == []
+    assert result["gold_doc_ids"] == []
+    connection.runInstalledQuery.assert_not_called()
+
+
+def test_multihop_with_year_only_skips_graph_query() -> None:
+    connection = MagicMock()
+    client = GraphClient(conn=connection)
+
+    result = client.run_multihop(year=2012)
+
+    assert result["events"] == []
+    connection.runInstalledQuery.assert_not_called()
+
+
+def test_multihop_discards_unbounded_graph_results() -> None:
+    connection = MagicMock()
+    connection.runInstalledQuery.return_value = [
+        {
+            "events": [f"Event {index}" for index in range(21)],
+            "gold_athletes": [f"Athlete {index}" for index in range(21)],
+            "gold_doc_ids": [f"Q{index}" for index in range(21)],
+        }
+    ]
+    client = GraphClient(conn=connection)
+
+    result = client.run_multihop(venue_fragment="Olympic Stadium", year=2012)
+
+    assert result["events"] == []
+    assert result["gold_athletes"] == []
+    assert result["gold_doc_ids"] == []
+
+
+def test_lookup_without_event_fragment_skips_graph_query() -> None:
+    connection = MagicMock()
+    client = GraphClient(conn=connection)
+
+    result = client.run_lookup(year=2012)
+
+    assert result["events"] == []
+    assert result["gold_doc_ids"] == []
+    connection.runInstalledQuery.assert_not_called()
+
+
 def test_multihop_omits_parenthetical_date_stage_annotations() -> None:
     connection = MagicMock()
     connection.runInstalledQuery.return_value = [{"events": ["Swimming event"]}]
@@ -160,7 +268,7 @@ def test_graph_gender_filters_normalize_possessive_question_forms() -> None:
     client = GraphClient(conn=connection)
 
     client.run_temporal(gender="Women’s")
-    client.run_lookup(gender="Men's")
+    client.run_lookup(event_fragment="foil", gender="Men's")
 
     calls = connection.runInstalledQuery.call_args_list
     assert calls[0].kwargs["params"]["gender"] == "women"
