@@ -15,6 +15,14 @@ from typing import Any, Literal
 
 import httpx
 
+from src.credentials import (
+    available_cohere_keys,
+    cohere_keys,
+    is_monthly_cap,
+    park_exhausted_key,
+    parked_keys,
+)
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -408,12 +416,10 @@ class CohereEmbeddingClient:
         )
         raw_batch_size = os.environ.get("COHERE_EMBEDDING_BATCH_SIZE", "96")
         raw_workers = os.environ.get("COHERE_EMBEDDING_WORKERS", "1")
-        primary_key = os.environ.get("COHERE", "").strip()
-        backup_key = os.environ.get("COHERE_BACKUP", "").strip()
-        legacy_key = os.environ.get("COHERE_KEY", "").strip()
+        keys = [key for _, key in cohere_keys()]
         return cls(
-            api_key=primary_key or backup_key or legacy_key,
-            backup_api_key=backup_key if primary_key and backup_key != primary_key else "",
+            api_key=keys[0] if keys else "",
+            backup_api_key=keys[1] if len(keys) > 1 else "",
             model=os.environ.get("COHERE_EMBEDDING_MODEL", COHERE_EMBEDDING_MODEL),
             dimension=int(raw_dimension) if raw_dimension.isdigit() else 1024,
             batch_size=int(raw_batch_size) if raw_batch_size.isdigit() else 96,
@@ -425,10 +431,12 @@ class CohereEmbeddingClient:
         return bool(self.api_key)
 
     def _select_api_key(self) -> str:
-        # Distributes independent embedding batches across configured keys without logging them.
-        keys = [self.api_key]
-        if self.backup_api_key and self.backup_api_key != self.api_key:
-            keys.append(self.backup_api_key)
+        # Rotate across the shared pool (or this client's own keys) and skip parked keys.
+        pooled = [key for _, key in available_cohere_keys()]
+        own = [key for key in (self.api_key, self.backup_api_key) if key]
+        keys = pooled or [key for key in dict.fromkeys(own) if key not in parked_keys(own)]
+        if not keys:
+            raise EmbeddingRequestError("Every configured Cohere key has reached its monthly limit")
         with self._rate_limit_lock:
             key = keys[self._next_key_index % len(keys)]
             self._next_key_index += 1
@@ -488,6 +496,11 @@ class CohereEmbeddingClient:
                             },
                             json=payload,
                         )
+                    if is_monthly_cap(response.status_code, response.text):
+                        # This key is spent for the month; the batch moves to the next key.
+                        park_exhausted_key(api_key)
+                        api_key = self._select_api_key()
+                        continue
                     if response.status_code == 429 or response.status_code >= 500:
                         if attempt + 1 == self.max_retries:
                             detail = response.text[:400]
@@ -547,7 +560,7 @@ class CohereEmbeddingClient:
 
 def embedding_client_from_env() -> CohereEmbeddingClient | JinaEmbeddingClient:
     # Select Cohere when its key is configured; otherwise retain the established Jina path.
-    if any(os.environ.get(name, "").strip() for name in ("COHERE", "COHERE_BACKUP", "COHERE_KEY")):
+    if cohere_keys():
         return CohereEmbeddingClient.from_env()
     return JinaEmbeddingClient.from_env()
 

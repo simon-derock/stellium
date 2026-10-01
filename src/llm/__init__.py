@@ -14,6 +14,13 @@ from typing import Any
 
 import httpx
 
+from src.credentials import (
+    available_cohere_keys,
+    cohere_keys,
+    is_monthly_cap,
+    park_exhausted_key,
+)
+
 # ---------------------------------------------------------------------------
 # Model Configurations
 # ---------------------------------------------------------------------------
@@ -35,7 +42,6 @@ MISTRAL_MODEL = "mistral-medium-latest"
 COHERE_MODEL = os.environ.get("COHERE_CHAT_MODEL", "command-a-03-2025")
 # Trial keys allow 20 calls per minute; production keys can set this to 0.
 COHERE_CHAT_REQUEST_INTERVAL_S = float(os.environ.get("COHERE_CHAT_REQUEST_INTERVAL_S", "3.25"))
-_COHERE_KEY_ENV_NAMES = ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY")
 _MISTRAL_NAMED_KEY_SUFFIXES = (
     "ONE",
     "TWO",
@@ -75,15 +81,7 @@ _mistral_key_cursor = 0
 
 
 def _configured_cohere_api_keys() -> list[tuple[str, str]]:
-    # Preserve configured key aliases while deduplicating identical secrets.
-    configured: list[tuple[str, str]] = []
-    seen: set[str] = set()
-    for alias in _COHERE_KEY_ENV_NAMES:
-        key = os.environ.get(alias, "").strip()
-        if key and key not in seen:
-            seen.add(key)
-            configured.append((alias, key))
-    return configured
+    return available_cohere_keys()
 
 
 async def _acquire_cohere_api_key() -> tuple[str, str]:
@@ -91,6 +89,8 @@ async def _acquire_cohere_api_key() -> tuple[str, str]:
     global _cohere_key_cursor
     keys = _configured_cohere_api_keys()
     if not keys:
+        if cohere_keys():
+            raise RuntimeError("Every configured Cohere key has reached its monthly call limit")
         raise RuntimeError("Cohere chat requires COHERE_CHAT_API_KEY or a configured COHERE key")
 
     async with _cohere_key_pool_lock:
@@ -476,10 +476,7 @@ async def _call_cohere(
     temperature: float = 0.0,
     client: httpx.AsyncClient | None = None,
 ) -> LLMCallResult:
-    credential_alias, api_key = await _acquire_cohere_api_key()
-
     url = "https://api.cohere.com/v2/chat"
-    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     payload: dict[str, Any] = {
         "model": model,
         "messages": messages,
@@ -491,7 +488,14 @@ async def _call_cohere(
     active_client = client or httpx.AsyncClient(timeout=90.0)
     own_client = client is None
     try:
-        resp = await active_client.post(url, json=payload, headers=headers)
+        while True:
+            credential_alias, api_key = await _acquire_cohere_api_key()
+            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            resp = await active_client.post(url, json=payload, headers=headers)
+            if is_monthly_cap(resp.status_code, resp.text):
+                park_exhausted_key(api_key)
+                continue
+            break
         resp.raise_for_status()
         data = resp.json()
         content = data.get("message", {}).get("content", [])

@@ -218,7 +218,13 @@ class EvaluationHarness:
             provider_credentials = {
                 "cloudflare": ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN"),
                 "gemini": ("GEMINI_API_KEY",),
-                "cohere": ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY"),
+                "cohere": (
+                    "COHERE_CHAT_API_KEY",
+                    "COHERE",
+                    "COHERE_BACKUP",
+                    "COHERE_KEY",
+                    "COHERE_KEYS",
+                ),
             }
             if provider == "mistral":
                 provider_is_configured = mistral_api_keys_configured()
