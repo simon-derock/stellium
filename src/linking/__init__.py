@@ -260,6 +260,10 @@ class EventCatalog:
         wanted = tokens(phrase) - noise
         if not wanted:
             return LinkResult(matches=(), method="empty_phrase")
+        if gender:
+            # Labels in a gender-filtered pool all name that gender ("Men's 80 kg"); counting it
+            # on both sides keeps "80 kg" exact instead of tying with "Men's +80 kg".
+            wanted |= tokens(gender)
         wanted_numbers = {token for token in wanted if token.isdigit()}
         matches = []
         for record in pool:

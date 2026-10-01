@@ -184,3 +184,9 @@ def test_exact_venue_wording_outranks_a_containing_venue_name() -> None:
         "Pool", "August 14, 2004 (heats & final)"
     ).resolved == catalog.get("b")
     assert catalog.link_venue_date("Athens Pool", "14 August").resolved == catalog.get("a")
+
+
+def test_gender_constraint_counts_toward_the_label_match() -> None:
+    # "100 kg" with gender given separately must not tie with "+100 kg".
+    result = CATALOG.link_event("100 kg", sport="Judo", year=2008, gender="Men")
+    assert result.resolved == CATALOG.get("e6")
