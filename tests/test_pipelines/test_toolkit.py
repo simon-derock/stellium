@@ -90,3 +90,12 @@ def test_event_at_venue_date_returns_every_same_day_event() -> None:
 def test_find_events_lists_canonical_names() -> None:
     outcome = seeded_toolkit().find_events(sport="rowing", year=2004)
     assert outcome.observation["total"] == 2
+
+
+def test_invoke_normalises_model_arguments() -> None:
+    # Synonyms, numeric strings, empty values, and unknown keys from the model are tolerated.
+    outcome = seeded_toolkit().invoke(
+        "event_attribute",
+        {"event_name": "men's single sculls", "target_year": "2008", "sport": "", "note": "x"},
+    )
+    assert outcome.answer == "Cal Reed"

@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import time
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -20,7 +19,13 @@ from src.guardrails import normalize, sanitize_output
 from src.linking import EventCatalog
 from src.llm import LockedLLMSession
 from src.models import AgentState, EvidenceItem, PipelineResult, ToolAuditCall
-from src.pipelines.toolkit import EVENT_ATTRIBUTES, GraphToolkit, ToolOutcome
+from src.pipelines.toolkit import (
+    EVENT_ATTRIBUTES,
+    TOOL_PARAMETERS,
+    GraphToolkit,
+    ToolOutcome,
+    catalog_for,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -289,55 +294,6 @@ def parse_react_response(text: str) -> ReActParsedStep:
 # Agent Pipeline
 # ---------------------------------------------------------------------------
 
-_catalogs: dict[int, EventCatalog] = {}
-
-# Graph tools the orchestrator may call, with the arguments each accepts.
-_GRAPH_TOOL_PARAMS: dict[str, tuple[str, ...]] = {
-    "count_events": ("sport", "year", "season", "gender", "comparison", "threshold"),
-    "rank_events": ("sport", "year", "season", "gender", "order"),
-    "event_attribute": ("event", "attribute", "sport", "year", "season", "gender"),
-    "previous_edition": ("event", "year", "attribute", "sport", "season", "gender"),
-    "event_at_venue_date": ("venue", "date", "year", "attribute"),
-    "find_events": ("event", "sport", "year", "season", "gender"),
-}
-# Models sometimes reuse argument names from older tool schemas; accept the obvious synonyms.
-_ARGUMENT_ALIASES = {
-    "target_year": "year",
-    "current_year": "year",
-    "event_name": "event",
-    "event_name_fragment": "event",
-    "event_fragment": "event",
-    "venue_name_fragment": "venue",
-    "venue_fragment": "venue",
-    "target_date_fragment": "date",
-    "order_by": "order",
-}
-_INTEGER_ARGUMENTS = {"year", "threshold"}
-
-
-def catalog_for(graph: GraphClient) -> EventCatalog:
-    # Read once per connection from TigerGraph and shared by every later run.
-    key = id(graph.conn)
-    if key not in _catalogs:
-        _catalogs[key] = EventCatalog.from_graph(graph.conn)
-    return _catalogs[key]
-
-
-def _graph_arguments(tool: str, raw: dict[str, Any]) -> dict[str, Any]:
-    arguments: dict[str, Any] = {}
-    for key, value in raw.items():
-        name = _ARGUMENT_ALIASES.get(key, key)
-        if name not in _GRAPH_TOOL_PARAMS[tool] or value in (None, ""):
-            continue
-        if name in _INTEGER_ARGUMENTS:
-            try:
-                arguments[name] = int(value)
-            except (TypeError, ValueError):
-                continue
-        else:
-            arguments[name] = str(value).strip()
-    return arguments
-
 
 def _answer_parts_grounded(answer: str, verified: set[str], passages: list[str]) -> bool:
     # A multi-candidate answer ("A; B") is grounded only if every part is.
@@ -473,10 +429,9 @@ class AgenticPipeline:
     ) -> tuple[dict[str, Any], ToolOutcome | None, list[str]]:
         # Runs one tool. Returns its observation, the typed outcome for graph tools, and any
         # values it verified (used to ground a later finish).
-        if tool in _GRAPH_TOOL_PARAMS:
-            method: Callable[..., ToolOutcome] = getattr(toolkit, tool)
+        if tool in TOOL_PARAMETERS:
             try:
-                outcome = method(**_graph_arguments(tool, arguments))
+                outcome = toolkit.invoke(tool, arguments)
             except TypeError as exc:
                 return {"error": f"invalid arguments for {tool}: {exc}"}, None, []
             log.agent(*outcome.agents)

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -32,6 +33,56 @@ EVENT_ATTRIBUTES = (
     "dates",
 )
 _MAX_LISTED_EVENTS = 25
+
+
+_catalogs: dict[int, EventCatalog] = {}
+
+# Typed tools and the arguments each accepts; both pipelines dispatch through this table.
+TOOL_PARAMETERS: dict[str, tuple[str, ...]] = {
+    "count_events": ("sport", "year", "season", "gender", "comparison", "threshold"),
+    "rank_events": ("sport", "year", "season", "gender", "order"),
+    "event_attribute": ("event", "attribute", "sport", "year", "season", "gender"),
+    "previous_edition": ("event", "year", "attribute", "sport", "season", "gender"),
+    "event_at_venue_date": ("venue", "date", "year", "attribute"),
+    "find_events": ("event", "sport", "year", "season", "gender"),
+}
+# Models sometimes reuse argument names from older tool schemas; accept the obvious synonyms.
+_ARGUMENT_ALIASES = {
+    "target_year": "year",
+    "current_year": "year",
+    "event_name": "event",
+    "event_name_fragment": "event",
+    "event_fragment": "event",
+    "venue_name_fragment": "venue",
+    "venue_fragment": "venue",
+    "target_date_fragment": "date",
+    "order_by": "order",
+}
+_INTEGER_ARGUMENTS = {"year", "threshold"}
+
+
+def catalog_for(graph: GraphClient) -> EventCatalog:
+    # Read once per connection from TigerGraph and shared by every later run.
+    key = id(graph.conn)
+    if key not in _catalogs:
+        _catalogs[key] = EventCatalog.from_graph(graph.conn)
+    return _catalogs[key]
+
+
+def tool_arguments(tool: str, raw: dict[str, Any]) -> dict[str, Any]:
+    arguments: dict[str, Any] = {}
+    for key, value in raw.items():
+        name = _ARGUMENT_ALIASES.get(key, key)
+        if name not in TOOL_PARAMETERS[tool] or value in (None, ""):
+            continue
+        if name in _INTEGER_ARGUMENTS:
+            try:
+                arguments[name] = int(value)
+            except (TypeError, ValueError):
+                continue
+        else:
+            arguments[name] = str(value).strip()
+    return arguments
 
 
 @dataclass
@@ -85,6 +136,11 @@ class GraphToolkit:
         self.graph = graph
         self.catalog = catalog
         self.coprocessor = coprocessor
+
+    def invoke(self, tool: str, raw_arguments: dict[str, Any]) -> ToolOutcome:
+        # Dispatch by name with model-supplied arguments normalised to the method signature.
+        method: Callable[..., ToolOutcome] = getattr(self, tool)
+        return method(**tool_arguments(tool, raw_arguments))
 
     # ------------------------------------------------------------------
     # Shared helpers
