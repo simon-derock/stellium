@@ -212,6 +212,8 @@ def reciprocal_rank_fusion(
 
 _RERANKER_REPO = "cross-encoder/ms-marco-MiniLM-L6-v2"
 _RERANKER_FILE = "onnx/model_quint8_avx2.onnx"
+# Pinned model commit: a moved branch head can never swap the weights under a benchmark.
+_RERANKER_REVISION = "233902d25c440f23af6f7d6e94d2946bac0bee0a"
 _reranker: LocalCrossEncoder | None = None
 _reranker_load_error: str | None = None
 
@@ -230,8 +232,12 @@ class LocalCrossEncoder:
         from huggingface_hub import hf_hub_download
         from tokenizers import Tokenizer
 
-        model_path = hf_hub_download(repo_id=_RERANKER_REPO, filename=_RERANKER_FILE)
-        tokenizer_path = hf_hub_download(repo_id=_RERANKER_REPO, filename="tokenizer.json")
+        model_path = hf_hub_download(
+            repo_id=_RERANKER_REPO, filename=_RERANKER_FILE, revision=_RERANKER_REVISION
+        )
+        tokenizer_path = hf_hub_download(
+            repo_id=_RERANKER_REPO, filename="tokenizer.json", revision=_RERANKER_REVISION
+        )
         options = ort.SessionOptions()
         options.intra_op_num_threads = max(1, int(os.environ.get("RERANKER_CPU_THREADS", "2")))
         options.inter_op_num_threads = 1

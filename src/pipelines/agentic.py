@@ -40,6 +40,7 @@ _TEXT_TOOL_AGENTS = {
     "gsql_query": "QueryGenerationAgent",
 }
 
+# Prompt text only; it describes GSQL syntax to the model and never builds a query.
 _REACT_SYSTEM_PROMPT = f"""You orchestrate an investigation over a TigerGraph knowledge graph of Olympic events and the Wikipedia articles behind it. Each Event has a canonical title ("<Sport> at the <year> <Season> Olympics – <event>"), sport, year, season, gender, venue, dates, competitor_count, nation_count, and medallists.
 
 Plan one step at a time from the question, the evidence gathered so far, and what is still missing. Prefer the cheapest tool that can settle the question: graph tools cost no LLM tokens and return exact, source-checked values.
@@ -65,7 +66,7 @@ Rules:
 Reply with exactly:
 Thought: <one short sentence>
 Action: <tool name>
-Action Input: <JSON object>"""
+Action Input: <JSON object>"""  # nosec B608
 
 
 # ---------------------------------------------------------------------------

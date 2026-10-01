@@ -380,9 +380,12 @@ def test_live_graph_is_created_once_after_workspace_is_ready(
 ) -> None:
     _reset_graph_selection(monkeypatch, TG_HOST="https://graph.example")
     readiness: list[str] = []
-    monkeypatch.setattr(
-        api_main, "wait_for_graph_ready", lambda host, timeout_s: readiness.append(host) or 0.0
-    )
+
+    def record_readiness(host: str, timeout_s: float) -> float:
+        readiness.append(host)
+        return 0.0
+
+    monkeypatch.setattr(api_main, "wait_for_graph_ready", record_readiness)
     connection = MagicMock()
     monkeypatch.setattr(api_main, "connect", lambda: connection)
 

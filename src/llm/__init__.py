@@ -659,7 +659,6 @@ class LockedLLMSession:
                     attempt += 1
                     continue
                 raise
-            attempt += 1
         status_detail = (
             f" with HTTP status {last_exc.response.status_code}"
             if isinstance(last_exc, httpx.HTTPStatusError)

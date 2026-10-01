@@ -10,9 +10,14 @@ import pytest
 
 from src.graph.mock import MockTigerGraphConnection
 from src.llm import LLMCallResult, LockedLLMSession
-from src.models import Chunk
+from src.models import Chunk, PipelineResult
 from src.pipelines.agentic import _REACT_SYSTEM_PROMPT, AgenticPipeline, parse_react_response
 from tests.graph_fixtures import EVENTS, seeded_graph
+
+
+def _trace(result: PipelineResult) -> dict[str, Any]:
+    assert result.agentic_trace is not None
+    return result.agentic_trace
 
 
 def _reply(content: str, tokens: int = 50) -> LLMCallResult:
@@ -59,7 +64,7 @@ async def test_conclusive_graph_value_stops_after_one_planning_call() -> None:
 
     result = await pipeline.run("q1", "Who won the 2012 women's single sculls?")
 
-    trace = result.agentic_trace
+    trace = _trace(result)
     assert result.answer == "Eve Wren"
     assert chat.await_count == 1
     assert result.total_llm_tokens == 60
@@ -113,8 +118,8 @@ async def test_iteration_limit_with_pending_ambiguity_reports_all_candidates() -
     result = await pipeline.run("q4", "Who won the event held at Lake A on 15 to 21 August?")
 
     assert result.answer == "Ada Stone; Bea Moss"
-    assert "reporting every candidate" in result.agentic_trace["stopping_reason"]
-    calls = result.agentic_trace["tools_called"]
+    assert "reporting every candidate" in _trace(result)["stopping_reason"]
+    calls = _trace(result)["tools_called"]
     assert "Identical call already made" in calls[1]["output_summary"]
 
 
@@ -130,7 +135,7 @@ async def test_answer_from_memory_is_rejected_until_grounded() -> None:
     )
 
     assert result.answer == EVENTS[0]["name"]
-    assert result.agentic_trace["invalid_response_count"] == 1
+    assert _trace(result)["invalid_response_count"] == 1
     assert chat.await_count == 2
 
 
@@ -152,7 +157,7 @@ async def test_failed_lookup_then_passage_search_records_strategy_change() -> No
         search.return_value.reranker_latency_ms = 0.0
         result = await pipeline.run("q6", "How many curling events in 2008?")
 
-    trace = result.agentic_trace
+    trace = _trace(result)
     assert hybrid.await_count == 0
     assert result.answer == "Not found in corpus"
     assert trace["strategy_changed"] is True
@@ -169,7 +174,7 @@ async def test_unavailable_graph_stops_instead_of_guessing() -> None:
         result = await pipeline.run("q7", "How many rowing events?")
 
     assert result.answer == "Not found in corpus"
-    assert "unavailable" in result.agentic_trace["stopping_reason"]
+    assert "unavailable" in _trace(result)["stopping_reason"]
     assert chat.await_count == 1
 
 
@@ -187,10 +192,10 @@ async def test_generated_gsql_runs_only_guarded_queries() -> None:
 
     result = await pipeline.run("q8", "List 2008 events")
 
-    assert "error" in result.agentic_trace["tools_called"][0]["output_summary"].lower()
+    assert "error" in _trace(result)["tools_called"][0]["output_summary"].lower()
     assert isinstance(pipeline.graph.conn, MockTigerGraphConnection)
     assert pipeline.graph.conn.gsql_history == []
-    assert "QueryGenerationAgent" in result.agentic_trace["agents_invoked"]
+    assert "QueryGenerationAgent" in _trace(result)["agents_invoked"]
 
 
 @pytest.mark.asyncio
@@ -213,7 +218,7 @@ async def test_initial_passages_are_an_opt_in_ablation(monkeypatch: pytest.Monke
         result = await pipeline.run("q9", "How many rowing events in 2004?")
 
     assert result.answer == "2"
-    assert result.agentic_trace["tools_called"][0]["tool_name"] == "hybrid_search"
+    assert _trace(result)["tools_called"][0]["tool_name"] == "hybrid_search"
     assert "Initial passages" in chat.await_args_list[0].args[0][-1]["content"]
 
 
