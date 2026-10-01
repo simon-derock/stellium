@@ -135,6 +135,13 @@ class MockTigerGraphConnection:
             if kind == edge_type
         ]
 
+    def getVerticesById(
+        self, vertexType: str, vertexIds: str | list[str], **_: Any
+    ) -> list[dict[str, Any]]:
+        ids = [vertexIds] if isinstance(vertexIds, str) else vertexIds
+        store = self.vertices.get(vertexType, {})
+        return [{"v_id": key, "attributes": store[key]} for key in ids if key in store]
+
     def getVertices(self, vertex_type: str) -> list[dict[str, Any]]:
         store = self.vertices.get(vertex_type, {})
         return [{"v_id": k, "attributes": v} for k, v in store.items()]
