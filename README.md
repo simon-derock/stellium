@@ -26,6 +26,8 @@ Public set, 100 questions, Cohere `command-a-03-2025` for every LLM call ([full 
 | GraphRAG | **98%** | 1,094 | 2 | 6.2 s |
 | Agentic GraphRAG | **98%** | **990** | 1.16 | 3.9–5.2 s |
 
+Every non-numeric answer from both graph pipelines is stated in an article they cite (60/60; RAG 51/54), and both return the gold answer among their candidates on all 100 questions. Estimated cost per 100 questions at list price: RAG $0.65, GraphRAG $0.35, Agentic $0.32.
+
 LLM tokens only (graph queries and retrieval count 0). Agentic latency is 5.2 s in the matched three-pipeline run and 3.9 s on its own; every latency includes the Cohere trial key's 3.25 s request pacing.
 
 | Question type | n | RAG | GraphRAG | Agentic GraphRAG |

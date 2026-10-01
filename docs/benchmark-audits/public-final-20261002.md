@@ -30,6 +30,16 @@ The agent was rerun after one fix (`cc74fd5`: reject tool arguments a tool canno
 
 Exact match compares answer content (case, accents, punctuation, and separators ignored); strict EM is the earlier punctuation-sensitive score. Token counts are LLM input + output only; graph queries and retrieval count 0. Latency is wall-clock per question and includes the trial key's 3.25 s request pacing, which penalises pipelines in proportion to their LLM calls; the agent-only run paces fewer calls per question than the matched three-pipeline run.
 
+### Evidence and cost
+
+| Pipeline | Gold among candidates | Grounded in cited articles | Abstained | Citations / answer | Latency p50 / p95 | Cost / 100 questions |
+|---|---:|---:|---:|---:|---:|---:|
+| RAG | 67% | 94% (51/54) | 7 | 5.0 | 4.4 s / 6.4 s | $0.65 |
+| GraphRAG | 100% | 100% (60/60) | 0 | 2.1 | 6.1 s / 7.5 s | $0.35 |
+| Agentic GraphRAG (`cc74fd5`) | 100% | 100% (60/60) | 0 | 2.1 | 3.4 s / 7.3 s | $0.32 |
+
+Grounding covers non-numeric answers (counts are computed by the graph, not stated in one article) and asks whether every claimed value appears in an article that pipeline cited, title included, spacing ignored. "Gold among candidates" credits a tie report that contains the gold answer. Cost uses Cohere Command A list prices ($2.50 / $10.00 per million input / output tokens) and is an estimate, not a bill.
+
 ## Agent behaviour (commit `cc74fd5`)
 
 - LLM calls per question: mean 1.16; 86/100 answered with one planning call. Steps (LLM + tool calls): mean 2.30, max 6.
