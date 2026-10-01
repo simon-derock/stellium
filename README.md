@@ -28,6 +28,14 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 
 ---
 
+| Investigate: three pipelines side by side, with the agent's trace and evidence graph | Benchmark dashboard |
+|---|---|
+| ![Investigate view](docs/images/investigate.png) | ![Benchmark dashboard](docs/images/benchmark-dashboard.png) |
+
+Hidden-set outputs for all three pipelines (answers, tokens, latency, citations, agent traces): [`submission/hidden.json`](submission/hidden.json) · [`submission/hidden.csv`](submission/hidden.csv)
+
+---
+
 ## Results
 
 One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Token counts are LLM tokens only; graph queries and retrieval count zero.
@@ -164,8 +172,10 @@ uv run python -m src.evaluate --provider cohere --pipeline all \
 uv run python scripts/summarize_results.py results/public.jsonl \
   --dataset hackathon-resources/questions/eval_public.jsonl
 
-uv run uvicorn src.api.main:app --port 8000
+uv run uvicorn src.api.main:app --port 8000   # open http://localhost:8000
 ```
+
+Links: `/#benchmark` opens the dashboard; `/#ask=<question>` runs a comparison directly.
 
 | Tool | Purpose |
 |---|---|
