@@ -1,132 +1,54 @@
-# Pipeline 2: Hybrid GraphRAG (fixed pipeline, non-agentic baseline).
-# Fixed sequence: entity extraction -> graph expansion -> dense/sparse fusion -> reranking -> synthesis.
+# Pipeline 2: GraphRAG, a fixed and acyclic baseline.
+# Exactly two LLM calls: one turns the question into a structured graph lookup, the other writes
+# the answer. In between, one typed graph operation runs (entity linking, then TigerGraph), and
+# the documents it cites supply the supporting text. Nothing loops, retries, or changes strategy;
+# that adaptivity is what the agentic pipeline is measured against.
 from __future__ import annotations
 
 import json
 import logging
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from src.coprocessor import Coprocessor
 from src.graph import GraphClient
-from src.guardrails import sanitize_output, validate_generated_gsql
+from src.guardrails import sanitize_output
+from src.linking import EventCatalog
 from src.llm import LockedLLMSession
 from src.models import PipelineResult
+from src.pipelines.agentic import _answer_parts_grounded, _extract_balanced_json
+from src.pipelines.toolkit import (
+    EVENT_ATTRIBUTES,
+    TOOL_PARAMETERS,
+    GraphToolkit,
+    ToolOutcome,
+    catalog_for,
+)
 
 logger = logging.getLogger(__name__)
 
-_GSQL_GENERATION_SYSTEM_PROMPT = """You write one read-only GSQL query for TigerGraph graph OlympicsGraph, using the schema and examples below.
+_SUPPORTING_DOCS = 3
+_SUPPORT_CHARS = 700
 
-The caller executes your exact query with TigerGraph's interpreted-query API. Return ONLY a complete query in this form:
-INTERPRET QUERY () FOR GRAPH OlympicsGraph { ... }
+_EXTRACTION_PROMPT = f"""Map the question to one structured lookup over a graph of Olympic events. Return only a JSON object with these keys:
+{{"operation": "", "sport": "", "year": 0, "season": "", "gender": "", "event": "", "venue": "", "date": "", "attribute": "", "comparison": "", "threshold": 0, "order": ""}}
 
-Schema available to this query:
-- Event: event_id, name, year, season, sport, gender, venue, competitor_count, nation_count, gold_athlete, silver_athlete, bronze_athlete, gold_noc, silver_noc, bronze_noc, prev_event_id, next_event_id, filter_mask, valid_from, valid_to, superseded_by, source_authority.
-- Venue: venue_id, name. Edge HELD_AT has start_date and end_date.
-- Document: doc_id, title, url, wikidata_qid, wikipedia_pageid, approx_tokens, filter_mask.
-- Chunk: chunk_id, doc_id, chunk_index, section_title, text, raw_text, prev_chunk_id, next_chunk_id, filter_mask.
-- Edges: HAS_CHUNK (Document→Chunk), DOCUMENTED_IN (Event→Document), HELD_AT (Event→Venue), PRECEDES and SUCCEEDS (Event→Event).
+operation is one of:
+- count_events: how many events meet a competitor-count condition (comparison: more_than, at_least, fewer_than, at_most, exactly; threshold: the number)
+- rank_events: which event had the most (order "desc") or fewest (order "asc") competitors
+- event_attribute: an attribute of one named event
+- previous_edition: an attribute of the same event at the Games immediately before `year` (use the year named in the question)
+- event_at_venue_date: an attribute of the event held at a venue on a date
+- none: anything else
 
-Rules:
-- Use only those vertex types, edge types, and attributes. Session and ChatMessage are forbidden.
-- Use the exact question semantics; preserve every year, season, sport, gender, event, date, venue, threshold, and requested attribute.
-- Return the smallest useful result. Every SELECT must have LIMIT 2500 or less; use a smaller limit whenever appropriate. The corpus has 2,210 Event vertices.
-- Include PRINT for the result. One SELECT only. No comments, markdown, DDL, DML, file access, loops, or other commands.
-- Use the interpreted-query JSON API v2 PRINT grammar: `PRINT Matched[Matched.name, Matched.year];`. Do not use legacy `PRINT Matched.name;` syntax or alias a global accumulator in PRINT.
-- Compare string attributes case-insensitively: use `lower(e.sport) == lower("Fencing")`, not `e.sport == "fencing"`. Apply this form to season, gender, and event-name equality; use `LIKE` with `%fragment%` for partial names.
-- For an exact count, declare `SumAccum<INT> @@match_count = 0;`, increment it in the bounded SELECT with `ACCUM @@match_count += 1`, then print `@@match_count` directly. The 2,210 Event vertices fit within `LIMIT 2500` for corpus-wide counts.
-- For a superlative, order by `competitor_count` and return both `name` and `competitor_count`. If the question asks which event, the final answer is the complete event name; use the count only to rank events.
-- For strict thresholds, translate “more than N” to > N and “fewer than N” to < N.
-- Event has no `date` attribute. For venue/date questions, traverse `HELD_AT` in the single SELECT and filter the linked `Venue.name` plus `HELD_AT.start_date` (or `end_date`); do not invent `Event.date`.
-- The guarded subset accepts `LIKE`, not `CONTAINS`. Use `%fragment%` patterns for substring matches. Use double-quoted strings when a value contains an apostrophe. Do not add comments or use a second SELECT.
-- Match the executor's supported GSQL subset exactly: the only function call allowed is `lower(...)`; do not call `max`, `min`, `sum`, `avg`, `count`, `contains`, `regex`, conversion functions, or user-defined functions. Do not use `GROUP BY`, nested SELECTs, subqueries, or SQL/Cypher syntax. For counts, use only the `SumAccum<INT>` pattern shown above.
-- Before returning, check that the query has exactly one SELECT, every SELECT has an explicit LIMIT, every referenced type/edge/attribute is in the schema above, and the final statement is PRINT. Return the query only, with no explanation or markdown fence.
-- Do not guess values or answer from general knowledge.
+attribute is one of: {", ".join(EVENT_ATTRIBUTES)}.
+Copy names, dates, and numbers exactly as the question writes them; leave a field empty or 0 when the question does not state it."""
 
-Example — named event attribute:
-INTERPRET QUERY () FOR GRAPH OlympicsGraph {
-  Events = {Event.*};
-  Matched = SELECT e FROM Events:e
-    WHERE e.year == 2008 AND lower(e.name) LIKE "%marathon%"
-    LIMIT 20;
-  PRINT Matched[Matched.name, Matched.gold_athlete];
-}
-
-Example — highest competitor count:
-INTERPRET QUERY () FOR GRAPH OlympicsGraph {
-  Events = {Event.*};
-  Ranked = SELECT e FROM Events:e
-    WHERE e.year == 2016 AND lower(e.sport) == lower("Shooting")
-    ORDER BY e.competitor_count DESC LIMIT 1;
-  PRINT Ranked[Ranked.name, Ranked.competitor_count];
-}
-
-Example — event by venue and date (date belongs to HELD_AT, not Event):
-INTERPRET QUERY () FOR GRAPH OlympicsGraph {
-  Events = {Event.*};
-  Matched = SELECT e FROM Events:e -(HELD_AT:h)- Venue:v
-    WHERE e.year == 2012
-      AND lower(v.name) LIKE "%london velopark%"
-      AND lower(h.start_date) LIKE "%3 august%"
-    LIMIT 20;
-  PRINT Matched[Matched.name, Matched.gold_athlete];
-}
-
-Example — preceding event through the directed PRECEDES edge:
-INTERPRET QUERY () FOR GRAPH OlympicsGraph {
-  Events = {Event.*};
-  Prior = SELECT prior FROM Events:current -(PRECEDES:p)-> Event:prior
-    WHERE current.year == 2016
-      AND lower(current.sport) == "athletics"
-      AND lower(current.name) LIKE "%women%10,000%metres%"
-    LIMIT 20;
-  PRINT Prior[Prior.name, Prior.year, Prior.gold_athlete];
-}
-
-Example — exact count with a bounded SELECT:
-INTERPRET QUERY () FOR GRAPH OlympicsGraph {
-  SumAccum<INT> @@match_count = 0;
-  Events = {Event.*};
-  Matched = SELECT e FROM Events:e
-    WHERE e.year == 2018 AND lower(e.sport) == lower("Biathlon")
-      AND e.competitor_count > 73
-    ACCUM @@match_count += 1 LIMIT 2500;
-  PRINT @@match_count;
-}
-
-For accumulator output, print the global accumulator directly without `AS`. For a vertex set,
-use JSON API v2 projection syntax such as `PRINT Matched[Matched.name, Matched.year];`. Always use double-quoted string literals; the deployed interpreted-query endpoint rejects single-quoted values. Apostrophes inside a value belong inside the double quotes, e.g. `"%men's epee%"`. Do not use escapes or include query delimiters in values."""
-
-_GRAPHRAG_SYSTEM_PROMPT = """You are a precise sports historian with access to Olympic event data.
-Answer the question using ONLY the provided graph context (entities, relationships, and passages).
-If the answer is not in the context, respond with "Not found in corpus".
-Be concise, but preserve the complete canonical entity name exactly as it appears in the graph or source.
-For an Olympic event, include the sport and Olympic edition when they are part of the event name;
-do not shorten the answer to only the event suffix. Do not add competitor counts unless asked.
-For a question asking for a number, return only the number."""
-
-_GRAPHRAG_USER_TEMPLATE = """Graph context:
-{graph_context}
-
-Question: {question}
-
-Answer:"""
-
-
-async def _generate_gsql_query(llm: LockedLLMSession, question: str) -> tuple[str, int, int]:
-    # Produces a complete query, then rejects it unless it passes the read-only GSQL allowlist.
-    response = await llm.chat(
-        [
-            {"role": "system", "content": _GSQL_GENERATION_SYSTEM_PROMPT},
-            {"role": "user", "content": f"Write a GSQL query for this question:\n{question}"},
-        ],
-        max_tokens=512,
-        temperature=0.0,
-    )
-    query = response.content.strip()
-    if query.startswith("```"):
-        query = query.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-    return query, response.input_tokens, response.output_tokens
+_ANSWER_PROMPT = """Answer the question using only the graph result and passages provided.
+If the graph result contains a value or answer, return that value exactly; if it lists several candidates that the passages cannot separate, return all of them joined by "; ".
+Return only the answer: the full canonical event title for "which event", a bare number for counts, the name(s) for people.
+If nothing provided establishes the answer, return "Not found in corpus"."""
 
 
 @dataclass
@@ -134,105 +56,130 @@ class GraphRAGPipeline:
     graph: GraphClient
     llm: LockedLLMSession
     coprocessor: Coprocessor | None = None
+    catalog: EventCatalog | None = None
+
+    def _supporting_passages(self, doc_ids: list[str]) -> list[tuple[str, str]]:
+        # Graph-to-document retrieval: the opening section of each article the graph cited.
+        passages: list[tuple[str, str]] = []
+        if self.coprocessor is None:
+            return passages
+        for doc_id in doc_ids[:_SUPPORTING_DOCS]:
+            chunk = self.coprocessor.get_chunk(f"{doc_id}#0")
+            if chunk is not None:
+                passages.append((doc_id, chunk.text[:_SUPPORT_CHARS]))
+        return passages
+
+    async def _hybrid_passages(self, question: str) -> tuple[list[tuple[str, str]], dict[str, Any]]:
+        # Fallback when no graph operation applies: the same hybrid retrieval RAG uses.
+        if self.coprocessor is None:
+            return [], {}
+        embeddings = await self.llm.embed([question])
+        dense = self.graph.vector_search(embeddings[0], top_k=30)
+        hybrid = self.coprocessor.hybrid_search(
+            query=question, dense_results=dense, candidate_k=30, final_top_k=5
+        )
+        passages = [(chunk.doc_id, chunk.text[:_SUPPORT_CHARS]) for chunk, _ in hybrid.chunks]
+        metadata = {
+            "dense_candidates": hybrid.dense_candidate_count,
+            "bm25_candidates": hybrid.sparse_candidate_count,
+            "rrf_candidates": hybrid.fused_candidate_count,
+            "reranker": hybrid.reranker_model,
+            "reranker_executed": hybrid.reranker_executed,
+            "reranker_latency_ms": hybrid.reranker_latency_ms,
+        }
+        return passages, metadata
 
     async def run(self, qid: str, question: str) -> PipelineResult:
-        t_start = time.perf_counter()
-        if self.coprocessor is None:
-            raise RuntimeError("GraphRAG requires the in-memory BM25 coprocessor")
-
-        # Step 1: Generate GSQL from the question and execute only after guardrail validation.
-        generated_query, query_input_tokens, query_output_tokens = await _generate_gsql_query(
-            self.llm, question
+        started = time.perf_counter()
+        toolkit = GraphToolkit(
+            self.graph, self.catalog or catalog_for(self.graph), self.coprocessor
         )
-        graph_facts: list[str] = []
-        doc_ids: list[str] = []
-        safe_query, rejection_reason = validate_generated_gsql(generated_query)
-        if safe_query:
+
+        # Call 1: structured extraction of the graph lookup.
+        extraction = await self.llm.chat(
+            [
+                {"role": "system", "content": _EXTRACTION_PROMPT},
+                {"role": "user", "content": question},
+            ],
+            max_tokens=160,
+            temperature=0.0,
+        )
+        plan = _extract_balanced_json(extraction.content)
+        operation = str(plan.get("operation", "none")).strip()
+
+        # One typed graph operation, chosen by the extracted operation name.
+        outcome: ToolOutcome | None = None
+        if operation in TOOL_PARAMETERS and operation != "find_events":
             try:
-                graph_result = self.graph.run_generated_gsql(generated_query)
-                event_candidates = graph_result.get("event_candidates", [])
-                if event_candidates:
-                    graph_facts.append(
-                        "Canonical Event rows returned by GSQL, in query order: "
-                        + json.dumps(event_candidates, ensure_ascii=False, default=str)
-                    )
-                graph_facts.append(
-                    "Generated read-only GSQL result: "
-                    + json.dumps(graph_result.get("rows", []), ensure_ascii=False, default=str)[
-                        :16_000
-                    ]
-                )
-            except Exception as exc:
-                # Keep an interpreted-query failure from aborting the fixed GraphRAG pipeline.
-                logger.warning("Generated GraphRAG GSQL failed at runtime: %s", type(exc).__name__)
-                graph_facts.append("Generated graph query could not execute; use passage evidence.")
+                outcome = toolkit.invoke(operation, plan)
+            except (TypeError, ValueError) as exc:
+                logger.warning("GraphRAG graph operation %s failed: %s", operation, exc)
+
+        doc_ids = list(outcome.citations) if outcome else []
+        retrieval: dict[str, Any] = {}
+        if outcome is not None and (outcome.answer is not None or outcome.candidates):
+            passages = self._supporting_passages(doc_ids)
         else:
-            logger.warning("Generated GraphRAG GSQL was rejected: %s", rejection_reason)
-            graph_facts.append(f"Graph query rejected by guardrail: {rejection_reason}")
+            passages, retrieval = await self._hybrid_passages(question)
+            doc_ids.extend(doc_id for doc_id, _ in passages if doc_id not in doc_ids)
 
-        # Step 3: Hybrid retrieval is the default passage retriever for GraphRAG.
-        embeddings = await self.llm.embed([question])
-        dense_results = self.graph.vector_search(embeddings[0], top_k=30)
-        retrieval = self.coprocessor.hybrid_search(
-            query=question,
-            dense_results=dense_results,
-            candidate_k=30,
-            final_top_k=5,
+        graph_result: dict[str, Any] = (
+            {"operation": operation, **outcome.observation}
+            if outcome is not None
+            else {"operation": operation, "status": "no graph operation applied"}
         )
+        if outcome is not None and outcome.answer is not None:
+            graph_result["answer"] = outcome.answer
+        elif outcome is not None and outcome.candidates:
+            graph_result["candidates"] = outcome.candidates
+        context = "Graph result: " + json.dumps(graph_result, ensure_ascii=False, default=str)
+        context += "".join(f"\n\n[{doc_id}]\n{text}" for doc_id, text in passages)
 
-        if retrieval.chunks:
-            for chunk, score in retrieval.chunks:
-                doc_id = chunk.doc_id
-                if doc_id not in doc_ids:
-                    doc_ids.append(doc_id)
-                graph_facts.append(
-                    f"[Reranker score {score:.3f} | chunk: {chunk.chunk_id} | doc: {doc_id}]\n"
-                    f"{chunk.text}"
-                )
-        # Empty candidate sets stay empty; do not claim a rerank occurred or bypass the stage.
+        # Call 2: answer synthesis over graph facts and their source passages.
+        synthesis = await self.llm.chat(
+            [
+                {"role": "system", "content": _ANSWER_PROMPT},
+                {"role": "user", "content": f"{context}\n\nQuestion: {question}\nAnswer:"},
+            ],
+            max_tokens=128,
+            temperature=0.0,
+        )
+        answer = sanitize_output(synthesis.content.strip())
+        answer_source = "synthesis"
+        # Answer validation: a synthesized value that neither the graph nor a passage supports is
+        # replaced by the graph's verified value, so formatting slips cannot corrupt a fact.
+        verified = {outcome.answer} if outcome is not None and outcome.answer else set()
+        if verified and not _answer_parts_grounded(answer, verified, [t for _, t in passages]):
+            answer = next(iter(verified))
+            answer_source = "graph_value"
 
-        # Step 4: Single-turn LLM synthesis over assembled graph context
-        context_text = "\n".join(graph_facts) if graph_facts else "No relevant graph data found."
-        context_tokens = len(context_text) // 4
-
-        messages = [
-            {"role": "system", "content": _GRAPHRAG_SYSTEM_PROMPT},
-            {
-                "role": "user",
-                "content": _GRAPHRAG_USER_TEMPLATE.format(
-                    graph_context=context_text, question=question
-                ),
-            },
-        ]
-        llm_result = await self.llm.chat(messages, max_tokens=256)
-        answer = sanitize_output(llm_result.content.strip())
-
-        latency_ms = (time.perf_counter() - t_start) * 1000
+        input_tokens = extraction.input_tokens + synthesis.input_tokens
+        output_tokens = extraction.output_tokens + synthesis.output_tokens
         return PipelineResult(
             qid=qid,
             pipeline="graphrag",
             question=question,
             answer=answer,
-            llm_input_tokens=query_input_tokens + llm_result.input_tokens,
-            llm_output_tokens=query_output_tokens + llm_result.output_tokens,
-            total_llm_tokens=(
-                query_input_tokens
-                + query_output_tokens
-                + llm_result.input_tokens
-                + llm_result.output_tokens
-            ),
-            context_tokens=context_tokens,
-            latency_ms=latency_ms,
-            # Preserve first-seen retrieval order for deterministic rank metrics.
+            llm_input_tokens=input_tokens,
+            llm_output_tokens=output_tokens,
+            total_llm_tokens=input_tokens + output_tokens,
+            context_tokens=len(context) // 4,
+            latency_ms=(time.perf_counter() - started) * 1000,
             retrieved_doc_ids=list(dict.fromkeys(doc_ids)),
             retrieval_metadata={
-                "dense_candidates": retrieval.dense_candidate_count,
-                "bm25_candidates": retrieval.sparse_candidate_count,
-                "rrf_candidates": retrieval.fused_candidate_count,
-                "reranker": retrieval.reranker_model,
-                "reranker_executed": retrieval.reranker_executed,
-                "reranker_latency_ms": retrieval.reranker_latency_ms,
+                "graph_operation": operation,
+                "graph_plan": plan,
+                "graph_tool_latency_ms": outcome.latency_ms if outcome else 0.0,
+                "graph_status": (
+                    "conclusive"
+                    if outcome is not None and outcome.answer is not None
+                    else "ambiguous"
+                    if outcome is not None and outcome.ambiguous
+                    else "unresolved"
+                ),
+                "answer_source": answer_source,
+                **retrieval,
             },
-            model_name=llm_result.model_name,
-            provider=llm_result.provider,
+            model_name=synthesis.model_name,
+            provider=synthesis.provider,
         )

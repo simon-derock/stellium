@@ -1,6 +1,7 @@
 # Pipeline integration tests for retrieved source text and LLM context contracts.
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,6 +11,7 @@ from src.llm import LLMCallResult
 from src.models import Chunk
 from src.pipelines.graphrag import GraphRAGPipeline
 from src.pipelines.rag import RAGPipeline
+from tests.graph_fixtures import EVENTS, seeded_graph
 
 
 def _chunk() -> Chunk:
@@ -72,201 +74,107 @@ async def test_rag_passes_retrieved_chunk_text_to_answer_model() -> None:
     assert result.retrieval_metadata["reranker_executed"] is True
 
 
-@pytest.mark.asyncio
-async def test_graphrag_passes_retrieved_chunk_text_to_answer_model() -> None:
-    coprocessor = Coprocessor()
-    coprocessor.build([_chunk()])
-    graph = MagicMock()
-    graph.run_generated_gsql.return_value = {
-        "rows": [{"event": "Men's marathon", "gold_athlete": "Samuel Wanjiru"}],
-        "row_groups": 1,
-        "latency_ms": 2.0,
-    }
-    graph.vector_search.return_value = [("Q123#0", 0.91)]
+def _graphrag(*replies: LLMCallResult) -> tuple[GraphRAGPipeline, AsyncMock]:
+    graph, catalog, coprocessor = seeded_graph()
     llm = AsyncMock()
-    llm.chat.side_effect = [
-        _llm_result(
-            "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
-            "Matched = SELECT e FROM Events:e WHERE e.year == 2008 AND "
-            'lower(e.name) LIKE "%marathon%" LIMIT 20; '
-            "PRINT Matched[Matched.name, Matched.gold_athlete]; }"
-        ),
-        _llm_result("Samuel Wanjiru"),
-    ]
     llm.embed.return_value = [[0.0] * 1024]
+    llm.chat.side_effect = list(replies)
+    return GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor, catalog=catalog), llm
 
-    with patch.object(
-        coprocessor, "hybrid_search", return_value=_hybrid_result([(_chunk(), 0.91)])
-    ) as hybrid_search:
-        result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
-            "q2", "Who won the marathon in 2008?"
-        )
 
-    synthesis_prompt = llm.chat.await_args.args[0][1]["content"]
-    assert "The 2008 Olympic men's marathon was won by Samuel Wanjiru." in synthesis_prompt
-    assert "Reranker score 0.910" in synthesis_prompt
-    graph.run_generated_gsql.assert_called_once()
-    generated_query = graph.run_generated_gsql.call_args.args[0]
-    assert "INTERPRET QUERY () FOR GRAPH OlympicsGraph" in generated_query
-    graph.vector_search.assert_called_once_with([0.0] * 1024, top_k=30)
-    hybrid_search.assert_called_once_with(
-        query="Who won the marathon in 2008?",
-        dense_results=[("Q123#0", 0.91)],
-        candidate_k=30,
-        final_top_k=5,
+def _plan(**fields: object) -> LLMCallResult:
+    return _llm_result(json.dumps(fields))
+
+
+@pytest.mark.asyncio
+async def test_graphrag_runs_one_typed_lookup_between_two_llm_calls() -> None:
+    pipeline, llm = _graphrag(
+        _plan(
+            operation="event_attribute", event="women's single sculls", sport="Rowing", year=2012
+        ),
+        _llm_result("Eve Wren"),
     )
-    assert result.retrieved_doc_ids == ["Q123"]
-    assert result.answer == "Samuel Wanjiru"
-    assert result.llm_input_tokens == 40
-    assert result.llm_output_tokens == 10
-    assert result.total_llm_tokens == 50
+
+    result = await pipeline.run("g1", "Who won the 2012 women's single sculls?")
+
+    assert result.answer == "Eve Wren"
     assert llm.chat.await_count == 2
+    assert result.total_llm_tokens == 50
+    assert result.retrieved_doc_ids == ["R12W"]
+    answer_prompt = llm.chat.await_args_list[1].args[0][1]["content"]
+    # The graph value and the cited article's opening text both reach the answer model.
+    assert '"answer": "Eve Wren"' in answer_prompt
+    assert "[R12W]" in answer_prompt
+    assert result.retrieval_metadata["graph_status"] == "conclusive"
+    llm.embed.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_graphrag_continues_with_passages_when_interpreted_gsql_fails() -> None:
-    coprocessor = Coprocessor()
-    coprocessor.build([_chunk()])
-    graph = MagicMock()
-    graph.run_generated_gsql.side_effect = RuntimeError("TigerGraph rejected PRINT syntax")
-    graph.vector_search.return_value = [("Q123#0", 0.91)]
-    llm = AsyncMock()
-    llm.chat.side_effect = [
-        _llm_result(
-            "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
-            "Matched = SELECT e FROM Events:e WHERE e.year == 2008 LIMIT 20; "
-            "PRINT Matched[Matched.name, Matched.gold_athlete]; }"
+async def test_graphrag_counts_with_code_bounds_and_validates_the_answer() -> None:
+    pipeline, _ = _graphrag(
+        _plan(
+            operation="count_events",
+            sport="rowing",
+            year=2008,
+            comparison="more_than",
+            threshold=30,
         ),
-        _llm_result("Samuel Wanjiru"),
-    ]
-    llm.embed.return_value = [[0.0] * 1024]
+        _llm_result("There were two such events."),
+    )
 
-    with patch.object(
-        coprocessor, "hybrid_search", return_value=_hybrid_result([(_chunk(), 0.91)])
+    result = await pipeline.run("g2", "How many 2008 rowing events had more than 30 competitors?")
+
+    # The prose answer is not a supported value, so the verified graph count replaces it.
+    assert result.answer == "2"
+    assert result.retrieval_metadata["answer_source"] == "graph_value"
+
+
+@pytest.mark.asyncio
+async def test_graphrag_reports_ties_from_the_ranking() -> None:
+    names = [EVENTS[2]["name"], EVENTS[3]["name"]]
+    pipeline, llm = _graphrag(
+        _plan(operation="rank_events", sport="rowing", year=2008, order="desc"),
+        _llm_result("; ".join(names)),
+    )
+
+    result = await pipeline.run("g3", "Which 2008 rowing event had the most competitors?")
+
+    assert result.answer == "; ".join(names)
+    assert result.retrieval_metadata["graph_status"] == "ambiguous"
+    assert '"candidates"' in llm.chat.await_args_list[1].args[0][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_graphrag_falls_back_to_hybrid_passages_without_a_graph_operation() -> None:
+    pipeline, llm = _graphrag(_plan(operation="none"), _llm_result("Not found in corpus"))
+    chunk = _chunk()
+    assert pipeline.coprocessor is not None
+    with (
+        patch.object(
+            pipeline.coprocessor, "hybrid_search", return_value=_hybrid_result([(chunk, 0.9)])
+        ) as hybrid_search,
+        patch.object(pipeline.graph, "vector_search", return_value=[]),
     ):
-        result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
-            "q-gsql-error", "Who won the 2008 men's Olympic marathon?"
-        )
+        result = await pipeline.run("g4", "Why was the marathon notable?")
 
-    synthesis_prompt = llm.chat.await_args_list[-1].args[0][1]["content"]
-    assert "could not execute" in synthesis_prompt
-    assert "Samuel Wanjiru" in synthesis_prompt
-    assert result.answer == "Samuel Wanjiru"
+    hybrid_search.assert_called_once()
+    llm.embed.assert_awaited_once()
     assert result.retrieved_doc_ids == ["Q123"]
-    assert llm.chat.await_count == 2
+    assert result.retrieval_metadata["reranker_executed"] is True
+    assert "Samuel Wanjiru" in llm.chat.await_args_list[1].args[0][1]["content"]
 
 
 @pytest.mark.asyncio
-async def test_graphrag_uses_gsql_for_aggregation_and_counts_all_llm_tokens() -> None:
-    coprocessor = Coprocessor()
-    coprocessor.build([_chunk()])
-    graph = MagicMock()
-    graph.run_aggregation.return_value = {
-        "count": 5,
-        "events": ["Biathlon event A", "Biathlon event B"],
-        "gold_doc_ids": ["Q123"],
-    }
-    graph.vector_search.return_value = []
-    llm = AsyncMock()
-    llm.chat.side_effect = [
-        _llm_result(
-            "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
-            "SumAccum<INT> @@count = 0; Matched = SELECT e FROM Events:e "
-            'WHERE e.year == 2018 AND lower(e.sport) == "biathlon" '
-            "AND e.competitor_count > 73 ACCUM @@count += 1 LIMIT 2500; "
-            "PRINT @@count; }"
-        ),
-        _llm_result("5"),
-    ]
-    llm.embed.return_value = [[0.0] * 1024]
+async def test_graphrag_tolerates_unparseable_extraction() -> None:
+    pipeline, _ = _graphrag(
+        _llm_result("I think this is about rowing."), _llm_result("Not found in corpus")
+    )
+    assert pipeline.coprocessor is not None
+    with (
+        patch.object(pipeline.coprocessor, "hybrid_search", return_value=_hybrid_result([])),
+        patch.object(pipeline.graph, "vector_search", return_value=[]),
+    ):
+        result = await pipeline.run("g5", "Tell me about rowing.")
 
-    graph.run_generated_gsql.return_value = {"rows": [{"@@count": 5}], "row_groups": 1}
-    with patch.object(coprocessor, "hybrid_search", return_value=_hybrid_result([])):
-        result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
-            "aggregation", "How many 2018 biathlon events had more than 73 competitors?"
-        )
-
-    graph.run_generated_gsql.assert_called_once()
-    assert "@@count" in llm.chat.await_args_list[-1].args[0][1]["content"]
-    assert result.answer == "5"
-    assert result.total_llm_tokens == 50
-
-
-@pytest.mark.asyncio
-async def test_graphrag_uses_compiled_superlative_query() -> None:
-    coprocessor = Coprocessor()
-    coprocessor.build([_chunk()])
-    graph = MagicMock()
-    graph.run_superlative.return_value = {
-        "events": ["Shooting event with most competitors"],
-        "competitor_counts": [51],
-        "gold_doc_ids": ["Q456"],
-    }
-    graph.vector_search.return_value = []
-    llm = AsyncMock()
-    llm.chat.side_effect = [
-        _llm_result(
-            "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
-            "Ranked = SELECT e FROM Events:e WHERE e.year == 2016 AND "
-            'lower(e.sport) == "shooting" ORDER BY e.competitor_count DESC LIMIT 1; '
-            "PRINT Ranked[Ranked.name, Ranked.competitor_count]; }"
-        ),
-        _llm_result("Shooting event with most competitors"),
-    ]
-    llm.embed.return_value = [[0.0] * 1024]
-
-    graph.run_generated_gsql.return_value = {
-        "rows": [{"name": "Shooting event with most competitors", "competitor_count": 51}],
-        "row_groups": 1,
-    }
-    with patch.object(coprocessor, "hybrid_search", return_value=_hybrid_result([])):
-        result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
-            "superlative",
-            "Which shooting event in the 2016 Summer Olympics had the most competitors?",
-        )
-
-    graph.run_generated_gsql.assert_called_once()
-    synthesis_prompt = llm.chat.await_args_list[-1].args[0][1]["content"]
-    assert "Shooting event with most competitors" in synthesis_prompt
-    assert "competitor_count" in synthesis_prompt
-    assert "51" in synthesis_prompt
-    assert result.answer == "Shooting event with most competitors"
-
-
-@pytest.mark.asyncio
-async def test_graphrag_uses_typed_lookup_for_requested_event_attribute() -> None:
-    coprocessor = Coprocessor()
-    coprocessor.build([_chunk()])
-    graph = MagicMock()
-    graph.run_lookup.return_value = {
-        "events": ["Judo at the 2016 Summer Olympics – Women's 57 kg"],
-        "nation_counts": [23],
-        "gold_doc_ids": ["Q789"],
-    }
-    graph.vector_search.return_value = []
-    llm = AsyncMock()
-    llm.chat.side_effect = [
-        _llm_result(
-            "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
-            "Matched = SELECT e FROM Events:e WHERE e.year == 2016 AND "
-            'lower(e.sport) == "judo" AND lower(e.gender) == "women" '
-            'AND lower(e.name) LIKE "%57 kg%" LIMIT 10; '
-            "PRINT Matched[Matched.name, Matched.nation_count]; }"
-        ),
-        _llm_result("23"),
-    ]
-    llm.embed.return_value = [[0.0] * 1024]
-
-    graph.run_generated_gsql.return_value = {
-        "rows": [{"name": "Judo at the 2016 Summer Olympics – Women's 57 kg", "nation_count": 23}],
-        "row_groups": 1,
-    }
-    with patch.object(coprocessor, "hybrid_search", return_value=_hybrid_result([])):
-        result = await GraphRAGPipeline(graph=graph, llm=llm, coprocessor=coprocessor).run(
-            "lookup", "How many nations competed in Women's 57 kg judo in 2016?"
-        )
-
-    synthesis_prompt = llm.chat.await_args_list[-1].args[0][1]["content"]
-    assert "nation_count" in synthesis_prompt
-    assert "23" in synthesis_prompt
-    assert result.answer == "23"
+    assert result.answer == "Not found in corpus"
+    assert result.retrieval_metadata["graph_operation"] == "none"

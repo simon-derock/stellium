@@ -8,6 +8,7 @@ import pytest
 
 import src.api.main as api_main
 import src.pipelines.agentic as agentic_module
+import src.pipelines.graphrag as graphrag_module
 from src.api.main import app
 from src.coprocessor import Coprocessor
 from src.linking import EventCatalog, EventRecord
@@ -54,6 +55,7 @@ def _wire_retrieval_api(
         "24 August",
     )
     monkeypatch.setattr(agentic_module, "catalog_for", lambda graph: EventCatalog([marathon]))
+    monkeypatch.setattr(graphrag_module, "catalog_for", lambda graph: EventCatalog([marathon]))
     session = LockedLLMSession(provider="cloudflare", model="test-model")
     chat = AsyncMock(side_effect=chat_results)
     monkeypatch.setattr(api_main, "get_graph", lambda: graph)
@@ -168,7 +170,10 @@ def test_graphrag_api_sends_retrieved_text_to_synthesis(
         monkeypatch,
         [
             LLMCallResult(
-                content='{"year": 2008, "sport": "Athletics", "venue": "Olympic Stadium"}',
+                content=(
+                    '{"operation": "event_attribute", "event": "men\'s marathon", '
+                    '"sport": "Athletics", "year": 2008, "attribute": "gold_athlete"}'
+                ),
                 input_tokens=20,
                 output_tokens=10,
                 model_name="test-model",
@@ -215,13 +220,8 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
             ),
             LLMCallResult(
                 content=(
-                    "INTERPRET QUERY () FOR GRAPH OlympicsGraph {\n"
-                    " Events = {Event.*};\n"
-                    " Matched = SELECT e FROM Events:e\n"
-                    ' WHERE e.year == 2008 AND lower(e.sport) == "athletics"\n'
-                    " LIMIT 10;\n"
-                    " PRINT Matched[Matched.gold_athlete];\n"
-                    "}"
+                    '{"operation": "event_attribute", "event": "men\'s marathon", '
+                    '"sport": "Athletics", "year": 2008, "attribute": "gold_athlete"}'
                 ),
                 input_tokens=12,
                 output_tokens=8,
