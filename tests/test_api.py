@@ -200,7 +200,15 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
                 latency_ms=1.0,
             ),
             LLMCallResult(
-                content='{"year": 2008, "sport": "Athletics", "venue": null}',
+                content=(
+                    "INTERPRET QUERY () FOR GRAPH OlympicsGraph {\n"
+                    " Events = {Event.*};\n"
+                    " Matched = SELECT e FROM Events:e\n"
+                    ' WHERE e.year == 2008 AND lower(e.sport) == "athletics"\n'
+                    " LIMIT 10;\n"
+                    " PRINT Matched[Matched.gold_athlete];\n"
+                    "}"
+                ),
                 input_tokens=12,
                 output_tokens=8,
                 model_name="test-model",
@@ -273,8 +281,9 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
     assert payload["graphrag"]["retrieved_doc_ids"] == ["Q123"]
     trace = payload["agentic"]["agentic_trace"]
     assert trace["agents_invoked"] == ["ReActOrchestrator"]
-    assert trace["tools_called"][0]["tool_name"] == "gsql_aggregate"
+    assert trace["tools_called"][0]["tool_name"] == "hybrid_search"
     assert trace["tools_called"][0]["llm_tokens"] == 0
+    assert trace["tools_called"][1]["tool_name"] == "gsql_aggregate"
     assert chat.await_count == 5
 
 

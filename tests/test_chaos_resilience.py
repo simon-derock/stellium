@@ -87,7 +87,7 @@ async def test_llm_rate_limit_and_server_error_chaos(monkeypatch: pytest.MonkeyP
 @pytest.mark.asyncio
 async def test_agentic_pipeline_resilience_on_database_chaos() -> None:
     # Simulates database outage (network timeout / 502) during agentic tool execution.
-    # The agent should record the error in observation and pivot rather than crashing.
+    # The agent should record backend unavailability and stop instead of inventing a fallback answer.
     graph = create_mock_graph_client()
     # Inject failure into run_aggregation
     graph.run_aggregation = MagicMock(side_effect=RuntimeError("TigerGraph connection timeout"))  # type: ignore[method-assign]
@@ -95,7 +95,7 @@ async def test_agentic_pipeline_resilience_on_database_chaos() -> None:
     session = LockedLLMSession(provider="cloudflare", model="mock-llama")
     session.chat = AsyncMock()  # type: ignore[method-assign]
 
-    # Model attempts gsql_aggregate first, then pivots to direct answer
+    # Model attempts gsql_aggregate; an unavailable graph backend must stop the run.
     first_resp = LLMCallResult(
         content='Thought: Look up aggregate count.\nAction: gsql_aggregate\nAction Input: {"sport": "Biathlon", "min_competitors": 74}',
         input_tokens=20,
@@ -104,15 +104,7 @@ async def test_agentic_pipeline_resilience_on_database_chaos() -> None:
         provider="mock",
         latency_ms=10.0,
     )
-    second_resp = LLMCallResult(
-        content="Thought: The database call failed. I will provide the best available answer.\nFinal Answer: 5",
-        input_tokens=40,
-        output_tokens=15,
-        model_name="mock-llama",
-        provider="mock",
-        latency_ms=8.0,
-    )
-    session.chat.side_effect = [first_resp, second_resp]
+    session.chat.side_effect = [first_resp]
 
     coprocessor = Coprocessor()
     coprocessor.build([])
@@ -121,11 +113,17 @@ async def test_agentic_pipeline_resilience_on_database_chaos() -> None:
         "pub-test-chaos", "How many biathlon events had more than 73 competitors?"
     )
 
-    assert result.answer == "5"
+    assert result.answer == "Not found in corpus"
     assert result.agentic_trace is not None
     assert len(result.agentic_trace["tools_called"]) >= 1
     # Check that error was captured in observation
-    assert "error" in result.agentic_trace["tools_called"][0]["output_summary"].lower()
+    assert any(
+        "error" in call["output_summary"].lower()
+        for call in result.agentic_trace["tools_called"]
+        if call["tool_name"] == "gsql_aggregate"
+    )
+    assert session.chat.await_count == 1
+    assert "workspace was unavailable" in result.agentic_trace["stopping_reason"]
 
 
 def test_chunk_filter_mask_bit_invariants_under_fuzz() -> None:

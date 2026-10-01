@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from src.coprocessor import Coprocessor
-from src.graph.mock import create_mock_graph_client
+from src.graph.mock import MockTigerGraphConnection, create_mock_graph_client
 from src.llm import LLMCallResult, LockedLLMSession
+from src.models import EvidenceItem
 from src.pipelines.agentic import _REACT_SYSTEM_PROMPT, AgenticPipeline, parse_react_response
 
 
@@ -19,8 +20,13 @@ def test_react_prompt_does_not_contain_public_benchmark_questions() -> None:
         Path(__file__).resolve().parents[2] / "hackathon-resources/questions/eval_public.jsonl"
     )
     prompt = _REACT_SYSTEM_PROMPT.casefold()
-    assert "default document retriever" in prompt
-    assert "prefer `hybrid_search`" in prompt
+    assert "mandatory initial hybrid passages" in prompt
+    assert "required local int8 minilm cross-encoder" in prompt
+    assert "top-k passages are a sample, never an exhaustive set" in prompt
+    assert (
+        "first react action after mandatory hybrid retrieval must be the corresponding exact graph tool"
+        in prompt
+    )
 
     for line in dataset.read_text(encoding="utf-8").splitlines():
         if line.strip():
@@ -108,13 +114,19 @@ Action Input: {"sport": "Biathlon", "target_year": 2018, "min_competitors": 74, 
         assert trace is not None
         assert trace["step_count"] == len(trace["llm_calls"]) + len(trace["tools_called"])
         assert trace["agents_invoked"] == ["ReActOrchestrator"]
-        assert "gsql_aggregate" in trace["tools_called"][0]["tool_name"]
-        assert trace["tools_called"][0]["llm_tokens"] == 0
+        assert trace["retrieval_stages"][0]["step"] == 0
+        assert result.retrieval_metadata["reranker_executions"] == 0
+        graph_call = next(
+            call for call in trace["tools_called"] if "gsql_aggregate" in call["tool_name"]
+        )
+        assert graph_call["llm_tokens"] == 0
+        assert trace["tools_called"][0]["tool_name"] == "hybrid_search"
         assert (
             sum(call["prompt_tokens"] + call["completion_tokens"] for call in trace["llm_calls"])
             == result.total_llm_tokens
         )
         assert trace["stopping_reason"] != ""
+        assert trace["final_answer"] == result.answer
         assert trace["confidence_score"] >= 0.90
         assert chat.await_count == 2
 
@@ -161,9 +173,10 @@ async def test_agentic_retrieved_document_order_is_stable_for_rank_metrics() -> 
     ):
         result = await pipeline.run(qid="ordered-citations", question="Count events?")
 
-    assert result.retrieved_doc_ids == ["Q2", "Q1"]
+    assert result.retrieved_doc_ids == []
     assert result.agentic_trace is not None
     assert result.agentic_trace["citations"] == ["Q2", "Q1"]
+    assert result.retrieval_metadata["all_evidence_doc_ids"] == ["Q2", "Q1"]
 
 
 @pytest.mark.asyncio
@@ -209,8 +222,188 @@ async def test_agentic_does_not_replace_bounded_aggregate_with_sample_count() ->
 
     assert result.answer == "5"
     assert result.agentic_trace is not None
-    assert "cannot replace it" in result.agentic_trace["stopping_reason"]
+    assert "Bounded GSQL aggregation already returned" in result.agentic_trace["stopping_reason"]
     lookup.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_agentic_normalizes_null_aggregate_bound_and_stops_on_unavailable_graph() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    response = LLMCallResult(
+        content=(
+            "Thought: Count matching events.\nAction: gsql_aggregate\nAction Input: "
+            '{"sport":"Biathlon","target_year":2018,"min_competitors":74,'
+            '"max_competitors":null}'
+        ),
+        input_tokens=30,
+        output_tokens=20,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+
+    with (
+        patch.object(graph, "run_aggregation", side_effect=RuntimeError("Starting workspace")),
+        patch.object(LockedLLMSession, "chat", return_value=response) as chat,
+    ):
+        result = await pipeline.run(
+            "workspace-unavailable",
+            "How many biathlon events in 2018 had more than 73 competitors?",
+        )
+
+    assert result.answer == "Not found in corpus"
+    assert result.agentic_trace is not None
+    assert "workspace was unavailable" in result.agentic_trace["stopping_reason"]
+    assert chat.await_count == 1
+    aggregate_call = next(
+        call
+        for call in result.agentic_trace["tools_called"]
+        if call["tool_name"] == "gsql_aggregate"
+    )
+    assert aggregate_call["input_args"]["max_competitors"] is None
+
+
+@pytest.mark.asyncio
+async def test_agentic_stops_before_llm_when_initial_graph_retrieval_is_unavailable() -> None:
+    pipeline = AgenticPipeline(
+        graph=create_mock_graph_client(),
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    unavailable = {"error": "Cannot parse json: <html><title>Starting workspace</title>"}
+
+    with (
+        patch.object(
+            pipeline,
+            "_execute_tool",
+            new=AsyncMock(return_value=(unavailable, [], 3.0)),
+        ),
+        patch.object(LockedLLMSession, "chat", new_callable=AsyncMock) as chat,
+    ):
+        result = await pipeline.run("initial-workspace-unavailable", "How many events?")
+
+    assert result.answer == "Not found in corpus"
+    assert result.total_llm_tokens == 0
+    assert result.agentic_trace is not None
+    assert result.agentic_trace["stopping_reason"] == (
+        "TigerGraph workspace was unavailable during initial retrieval; stopped before LLM planning"
+    )
+    chat.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_agentic_rejects_finish_action_without_answer() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content=(
+                "Thought: Count the events.\nAction: gsql_aggregate\nAction Input: "
+                '{"sport":"Biathlon","target_year":2018,"min_competitors":74}'
+            ),
+            input_tokens=20,
+            output_tokens=15,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=1.0,
+        ),
+        LLMCallResult(
+            content="Thought: The count is 5.\nAction: finish\nAction Input: {}",
+            input_tokens=25,
+            output_tokens=10,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=1.0,
+        ),
+        LLMCallResult(
+            content="Thought: The graph count answers the question.\nFinal Answer: 5",
+            input_tokens=30,
+            output_tokens=8,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=1.0,
+        ),
+    ]
+
+    with (
+        patch.object(
+            graph,
+            "run_aggregation",
+            return_value={"count": 5, "events": [], "gold_doc_ids": ["Q1"]},
+        ),
+        patch.object(LockedLLMSession, "chat", side_effect=responses) as chat,
+    ):
+        result = await pipeline.run("empty-finish", "How many biathlon events qualify?")
+
+    assert result.answer == "5"
+    assert result.agentic_trace is not None
+    assert result.agentic_trace["invalid_response_count"] == 1
+    assert [call["tool_name"] for call in result.agentic_trace["tools_called"]] == [
+        "hybrid_search",
+        "gsql_aggregate",
+    ]
+    assert chat.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_agentic_finish_citations_are_limited_to_observed_sources() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    responses = [
+        LLMCallResult(
+            content=(
+                "Thought: Count matching events.\nAction: gsql_aggregate\nAction Input: "
+                '{"sport":"Biathlon","target_year":2018,"min_competitors":74}'
+            ),
+            input_tokens=20,
+            output_tokens=15,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=1.0,
+        ),
+        LLMCallResult(
+            content=(
+                "Thought: The graph count answers the question.\nAction: finish\nAction Input: "
+                '{"answer":"5","citations":["Observation from gsql_aggregate tool"]}'
+            ),
+            input_tokens=25,
+            output_tokens=15,
+            model_name="mock-model",
+            provider="mock",
+            latency_ms=1.0,
+        ),
+    ]
+
+    with (
+        patch.object(
+            graph,
+            "run_aggregation",
+            return_value={"count": 5, "events": [], "gold_doc_ids": ["Q1", "Q2"]},
+        ),
+        patch.object(LockedLLMSession, "chat", side_effect=responses),
+    ):
+        result = await pipeline.run("finish-citations", "How many biathlon events qualify?")
+
+    assert result.answer == "5"
+    assert result.agentic_trace is not None
+    finish_call = next(
+        call for call in result.agentic_trace["tools_called"] if call["tool_name"] == "finish"
+    )
+    assert finish_call["input_args"]["citations"] == ["Q1", "Q2"]
+    assert result.agentic_trace["action_corrections"][-1]["used_citations"] == '["Q1", "Q2"]'
 
 
 @pytest.mark.asyncio
@@ -389,9 +582,18 @@ Action Input: {"answer": "Adapted Answer", "confidence": 0.85, "citations": ["do
         latency_ms=10.0,
     )
 
-    with patch.object(LockedLLMSession, "chat", side_effect=[step1_res, step2_res]):
+    step3_res = LLMCallResult(
+        content="Thought: Retrieval produced no supporting evidence.\nFinal Answer: Not found in corpus",
+        input_tokens=80,
+        output_tokens=5,
+        model_name="mock-model",
+        provider="mock",
+        latency_ms=5.0,
+    )
+
+    with patch.object(LockedLLMSession, "chat", side_effect=[step1_res, step2_res, step3_res]):
         result = await pipeline.run(qid="test-adapt", question="Unknown question?")
-        assert result.answer == "Adapted Answer"
+        assert result.answer == "Not found in corpus"
         assert result.agentic_trace is not None
         assert result.agentic_trace["step_count"] >= 2
 
@@ -451,10 +653,57 @@ async def test_agentic_reuses_observation_for_repeated_identical_tool_action() -
     assert result.agentic_trace is not None
     calls = result.agentic_trace["tools_called"]
     lookup.assert_called_once()
-    assert [call["tool_name"] for call in calls] == ["gsql_lookup", "gsql_lookup"]
+    assert [call["tool_name"] for call in calls] == [
+        "hybrid_search",
+        "gsql_lookup",
+        "gsql_lookup",
+        "finish",
+    ]
     assert result.answer == "Not found in corpus"
-    assert "reused its cached observation" in calls[1]["output_summary"]
-    assert calls[1]["latency_ms"] == 0.0
+    assert "reused its cached observation" in calls[2]["output_summary"]
+    assert calls[2]["latency_ms"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_agentic_generated_gsql_tool_executes_only_guarded_query() -> None:
+    graph = create_mock_graph_client()
+    pipeline = AgenticPipeline(
+        graph=graph,
+        coprocessor=Coprocessor(),
+        llm=LockedLLMSession(provider="cloudflare", model="mock-model"),
+    )
+    safe_query = (
+        "INTERPRET QUERY () FOR GRAPH OlympicsGraph { Events = {Event.*}; "
+        "Matched = SELECT e FROM Events:e WHERE e.year == 2008 LIMIT 10; "
+        "PRINT Matched[Matched.gold_athlete, Matched.wikidata_qid]; }"
+    )
+    evidence: list[EvidenceItem] = []
+
+    with patch.object(
+        graph,
+        "run_generated_gsql",
+        return_value={
+            "rows": [{"wikidata_qid": "Q123", "gold_athlete": "Samuel Wanjiru"}],
+            "row_groups": 1,
+            "latency_ms": 3.0,
+        },
+    ) as run_generated_gsql:
+        observation, citations, _ = await pipeline._execute_tool(
+            "gsql_query", {"query": safe_query}, evidence
+        )
+
+        assert observation["row_groups"] == 1
+        assert citations == ["Q123"]
+        assert evidence[0].doc_id == "Q123"
+        run_generated_gsql.assert_called_once_with(safe_query)
+
+    observation, citations, _ = await pipeline._execute_tool(
+        "gsql_query", {"query": safe_query.replace("Event.*", "ChatMessage.*")}, []
+    )
+    assert "error" in observation
+    assert citations == []
+    assert isinstance(graph.conn, MockTigerGraphConnection)
+    assert graph.conn.gsql_history == []
 
 
 @pytest.mark.asyncio
@@ -541,7 +790,8 @@ async def test_agentic_corrects_superlative_arguments_sent_to_lookup_tool() -> N
     chat.assert_awaited_once()
     assert result.answer == expected_event
     assert result.agentic_trace is not None
-    assert result.agentic_trace["tools_called"][0]["tool_name"] == "gsql_superlative"
+    assert result.agentic_trace["tools_called"][0]["tool_name"] == "hybrid_search"
+    assert result.agentic_trace["tools_called"][1]["tool_name"] == "gsql_superlative"
     assert result.agentic_trace["action_corrections"] == [
         {
             "requested_tool": "gsql_lookup",
@@ -696,14 +946,14 @@ async def test_agentic_temporal_does_not_select_first_of_ambiguous_events() -> N
             question="Who won the women's 200 metre freestyle immediately before 2016?",
         )
 
-    assert result.answer == "Allison Schmitt"
+    assert result.answer.startswith("Ambiguous: multiple preceding events")
     temporal.assert_called_once_with(
         sport="Swimming",
         event_name_fragment="200 metre freestyle",
         current_year=2016,
         gender="Women",
     )
-    assert chat.await_count == 2
+    assert chat.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -761,16 +1011,15 @@ async def test_agentic_multihop_does_not_select_first_of_ambiguous_events() -> N
             question="Who won the event at Sydney International Shooting Centre on 21 September 2000?",
         )
 
-    assert result.answer == "Yang Ling"
+    assert result.answer.startswith("Ambiguous: multiple events match")
     multihop.assert_called_once_with(
         venue_fragment="Sydney International Shooting Centre",
         date_fragment="21 September 2000",
         year=2000,
     )
-    assert chat.await_count == 2
-    observation_messages = chat.await_args_list[1].args[0]
-    assert "Candidate 6" in observation_messages[-1]["content"]
-    assert "Athlete 6" in observation_messages[-1]["content"]
+    assert chat.await_count == 1
+    assert "Women's skeet" in result.answer
+    assert "Men's 10 metre running target" in result.answer
 
 
 def test_parse_react_response_direct_json_schema() -> None:
