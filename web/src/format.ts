@@ -86,3 +86,41 @@ export function summarize(observation: Record<string, unknown>, limit = 180): st
   const text = compactJson(observation);
   return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
+
+// ---------------------------------------------------------------------------
+// Theme legibility: the canvas themes were designed for the graph, not for UI chrome. Work out
+// whether a theme is light or dark, and lift an accent that is too faint to read as text.
+// ---------------------------------------------------------------------------
+
+function channels(hex: string): [number, number, number] | null {
+  const value = hex.trim().replace("#", "");
+  const full = value.length === 3 ? value.split("").map((c) => c + c).join("") : value;
+  if (!/^[0-9a-f]{6}$/i.test(full)) return null;
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16) / 255) as [number, number, number];
+}
+
+export function luminance(hex: string): number | null {
+  const rgb = channels(hex);
+  if (!rgb) return null;
+  const [r, g, b] = rgb.map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)) as [number, number, number];
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+export function contrast(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  if (la === null || lb === null) return 21;
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+export function chromeFor(vars: Record<string, string>): { scheme: "light" | "dark"; overrides: Record<string, string> } {
+  const background = vars["--background"] ?? "#08090a";
+  const accent = vars["--accent"] ?? "#cba36a";
+  const scheme = (luminance(background) ?? 0) > 0.4 ? "light" : "dark";
+  const overrides: Record<string, string> = {};
+  // Below 3:1 an accent cannot carry a label; pull it towards the theme's ink until it can.
+  if (contrast(accent, background) < 3) {
+    overrides["--accent"] = `color-mix(in oklab, ${accent} 55%, var(--foreground))`;
+  }
+  return { scheme, overrides };
+}

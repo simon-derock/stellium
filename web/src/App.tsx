@@ -22,7 +22,7 @@ import { Pill } from "./components/Pill";
 import { MetricsStrip, type BenchData } from "./components/MetricsStrip";
 import { TracePanel } from "./components/TracePanel";
 import { Wordmark } from "./components/Wordmark";
-import { citedEvents } from "./format";
+import { chromeFor, citedEvents } from "./format";
 import { GraphSurface } from "./graph/GraphSurface";
 import {
   LAYER_NAMES,
@@ -49,33 +49,20 @@ type Health = "checking" | "ok" | "waking" | "down";
 const EMPTY: Snapshot = { graph_nodes: [], graph_edges: [], disclosure: "" };
 const REPO_URL = "https://github.com/simon-derock/stellium";
 
-function remembered(key: string, fallback: string, allowed: string[]): string {
-  try {
-    const value = localStorage.getItem(`stellium.v2.${key}`);
-    return value && allowed.includes(value) ? value : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function remember(key: string, value: string) {
-  try {
-    localStorage.setItem(`stellium.v2.${key}`, value);
-  } catch {
-    // Private windows and blocked storage just forget the choice.
-  }
-}
-
-// Shareable links: ?q= asks a question on load, ?tab=benchmark or ?tab=docs opens that page.
+// Shareable links: ?q= asks a question on load, ?tab=benchmark or ?tab=docs opens that page,
+// ?style= and ?theme= pick the drawing. Without them every visit opens on Nova over Gilt.
 const LINK = new URLSearchParams(window.location.search);
 const LINKED_QUESTION = LINK.get("q")?.trim().slice(0, 500) ?? "";
 
 export function App() {
   const [mode, setMode] = useState<Mode>(() => MODES.find((m) => m.id === LINK.get("tab"))?.id ?? "ask");
-  const [vizId, setVizId] = useState(() => remembered("style", "nova", VIZ_PROFILES.map((v) => v.id)));
+  const [vizId, setVizId] = useState(() => VIZ_PROFILES.find((v) => v.id === LINK.get("style"))?.id ?? "nova");
   // As in Lunarbit, every style carries its own theme; picking a theme overrides it for the visit.
   const [themeId, setThemeId] = useState(
-    () => VIZ_PROFILES.find((v) => v.id === vizId)?.preferredTheme ?? "gilt",
+    () =>
+      THEMES.find((t) => t.id === LINK.get("theme"))?.id ??
+      VIZ_PROFILES.find((v) => v.id === vizId)?.preferredTheme ??
+      "gilt",
   );
   const [viewId, setViewId] = useState<ViewId>("constellation");
   const [focus, setFocus] = useState<string[]>([]);
@@ -98,8 +85,8 @@ export function App() {
 
   const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
   const viz = VIZ_PROFILES.find((v) => v.id === vizId) ?? VIZ_PROFILES[0]!;
+  const chrome = useMemo(() => chromeFor(theme.vars), [theme]);
 
-  useEffect(() => remember("style", vizId), [vizId]);
 
   // Parallax: the canvas drifts at a fraction of the page scroll, eased towards its target on
   // every frame so the motion stays smooth whatever the scroll device sends.
@@ -107,7 +94,7 @@ export function App() {
   const drift = useRef({ target: 0, now: 0, frame: 0 });
   const onPageScroll = useCallback((top: number) => {
     const d = drift.current;
-    d.target = -Math.min(top * 0.12, 140);
+    d.target = -Math.min(top * 0.2, 260);
     if (d.frame) return;
     const step = () => {
       d.now += (d.target - d.now) * 0.12;
@@ -215,7 +202,8 @@ export function App() {
 
   return (
     <main
-      style={theme.vars as CSSProperties}
+      style={{ ...theme.vars, ...chrome.overrides } as CSSProperties}
+      data-scheme={chrome.scheme}
       className={`app-shell theme-${themeId} relative h-dvh w-full overflow-hidden bg-background text-foreground`}
     >
       <div ref={canvasLayer} className="parallax">
@@ -236,8 +224,8 @@ export function App() {
         <div className="pointer-events-auto py-2 pl-1">
           <Wordmark />
         </div>
-        <div className="pointer-events-auto flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-          <Pill label="Pages" activeKey={mode}>
+        <div className="pointer-events-auto w-full md:w-auto">
+          <Pill label="Navigation and graph display" activeKey={mode}>
             {MODES.map((m) => (
               <button
                 key={m.id}
@@ -255,8 +243,7 @@ export function App() {
               </svg>
               GitHub
             </a>
-          </Pill>
-          <Pill label="Graph display">
+            <span className="pill-divider" aria-hidden="true" />
             <Menu
               tag="View"
               value={viewId}
@@ -344,7 +331,11 @@ export function App() {
             {selected ? `${selected.type} · ${selected.label}` : snapshot.disclosure}
           </span>
         </div>
-        <div className="pointer-events-auto flex items-center gap-2">
+        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-x-5 gap-y-1">
+          <a className="credit" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
+            Built by <b>Philip Simon Derock</b> · TigerGraph GraphRAG Hackathon 2026
+          </a>
+          <span className="inline-flex items-center gap-2">
           <span className="status-dot" data-state={health} />
           <span className="tag">
             {health === "ok"
@@ -354,6 +345,7 @@ export function App() {
                 : health === "down"
                   ? "Graph unreachable"
                   : "Checking the graph"}
+          </span>
           </span>
         </div>
       </footer>

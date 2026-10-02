@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNo
 
 export function Pill({ children, label, activeKey }: { children: ReactNode; label: string; activeKey?: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [glide, setGlide] = useState<{ x: number; w: number; on: boolean }>({ x: 0, w: 0, on: false });
+  const [glide, setGlide] = useState({ x: 0, y: 0, w: 0, h: 0, on: false });
   // The first placement (and re-placements after layout shifts) jump; only pointer moves glide.
   const [animate, setAnimate] = useState(false);
 
@@ -15,7 +15,13 @@ export function Pill({ children, label, activeKey }: { children: ReactNode; labe
     }
     const inner = box.getBoundingClientRect();
     const rect = target.getBoundingClientRect();
-    setGlide({ x: rect.left - inner.left - box.clientLeft, w: rect.width, on: true });
+    setGlide({
+      x: rect.left - inner.left - box.clientLeft,
+      y: rect.top - inner.top - box.clientTop,
+      w: rect.width,
+      h: rect.height,
+      on: true,
+    });
   }, []);
 
   const settle = useCallback(() => {
@@ -55,7 +61,8 @@ export function Pill({ children, label, activeKey }: { children: ReactNode; labe
         aria-hidden="true"
         style={{
           width: glide.w,
-          transform: `translate3d(${glide.x}px, 0, 0)`,
+          height: glide.h,
+          transform: `translate3d(${glide.x}px, ${glide.y}px, 0)`,
           opacity: glide.on ? 1 : 0,
           transition: animate ? undefined : "none",
         }}

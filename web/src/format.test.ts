@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CompareResult, PipelineResult } from "./api";
-import { citedEvents, percent, seconds, summarize, traceSteps } from "./format";
+import { chromeFor, citedEvents, contrast, percent, seconds, summarize, traceSteps } from "./format";
 
 const result = (docs: string[]): PipelineResult =>
   ({ retrieved_doc_ids: docs }) as unknown as PipelineResult;
@@ -56,5 +56,18 @@ describe("trace steps", () => {
   it("shows a final answer as a finish step", () => {
     const [step] = traceSteps([{ event: "plan", thought: "Done.", final_answer: "Chen Long" }]);
     expect(step).toMatchObject({ action: "finish", input: "Chen Long" });
+  });
+});
+
+describe("theme chrome", () => {
+  it("tells light themes from dark ones", () => {
+    expect(chromeFor({ "--background": "#f3f1ea", "--accent": "#7a4b25" }).scheme).toBe("light");
+    expect(chromeFor({ "--background": "#070604", "--accent": "#b8873a" }).scheme).toBe("dark");
+  });
+
+  it("lifts an accent too faint to read, and leaves a good one alone", () => {
+    expect(chromeFor({ "--background": "#fbfaff", "--accent": "#ff7a18" }).overrides["--accent"]).toContain("color-mix");
+    expect(chromeFor({ "--background": "#070604", "--accent": "#b8873a" }).overrides).toEqual({});
+    expect(contrast("#000000", "#ffffff")).toBeCloseTo(21, 0);
   });
 });
