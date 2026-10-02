@@ -16,7 +16,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import requests
 from fastapi import FastAPI, HTTPException, Request
@@ -26,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from pyTigerGraph.common.exception import TigerGraphException
 
+from src.api.graph_view import project
 from src.coprocessor import Coprocessor
 from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
 from src.guardrails import check_query
@@ -40,11 +41,14 @@ from src.models import (
 from src.pipelines.agentic import AgenticPipeline
 from src.pipelines.graphrag import GraphRAGPipeline
 from src.pipelines.rag import RAGPipeline
+from src.pipelines.toolkit import catalog_for
 
 # ---------------------------------------------------------------------------
 # Global State
 # ---------------------------------------------------------------------------
 
+# Investigation views stay readable: a pipeline cites a handful of events, never dozens.
+_MAX_FOCUS = 20
 _coprocessor: Coprocessor = Coprocessor()
 _graph: GraphClient | None = None
 
@@ -362,11 +366,16 @@ async def preset_questions() -> list[dict[str, str]]:
 
 
 @app.get("/api/v1/graph/snapshot", response_model=SnapshotDTO)
-async def get_graph_snapshot() -> SnapshotDTO:
-    # Do not present example graph data or unmeasured metrics as live results.
-    return SnapshotDTO(
-        disclosure="Query-specific graph snapshot and measured benchmark metrics are not available yet.",
-    )
+async def get_graph_snapshot(
+    view: Literal["constellation", "venues", "lineage", "investigation"] = "constellation",
+    focus: str = "",
+    sport: str = "",
+) -> SnapshotDTO:
+    # The canvas payload, projected from the graph-loaded catalog. `focus` is a comma-separated
+    # list of event ids, normally a pipeline's citations, for the investigation view.
+    catalog = catalog_for(_get_request_graph())
+    event_ids = [part.strip() for part in focus.split(",") if part.strip()][:_MAX_FOCUS]
+    return project(catalog, view, focus=event_ids, sport=sport or None)
 
 
 @app.get("/api/v1/sessions/{session_id}/history")

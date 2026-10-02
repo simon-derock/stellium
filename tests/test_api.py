@@ -15,6 +15,7 @@ from src.linking import EventCatalog, EventRecord
 from src.llm import LLMCallResult, LockedLLMSession
 from src.models import Chunk
 from tests.asgi_client import InProcessASGIClient
+from tests.graph_fixtures import seeded_graph
 
 client = InProcessASGIClient(app)
 
@@ -74,17 +75,19 @@ def test_health_endpoint() -> None:
     assert data["system"] == "stellium"
 
 
-def test_graph_snapshot_dto() -> None:
-    resp = client.get("/api/v1/graph/snapshot")
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "graph_nodes" in data
-    assert "graph_edges" in data
-    assert "metrics" in data
-    assert data["graph_nodes"] == []
-    assert data["graph_edges"] == []
-    assert data["metrics"] == []
-    assert "not available yet" in data["disclosure"]
+def test_graph_snapshot_projects_the_loaded_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_main, "get_graph", MagicMock)
+    monkeypatch.setattr(api_main, "catalog_for", lambda graph: seeded_graph()[1])
+
+    overview = client.get("/api/v1/graph/snapshot").json()
+    focused = client.get(
+        "/api/v1/graph/snapshot", params={"view": "investigation", "focus": "R08W, ,R12W"}
+    ).json()
+
+    assert {node["type"] for node in overview["graph_nodes"]} == {"Games", "Sport"}
+    layers = {node["id"]: node["layer"] for node in focused["graph_nodes"]}
+    assert layers["R08W"] == layers["R12W"] == "evidence"
+    assert client.get("/api/v1/graph/snapshot", params={"view": "bogus"}).status_code == 422
 
 
 def test_session_history_endpoint() -> None:
