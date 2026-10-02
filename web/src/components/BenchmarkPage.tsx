@@ -1,6 +1,7 @@
 // Every measured number, from the committed metrics documents the API serves.
 import type { Metrics, PipelineId } from "../api";
 import { PIPELINES, percent, seconds, tokens } from "../format";
+import { AccuracyByType, ChartCard, Efficiency, Legend, RetrievalRadar, ToolMix, usePalette } from "./Charts";
 import { LongPage, Section } from "./LongPage";
 import type { BenchData } from "./MetricsStrip";
 
@@ -68,8 +69,15 @@ function TypeLedger({ metrics }: { metrics: Metrics }) {
   );
 }
 
-export function BenchmarkPage({ data }: { data: BenchData }) {
+interface Props {
+  data: BenchData;
+  themeKey: string;
+  onScroll?: (top: number) => void;
+}
+
+export function BenchmarkPage({ data, themeKey, onScroll }: Props) {
   const metrics = data.public;
+  const palette = usePalette(themeKey);
   if (!metrics) {
     return (
       <LongPage sections={[]}>
@@ -79,11 +87,10 @@ export function BenchmarkPage({ data }: { data: BenchData }) {
   }
   const ids = PIPELINES.filter((p) => metrics.pipelines[p.id]);
   const agent = metrics.agent;
-  const toolTotal = Object.values(agent.tools).reduce((a, b) => a + b, 0);
   const oracle = data.oracle;
 
   return (
-    <LongPage sections={SECTIONS}>
+    <LongPage sections={SECTIONS} onScroll={onScroll}>
       <h1>Benchmark</h1>
       <p className="lede">
         The same questions answered three ways by one model, Cohere <code>command-a-03-2025</code>, at temperature 0. Every
@@ -110,6 +117,13 @@ export function BenchmarkPage({ data }: { data: BenchData }) {
             );
           })}
         </div>
+        {palette && (
+          <div className="mt-4">
+            <ChartCard title="Accuracy against LLM cost" note="Public 100: exact match versus LLM tokens per question. Up and to the left is better.">
+              <Efficiency metrics={metrics} palette={palette} />
+            </ChartCard>
+          </div>
+        )}
         <table className="ledger mt-6">
           <thead>
             <tr>
@@ -165,6 +179,14 @@ export function BenchmarkPage({ data }: { data: BenchData }) {
           Exact match after normalising case, punctuation and diacritics, with LLM tokens per question. Counting and ranking
           span 8 to 43 articles, which no top-k passage window holds; that is where retrieval alone breaks.
         </p>
+        {palette && (
+          <div className="mb-5">
+            <ChartCard title="Exact match by question type" note="Share of each type answered exactly.">
+              <Legend />
+              <AccuracyByType metrics={metrics} palette={palette} />
+            </ChartCard>
+          </div>
+        )}
         <TypeLedger metrics={metrics} />
       </Section>
 
@@ -173,7 +195,8 @@ export function BenchmarkPage({ data }: { data: BenchData }) {
           Ranked citations scored against the gold documents, and every answer checked against the text of the articles it
           cites.
         </p>
-        <table className="ledger">
+        <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.15fr_1fr]">
+          <table className="ledger">
           <thead>
             <tr>
               <th>Measure</th>
@@ -209,6 +232,13 @@ export function BenchmarkPage({ data }: { data: BenchData }) {
             ))}
           </tbody>
         </table>
+          {palette && (
+            <ChartCard title="Retrieval quality" note="Each axis is a share; the agent and GraphRAG overlap.">
+              <Legend />
+              <RetrievalRadar metrics={metrics} palette={palette} />
+            </ChartCard>
+          )}
+        </div>
       </Section>
 
       <Section id="robustness" title="Robustness">
@@ -277,22 +307,11 @@ export function BenchmarkPage({ data }: { data: BenchData }) {
               </tr>
             </tbody>
           </table>
-          <div>
-            <h3 className="!mt-0">Tools it chose</h3>
-            <ul className="!list-none !pl-0">
-              {Object.entries(agent.tools)
-                .sort((a, b) => b[1] - a[1])
-                .map(([tool, count]) => (
-                  <li key={tool} className="grid grid-cols-[11rem_1fr_2.5rem] items-center gap-3">
-                    <code>{tool}</code>
-                    <span className="bar" style={{ ["--lane" as string]: "var(--agentic)" }}>
-                      <i style={{ width: `${(100 * count) / Math.max(1, toolTotal)}%` }} />
-                    </span>
-                    <span className="text-right font-mono text-[12px]">{count}</span>
-                  </li>
-                ))}
-            </ul>
-          </div>
+          {palette && (
+            <ChartCard title="Tools it chose" note="Graph tools cost zero LLM tokens.">
+              <ToolMix tools={agent.tools} palette={palette} />
+            </ChartCard>
+          )}
         </div>
         {agent.stopping_reasons && (
           <>

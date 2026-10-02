@@ -56,9 +56,9 @@ function Stat({ label, value }: { label: string; value?: number }) {
   );
 }
 
-export function DocsPage({ stats }: { stats: GraphStats | null }) {
+export function DocsPage({ stats, onScroll }: { stats: GraphStats | null; onScroll?: (top: number) => void }) {
   return (
-    <LongPage sections={SECTIONS}>
+    <LongPage sections={SECTIONS} onScroll={onScroll}>
       <h1>How STELLIUM works</h1>
       <p className="lede">
         STELLIUM answers questions about Olympic events from a corpus of Wikipedia articles three ways, side by side: plain

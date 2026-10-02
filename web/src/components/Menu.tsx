@@ -72,7 +72,7 @@ export function Menu({
   }, [open, options.length]);
 
   return (
-    <div ref={box} className="relative">
+    <div ref={box} className="relative" data-glide={tag}>
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
@@ -111,7 +111,7 @@ export function Menu({
         >
           <div className="menu-heading">
             <span>{tag}</span>
-            <span>{options.length} options · scroll the button to cycle</span>
+            <span>{options.length} · scroll to cycle</span>
           </div>
           {options.map((o) => (
             <button
@@ -124,7 +124,9 @@ export function Menu({
               aria-checked={o.id === value}
               className="menu-item"
             >
-              <span className="menu-item-mark" aria-hidden="true" />
+              <svg className="menu-item-mark" viewBox="0 0 14 14" aria-hidden="true">
+                <path d="M3 7.4 5.8 10 11 4.2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
               <span className="min-w-0 flex-1">
                 <span className="menu-item-name">{o.name}</span>
                 {o.hint && <span className="menu-item-hint">{o.hint}</span>}
