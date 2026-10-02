@@ -46,6 +46,37 @@ export function LongPage({ sections, children, onScroll }: Props) {
     };
   }, []);
 
+  // Scroll reveal: number the blocks in each section for the stagger, show whatever is already in
+  // view at once, and reveal the rest as it enters. Armed only after the observer exists.
+  useEffect(() => {
+    const root = scroller.current;
+    if (!root || !("IntersectionObserver" in window)) return;
+    const sections = Array.from(root.querySelectorAll<HTMLElement>(".reveal"));
+    for (const section of sections) {
+      Array.from(section.children).forEach((child, index) => {
+        (child as HTMLElement).style.setProperty("--i", String(Math.min(index, 8)));
+      });
+    }
+    const reveal = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          (entry.target as HTMLElement).dataset.shown = "true";
+          reveal.unobserve(entry.target);
+        }
+      },
+      { root, rootMargin: "0px 0px -8% 0px", threshold: 0.02 },
+    );
+    const view = root.getBoundingClientRect();
+    for (const section of sections) {
+      const box = section.getBoundingClientRect();
+      if (box.top < view.bottom && box.bottom > view.top) section.dataset.shown = "true";
+      else reveal.observe(section);
+    }
+    root.dataset.reveal = "on";
+    return () => reveal.disconnect();
+  }, [children]);
+
   useEffect(() => {
     const root = scroller.current;
     if (!root) return;

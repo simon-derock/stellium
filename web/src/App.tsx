@@ -1,5 +1,6 @@
 // STELLIUM console: the Olympic graph full bleed, a question plate on the left, the agent's trace
 // on the right, the headline numbers along the bottom, and the full benchmark and docs one tab away.
+import { flushSync } from "react-dom";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ApiError,
@@ -25,12 +26,10 @@ import { Wordmark } from "./components/Wordmark";
 import { chromeFor, citedEvents } from "./format";
 import { GraphSurface } from "./graph/GraphSurface";
 import {
-  LAYER_NAMES,
   THEMES,
   VIEWS,
   VIZ_PROFILES,
   type GraphNode,
-  type LayerId,
   type Snapshot,
   type ViewId,
 } from "./graph/graph";
@@ -55,7 +54,17 @@ const LINK = new URLSearchParams(window.location.search);
 const LINKED_QUESTION = LINK.get("q")?.trim().slice(0, 500) ?? "";
 
 export function App() {
-  const [mode, setMode] = useState<Mode>(() => MODES.find((m) => m.id === LINK.get("tab"))?.id ?? "ask");
+  const [mode, setModeNow] = useState<Mode>(() => MODES.find((m) => m.id === LINK.get("tab"))?.id ?? "ask");
+  // Switching pages cross-dissolves through a View Transition where the browser has one, so the
+  // shared frame holds still and only the content changes; elsewhere the switch is instant.
+  const setMode = useCallback((next: Mode) => {
+    const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
+    if (!doc.startViewTransition || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setModeNow(next);
+      return;
+    }
+    doc.startViewTransition(() => flushSync(() => setModeNow(next)));
+  }, []);
   const [vizId, setVizId] = useState(() => VIZ_PROFILES.find((v) => v.id === LINK.get("style"))?.id ?? "nova");
   // As in Lunarbit, every style carries its own theme; picking a theme overrides it for the visit.
   const [themeId, setThemeId] = useState(
@@ -106,6 +115,14 @@ export function App() {
   useEffect(() => {
     if (mode === "ask") onPageScroll(0);
   }, [mode, onPageScroll]);
+
+  // Fetch the benchmark page's chart bundle while idle, so its first opening is instant.
+  useEffect(() => {
+    const warm = () => void import("./components/BenchmarkPage");
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
+    if (idle) idle(warm);
+    else window.setTimeout(warm, 1500);
+  }, []);
 
   // A deep health check reads the graph, so it also wakes a suspended workspace.
   useEffect(() => {
@@ -195,15 +212,12 @@ export function App() {
     [viewId, focusOn],
   );
 
-  const legend = useMemo(() => {
-    const present = new Set(snapshot.graph_nodes.map((n) => n.layer));
-    return (Object.keys(LAYER_NAMES) as LayerId[]).filter((layer) => present.has(layer));
-  }, [snapshot]);
 
   return (
     <main
       style={{ ...theme.vars, ...chrome.overrides } as CSSProperties}
       data-scheme={chrome.scheme}
+      data-mode={mode}
       className={`app-shell theme-${themeId} relative h-dvh w-full overflow-hidden bg-background text-foreground`}
     >
       <div ref={canvasLayer} className="parallax">
@@ -320,33 +334,21 @@ export function App() {
       )}
 
       <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-end justify-between gap-2 px-5 pb-4">
-        <div className="pointer-events-auto hidden flex-wrap items-center gap-x-4 gap-y-1 md:flex">
-          {legend.map((layer) => (
-            <span key={layer} className="tag inline-flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: theme.palette.layers[layer] }} />
-              {LAYER_NAMES[layer]}
-            </span>
-          ))}
-          <span className="text-[12px] text-[color:var(--soft)]">
-            {selected ? `${selected.type} · ${selected.label}` : snapshot.disclosure}
-          </span>
+        {/* The canvas explains itself on hover; a selected node is the only caption worth space. */}
+        <div className="pointer-events-auto hidden text-[12px] text-[color:var(--faint)] md:block">
+          {selected ? `${selected.type} · ${selected.label}` : ""}
         </div>
         <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-x-5 gap-y-1">
           <a className="credit" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
             Built by <b>Philip Simon Derock</b> · TigerGraph GraphRAG Hackathon 2026
           </a>
-          <span className="inline-flex items-center gap-2">
-          <span className="status-dot" data-state={health} />
-          <span className="tag">
-            {health === "ok"
-              ? "TigerGraph live"
-              : health === "waking"
-                ? "Waking the graph"
-                : health === "down"
-                  ? "Graph unreachable"
-                  : "Checking the graph"}
-          </span>
-          </span>
+          {/* Status only speaks up when something is off: waking or unreachable. */}
+          {(health === "waking" || health === "down") && (
+            <span className="inline-flex items-center gap-2">
+              <span className="status-dot" data-state={health} />
+              <span className="tag">{health === "waking" ? "Waking the graph" : "Graph unreachable"}</span>
+            </span>
+          )}
         </div>
       </footer>
     </main>

@@ -83,13 +83,25 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
 
   const data = useMemo(() => {
     const ids = new Set(nodes.map((n) => n.id));
+    // Start every node where it will settle (its formation target, or a calm golden-angle
+    // spiral for free layouts) so the intro unfolds instead of exploding from random points.
+    const seeds = formationTargets(viz.formation, nodes);
+    const golden = Math.PI * (3 - Math.sqrt(5));
     return {
-      nodes: nodes.map((n) => ({ ...n })),
+      nodes: nodes.map((n, i) => {
+        const seed = seeds.get(n.id);
+        const radius = 14 * Math.sqrt(i + 0.5);
+        return {
+          ...n,
+          x: seed?.x ?? Math.cos(i * golden) * radius,
+          y: seed?.y ?? Math.sin(i * golden) * radius,
+        };
+      }),
       links: edges
         .filter((e) => ids.has(e.source) && ids.has(e.target))
         .map((e) => ({ ...e })) as unknown as LinkDatum[],
     };
-  }, [nodes, edges]);
+  }, [nodes, edges, viz.formation]);
 
   useEffect(() => {
     nodeLookupRef.current = new Map(data.nodes.map((node) => [node.id, node]));
@@ -177,6 +189,7 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
   const programmaticUntilRef = useRef(0);
   const initialFitUntilRef = useRef(0);
   const prog = useRef(0);
+  const fittedOnce = useRef(false);
   // fit instantly (the opacity envelope carries the motion) and clear the
   // right-hand findings plate in the same frame — no second animation
   const fit = useCallback(() => {
@@ -196,38 +209,29 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
     // Keep the complete formation comfortably inside the viewport. The live
     // projection is dense enough that tight framing reads as over-zoomed,
     // especially on narrow phone screens.
-    const padding = compact
-      ? Math.max(56, Math.min(104, Math.round(size.w * 0.16)))
-      : 60;
-    fg.zoomToFit(padding, compact ? 0 : 220);
-    window.requestAnimationFrame(() => {
-      if (userRef.current && performance.now() >= initialFitUntilRef.current) {
-        fittingRef.current = false;
-        return;
-      }
-      const fittedZoom = fg.zoom();
-      if (typeof fittedZoom === "number" && Number.isFinite(fittedZoom)) {
-        // Leave a little breathing room for safe-area controls without using a
-        // device-specific zoom constant. The getter is sampled after
-        // zoomToFit commits its camera transform.
-        const phoneScale = Math.max(0.34, Math.min(0.4, size.w / 1100));
-        fg.zoom(fittedZoom * (compact ? phoneScale : 1.15), 0);
-      }
+    // One glide to the frame. The first fit lands instantly behind the fade-in; later refits
+    // ease over 700 ms so the camera never jumps while the layout breathes.
+    const padding = compact ? 28 : 72;
+    const first = !fittedOnce.current;
+    fittedOnce.current = true;
+    fg.zoomToFit(first ? 0 : 700, padding);
+    window.setTimeout(() => {
       fittingRef.current = false;
-    });
+    }, first ? 0 : 720);
   }, [size.h, size.w]);
   // Formation forces can continue moving nodes after the first engine stop.
   // Refit a few times during the initial reveal, but never after the user has
   // taken ownership of the camera or a node.
   useEffect(() => {
     if (!size.w || !size.h) return;
-    const timers = [500, 1400, 2600, 5200, 7600].map((delay) => window.setTimeout(fit, delay));
+    const timers = [350, 1600, 3600].map((delay) => window.setTimeout(fit, delay));
     return () => timers.forEach((timer) => window.clearTimeout(timer));
   }, [data, fit, size.h, size.w, viz]);
   useEffect(() => {
     tickCount.current = 0;
     userRef.current = false;
     initialFitUntilRef.current = performance.now() + 3200;
+    fittedOnce.current = false;
     prog.current = 0;
   }, [data, viz]);
   const onTick = useCallback(() => {
@@ -939,7 +943,8 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
                 ? "rgba(0,0,0,0)"
                 : palette.paper
             }
-            warmupTicks={0}
+            // Settle off-screen first, so the first frame is already the shape it will keep.
+            warmupTicks={60}
             // A short bounded settle keeps style changes responsive; the
             // formation spring continues to hold structured layouts after it.
             cooldownTicks={size.w > 0 && size.w < 600 ? 12 : viz.formStrength > 0 ? 42 : 36}
