@@ -48,8 +48,8 @@ Tools (Action Input is one JSON object; omit unknown fields):
 - count_events {{sport, year, season, gender, comparison, threshold}}: how many events meet a competitor-count condition; comparison is more_than, at_least, fewer_than, at_most or exactly. Not for one event's own nation_count or competitor_count.
 - rank_events {{sport, year, season, gender, order}}: the event with the most ("desc") or fewest ("asc") competitors; reports ties.
 - event_attribute {{event, attribute, sport, year, season, gender}}: one attribute of one event.
-- previous_edition {{event, year, attribute, sport, season, gender}}: the same event at the Games before `year`, the year the question names.
-- event_at_venue_date {{venue, date, year, attribute}}: the event held at a venue on a date.
+- previous_edition {{event, year, attribute, sport, season, gender}}: the same event at the Games immediately before `year`. Pass the year the question names; never work out the earlier year yourself.
+- event_at_venue_date {{venue, date, year, attribute}}: the event held at a venue on a date. Copy the venue and date exactly as the question writes them.
 - find_events {{event, sport, year, season, gender}}: matching canonical events, to explore or disambiguate.
 - hybrid_search {{query}}: reranked passages from TigerGraph vector search fused with BM25.
 - gsql_query {{query}}: one read-only `INTERPRET QUERY () FOR GRAPH OlympicsGraph {{ ... }}` when no tool above fits: a single SELECT with LIMIT, then PRINT; double-quoted strings; lower(...) to compare strings.

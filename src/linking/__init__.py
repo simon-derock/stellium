@@ -64,8 +64,16 @@ def tokens(text: str) -> frozenset[str]:
     return frozenset(_stem(token) for token in fold(text).split())
 
 
+_ISO_DATE = re.compile(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b")
+
+
 def _date_key(text: str) -> tuple[frozenset[str], frozenset[str], frozenset[str]]:
-    # Day numbers, month names, and years, so "August 12, 2008" equals "12 August".
+    # Day numbers, month names, and years, so "August 12, 2008", "12 August" and "2008-08-12"
+    # all agree.
+    text = _ISO_DATE.sub(
+        lambda m: f"{int(m[3])} {_MONTHS[int(m[2]) - 1]} {m[1]}" if 1 <= int(m[2]) <= 12 else m[0],
+        text,
+    )
     words = fold(text).split()
     days = frozenset(word for word in words if word.isdigit() and len(word) <= 2)
     years = frozenset(word for word in words if word.isdigit() and len(word) == 4)

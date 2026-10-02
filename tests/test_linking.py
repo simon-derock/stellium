@@ -108,6 +108,8 @@ def test_link_venue_date_exact_and_equivalent_formats() -> None:
     reordered = CATALOG.link_venue_date("Oval C", "February 13, 2006")
     assert reordered.method == "venue_and_equivalent_date"
     assert reordered.resolved == CATALOG.get("e10")
+    # A planner that rewrites the date as ISO still lands on the same event.
+    assert CATALOG.link_venue_date("Oval C", "2006-02-13").resolved == CATALOG.get("e10")
 
 
 def test_link_venue_date_surfaces_same_day_events() -> None:
