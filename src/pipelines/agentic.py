@@ -84,6 +84,17 @@ class ReActParsedStep:
     is_terminal: bool = False
 
 
+def _reportable_tie(outcome: ToolOutcome, asked: str | None) -> bool:
+    # Events for a "who" question, or two hundred titles, are a search still in progress, not a
+    # tie; only a short list of the asked kind is worth reporting when the budget runs out.
+    kind = outcome.answer_kind
+    return (
+        outcome.ambiguous
+        and len(outcome.candidates) <= _MAX_REPORTED_CANDIDATES
+        and (asked is None or kind is None or kind == asked)
+    )
+
+
 def _rewrites_the_day(question: str, arguments: dict[str, Any]) -> bool:
     # A venue-and-day lookup answers only for the day the question names. Moving it to another
     # year when the asked day held nothing turns "no such event" into someone else's medal.
@@ -428,9 +439,13 @@ class AgenticPipeline:
         log: _RunLog,
         step: int,
         evidence: list[EvidenceItem],
+        question: str = "",
     ) -> tuple[dict[str, Any], ToolOutcome | None, list[str]]:
         # Runs one tool. Returns its observation, the typed outcome for graph tools, and any
         # values it verified (used to ground a later finish).
+        if tool == "event_at_venue_date" and _rewrites_the_day(question, arguments):
+            refusal = "Use the venue and date exactly as the question states them; another year is a different question."
+            return {"error": refusal}, None, []
         if tool in TOOL_PARAMETERS:
             rejected = unsupported_arguments(tool, arguments)
             if rejected:
@@ -603,16 +618,10 @@ class AgenticPipeline:
                     "previous_observation": cache[cache_key],
                 }
                 values: list[str] = []
-            elif tool == "event_at_venue_date" and _rewrites_the_day(question, arguments):
-                observation = {
-                    "error": "Use the venue and date exactly as the question states them; "
-                    "another year is a different question."
-                }
-                values = []
             else:
                 try:
                     observation, outcome, values = await self._execute(
-                        toolkit, tool, arguments, log, step, state.evidence
+                        toolkit, tool, arguments, log, step, state.evidence, question
                     )
                 except Exception as exc:
                     observation, values = {"error": f"{tool} failed: {exc}"}, []
@@ -709,14 +718,8 @@ class AgenticPipeline:
                         " stated in the cited source article" if checked else ""
                     )
                 break
-            if outcome is not None and outcome.ambiguous:
-                kind = outcome.answer_kind
-                # Events for a "who" question, or two hundred titles, are a search still in
-                # progress, not a tie; only a short list of the asked kind is worth reporting.
-                if len(outcome.candidates) <= _MAX_REPORTED_CANDIDATES and (
-                    asked is None or kind is None or kind == asked
-                ):
-                    pending_candidates = list(outcome.candidates)
+            if outcome is not None and _reportable_tie(outcome, asked):
+                pending_candidates = list(outcome.candidates)
 
             observation_text = json.dumps(observation, ensure_ascii=False, default=str)
             observations.append(observation_text)
