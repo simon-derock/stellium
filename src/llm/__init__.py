@@ -18,7 +18,9 @@ from src.credentials import (
     available_cohere_keys,
     cohere_keys,
     is_monthly_cap,
+    live_key_count,
     park_exhausted_key,
+    rest_key,
 )
 
 # ---------------------------------------------------------------------------
@@ -76,6 +78,8 @@ _cohere_key_pool_lock = asyncio.Lock()
 _cohere_key_locks: dict[str, asyncio.Lock] = {}
 _cohere_last_start_by_key: dict[str, float] = {}
 _cohere_key_cursor = 0
+# Throttled or briefly failing on one key: hand the same request to another key at once.
+_COHERE_RETRY_ELSEWHERE = frozenset({429, 500, 502, 503, 504})
 _mistral_key_pool_lock = asyncio.Lock()
 _mistral_key_cursor = 0
 
@@ -494,12 +498,28 @@ async def _call_cohere(
     active_client = client or httpx.AsyncClient(timeout=90.0)
     own_client = client is None
     try:
+        handoffs = 0
         while True:
             credential_alias, api_key = await _acquire_cohere_api_key()
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-            resp = await active_client.post(url, json=payload, headers=headers)
-            if is_monthly_cap(resp.status_code, resp.text):
+            # A throttled or failing key hands the request to another one, once round the pool;
+            # past that the router's backoff takes over.
+            can_hand_off = handoffs < live_key_count() and live_key_count() > 1
+            try:
+                resp = await active_client.post(url, json=payload, headers=headers)
+            except httpx.TransportError:
+                if not can_hand_off:
+                    raise
+                rest_key(api_key, 20.0)
+                handoffs += 1
+                continue
+            if is_monthly_cap(resp.status_code, resp.text) or resp.status_code in (401, 403):
+                # Spent or rejected: this key cannot answer again in this process.
                 park_exhausted_key(api_key)
+                continue
+            if resp.status_code in _COHERE_RETRY_ELSEWHERE and can_hand_off:
+                rest_key(api_key, 30.0 if resp.status_code == 429 else 10.0)
+                handoffs += 1
                 continue
             break
         resp.raise_for_status()
@@ -684,6 +704,11 @@ class LockedLLMSession:
                     attempt += 1
                     continue
                 raise
+            except httpx.TransportError as e:
+                # Network blips (reset, timeout) are as transient as a 503: back off, same model.
+                await asyncio.sleep(min(2.0**attempt, 10.0))
+                last_exc = e
+                attempt += 1
         status_detail = (
             f" with HTTP status {last_exc.response.status_code}"
             if isinstance(last_exc, httpx.HTTPStatusError)

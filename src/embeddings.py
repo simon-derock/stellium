@@ -22,8 +22,10 @@ from src.credentials import (
     available_cohere_keys,
     cohere_keys,
     is_monthly_cap,
+    live_key_count,
     park_exhausted_key,
     parked_keys,
+    rest_key,
 )
 
 logger = logging.getLogger(__name__)
@@ -502,6 +504,17 @@ class CohereEmbeddingClient:
                     if is_monthly_cap(response.status_code, response.text):
                         # This key is spent for the month; the batch moves to the next key.
                         park_exhausted_key(api_key)
+                        api_key = self._select_api_key()
+                        continue
+                    if response.status_code in (401, 403):
+                        # A rejected key never recovers; drop it and carry on with the next.
+                        park_exhausted_key(api_key)
+                        api_key = self._select_api_key()
+                        continue
+                    throttled = response.status_code == 429 or response.status_code >= 500
+                    if throttled and live_key_count() > 1 and attempt + 1 < self.max_retries:
+                        # Another key can take this batch now instead of waiting out the window.
+                        rest_key(api_key, 30.0)
                         api_key = self._select_api_key()
                         continue
                     if response.status_code == 429 or response.status_code >= 500:
