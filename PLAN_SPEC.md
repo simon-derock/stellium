@@ -356,7 +356,7 @@ TigerGraph vector search (30) + BM25Plus (30) → RRF → int8 MiniLM cross-enco
 No loop, no retry, no strategy change.
 
 ## 3. Pipeline 3: Agentic GraphRAG (bounded, adaptive)
-An `OrchestratorAgent` LLM plans one step at a time from the question, the evidence so far, and what is missing, choosing among specialist tools: `count_events`, `rank_events` (AggregationAgent); `event_attribute`, `previous_edition`, `event_at_venue_date` (GraphTraversalAgent, after EntityLinkingAgent); `find_events` (EntityLinkingAgent); `hybrid_search` (DocumentRetrievalAgent); `vector_search` (SimilaritySearchAgent); `gsql_query` (QueryGenerationAgent); `finish`.
+An `OrchestratorAgent` LLM plans one step at a time from the question, the evidence so far, and what is missing, choosing among specialist tools: `count_events`, `rank_events` (AggregationAgent); `event_attribute`, `previous_edition`, `event_at_venue_date` (GraphTraversalAgent, after EntityLinkingAgent); `find_events` (EntityLinkingAgent); `hybrid_search` (DocumentRetrievalAgent: TigerGraph vector search fused with BM25, then reranked); `gsql_query` (QueryGenerationAgent); `finish`.
 - Every graph value is checked against the cited article by the EvidenceEvaluationAgent.
 - Stops as soon as one verified value answers the question; ambiguous candidates go back to the planner, and unresolved ties are reported in full rather than guessed.
 - Answers no observation supports are rejected; a failed, empty, or ambiguous step followed by another tool is recorded as a strategy change.

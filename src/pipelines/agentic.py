@@ -37,7 +37,6 @@ _PASSAGES_SHOWN = 4
 # Which specialist owns each non-graph tool, for the trace.
 _TEXT_TOOL_AGENTS = {
     "hybrid_search": "DocumentRetrievalAgent",
-    "vector_search": "SimilaritySearchAgent",
     "gsql_query": "QueryGenerationAgent",
 }
 
@@ -54,7 +53,6 @@ Tools (Action Input is one JSON object; omit unknown fields):
 - event_at_venue_date {{venue, date, year, attribute}}: the event held at a venue on a date; copy the venue and date wording from the question.
 - find_events {{event, sport, year, season, gender}}: canonical events that fit, to explore or disambiguate.
 - hybrid_search {{query}}: best passages from TigerGraph vector search fused with BM25 and reranked, for facts outside the structured attributes.
-- vector_search {{query}}: dense-only TigerGraph vector search.
 - gsql_query {{query}}: one guarded read-only `INTERPRET QUERY () FOR GRAPH OlympicsGraph {{ ... }}` for graph questions no typed tool expresses (single bounded SELECT with LIMIT, final PRINT, double-quoted strings, lower(...) for string equality).
 - finish {{answer, citations}}: conclude with a value copied from an observation.
 
@@ -341,24 +339,16 @@ class AgenticPipeline:
         return (await self.llm.embed([query]))[0]
 
     async def _passages(
-        self, tool: str, query: str, log: _RunLog, step: int
+        self, query: str, log: _RunLog, step: int
     ) -> tuple[dict[str, Any], list[EvidenceItem]]:
+        # TigerGraph vector hits are one input to the fusion, so a dense-only tool would be a subset.
         query_vector = await self._embed_query(query)
-        if tool == "vector_search":
-            hits = self.graph.vector_search(query_vector, top_k=_PASSAGES_SHOWN)
-            scored = [
-                (chunk, score)
-                for chunk_id, score in hits
-                if (chunk := self.coprocessor.get_chunk(chunk_id)) is not None
-            ]
-            stage: dict[str, Any] = {"step": step, "dense_candidates": len(hits)}
-        else:
-            dense = self.graph.vector_search(query_vector, top_k=30)
-            hybrid = self.coprocessor.hybrid_search(
-                query=query, dense_results=dense, candidate_k=30, final_top_k=_PASSAGES_SHOWN
-            )
-            scored = hybrid.chunks
-            stage = {
+        dense = self.graph.vector_search(query_vector, top_k=30)
+        hybrid = self.coprocessor.hybrid_search(
+            query=query, dense_results=dense, candidate_k=30, final_top_k=_PASSAGES_SHOWN
+        )
+        log.retrieval_stages.append(
+            {
                 "step": step,
                 "dense_candidates": hybrid.dense_candidate_count,
                 "bm25_candidates": hybrid.sparse_candidate_count,
@@ -367,16 +357,16 @@ class AgenticPipeline:
                 "reranker_executed": hybrid.reranker_executed,
                 "reranker_latency_ms": hybrid.reranker_latency_ms,
             }
-        log.retrieval_stages.append(stage)
+        )
         evidence = [
             EvidenceItem(
                 doc_id=chunk.doc_id,
                 chunk_id=chunk.chunk_id,
                 text=chunk.text[:_PASSAGE_CHARS],
                 relevance_score=score,
-                source=tool,
+                source="hybrid_search",
             )
-            for chunk, score in scored
+            for chunk, score in hybrid.chunks
         ]
         observation = {
             "passages": [
@@ -457,11 +447,11 @@ class AgenticPipeline:
                 observation["candidates"] = outcome.candidates
             values = [outcome.answer] if outcome.answer else list(outcome.candidates)
             return observation, outcome, values
-        if tool in {"hybrid_search", "vector_search"}:
+        if tool == "hybrid_search":
             query = str(arguments.get("query", "")).strip()
             if not query:
                 return {"error": f"{tool} requires a query"}, None, []
-            observation, found = await self._passages(tool, query, log, step)
+            observation, found = await self._passages(query, log, step)
             log.agent(_TEXT_TOOL_AGENTS[tool])
             evidence.extend(found)
             return observation, None, []
@@ -517,7 +507,7 @@ class AgenticPipeline:
 
         if os.environ.get("STELLIUM_AGENT_INITIAL_HYBRID", "").casefold() in {"1", "true", "yes"}:
             # Optional ablation: hand the planner passages before its first decision.
-            observation, found = await self._passages("hybrid_search", question, log, 0)
+            observation, found = await self._passages(question, log, 0)
             state.evidence.extend(found)
             log.agent(_TEXT_TOOL_AGENTS["hybrid_search"])
             state.tool_history.append(

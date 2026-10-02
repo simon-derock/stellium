@@ -166,6 +166,27 @@ async def test_failed_lookup_then_passage_search_records_strategy_change() -> No
 
 
 @pytest.mark.asyncio
+async def test_dense_only_search_is_not_a_separate_tool() -> None:
+    # Hybrid search already fuses the TigerGraph vector hits, so a dense-only call is refused.
+    assert "vector_search" not in _REACT_SYSTEM_PROMPT
+    pipeline, chat = _pipeline(
+        _action("vector_search", {"query": "rowing 2012"}),
+        _action(
+            "event_attribute", {"event": "women's single sculls", "sport": "Rowing", "year": 2012}
+        ),
+    )
+    with patch.object(pipeline.graph, "vector_search") as dense:
+        result = await pipeline.run("q10", "Who won the 2012 women's single sculls?")
+
+    trace = _trace(result)
+    assert result.answer == "Eve Wren"
+    assert chat.await_count == 2
+    assert dense.call_count == 0
+    assert "unknown tool" in trace["tools_called"][0]["output_summary"]
+    assert "SimilaritySearchAgent" not in trace["agents_invoked"]
+
+
+@pytest.mark.asyncio
 async def test_unavailable_graph_stops_instead_of_guessing() -> None:
     pipeline, chat = _pipeline(_action("count_events", {"sport": "rowing", "threshold": 1}))
     with patch.object(
