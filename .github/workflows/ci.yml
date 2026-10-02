@@ -131,7 +131,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:8000/health
           curl --fail --silent http://127.0.0.1:8000/api/v1/graph/snapshot --output /tmp/stellium-snapshot.json
-          python -c 'import json; payload=json.load(open("/tmp/stellium-snapshot.json")); assert payload["graph_nodes"] == []; assert payload["graph_edges"] == []; assert payload["metrics"] == []; assert "not available yet" in payload["disclosure"]'
+          python -c 'import json; p=json.load(open("/tmp/stellium-snapshot.json")); ids={n["id"] for n in p["graph_nodes"]}; assert all(e["source"] in ids and e["target"] in ids and e["provenance_label"] for e in p["graph_edges"]); assert p["disclosure"]'
 
       - name: Upload Test and Smoke Artifacts
         if: always()
@@ -143,3 +143,33 @@ jobs:
             results/ci_smoke_results.jsonl
           if-no-files-found: warn
           retention-days: 14
+
+  web:
+    name: Web App (typecheck, tests, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc -b
+
+      - name: Unit Tests
+        run: npx vitest run
+
+      - name: Production Build
+        run: npx vite build

@@ -23,6 +23,10 @@ run format uv run ruff format --check
 run mypy uv run mypy src/ tests/
 run vulture uv run vulture src/ --min-confidence 80
 run bandit uv run bandit -q -r src/ -ll
+if [[ -d web/node_modules ]]; then
+  run web-types bash -c "cd web && npx tsc -b"
+  run web-tests bash -c "cd web && npx vitest run"
+fi
 
 if ((${#failed[@]})); then
   echo "gate failed: ${failed[*]}"
