@@ -165,8 +165,12 @@ export function App() {
     try {
       const next = await compare(question);
       setResult(next);
-      setFocus(citedEvents(next));
-      setViewId("investigation");
+      // Open the evidence only when there is some; "Not found" keeps the current view.
+      const cited = citedEvents(next);
+      if (cited.length) {
+        setFocus(cited);
+        setViewId("investigation");
+      }
       setHealth("ok");
     } catch (exc) {
       setError(
@@ -292,7 +296,7 @@ export function App() {
 
       {mode === "ask" ? (
         <>
-          <div className="pointer-events-none absolute inset-x-4 bottom-28 z-10 flex max-h-[52vh] items-end lg:top-[10rem] xl:top-[6.75rem] lg:right-auto lg:bottom-28 lg:left-5 lg:max-h-none lg:w-[26rem] lg:items-start">
+          <div className="pointer-events-none absolute inset-x-4 top-[10.5rem] bottom-28 z-10 flex items-end lg:top-[10rem] xl:top-[6.75rem] lg:right-auto lg:left-5 lg:w-[26rem] lg:items-start">
             <AskPanel
               initialQuestion={LINKED_QUESTION}
               presets={presets}

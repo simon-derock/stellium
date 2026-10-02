@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { CompareResult, PipelineResult } from "./api";
 import { chromeFor, citedEvents, contrast, percent, seconds, summarize, traceSteps } from "./format";
 
-const result = (docs: string[]): PipelineResult =>
-  ({ retrieved_doc_ids: docs }) as unknown as PipelineResult;
+const result = (docs: string[], answer = "Chen Ding"): PipelineResult =>
+  ({ retrieved_doc_ids: docs, answer }) as unknown as PipelineResult;
 
 describe("formatting", () => {
   it("prints seconds and percentages for the ledger", () => {
@@ -21,6 +21,8 @@ describe("formatting", () => {
     } as unknown as CompareResult;
     expect(citedEvents(compare)).toEqual(["Q1", "Q2", "Q3"]);
     expect(citedEvents(null)).toEqual([]);
+    const missed = { ...compare, rag: result(["Q9"], "Not found in corpus") } as CompareResult;
+    expect(citedEvents(missed)).toEqual(["Q1", "Q2"]);
   });
 
   it("summarizes an observation by its value, error or leader", () => {

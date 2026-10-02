@@ -22,7 +22,10 @@ export function percent(part: number, whole: number): string {
 // Every event a result cited, in order of first appearance, for the investigation view.
 export function citedEvents(result: CompareResult | null): string[] {
   if (!result) return [];
-  const ids = [result.agentic, result.graphrag, result.rag].flatMap((r) => r.retrieved_doc_ids);
+  // A pipeline that found nothing retrieved near misses, not evidence; leave those out.
+  const ids = [result.agentic, result.graphrag, result.rag]
+    .filter((r) => !/^not found in corpus$/i.test(r.answer.trim()))
+    .flatMap((r) => r.retrieved_doc_ids);
   return [...new Set(ids)];
 }
 

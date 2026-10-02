@@ -319,6 +319,15 @@ main[data-scheme="dark"] { color-scheme: dark; }
   .strip-value small { font-size: 12px; font-weight: 500; color: var(--faint); margin-left: 3px; letter-spacing: 0; }
 
   /* ---------------- ask panel ---------------- */
+  .examples-toggle {
+    margin-top: 10px;
+    padding: 2px 2px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--faint);
+    transition: color 200ms ease;
+  }
+  .examples-toggle:hover { color: var(--foreground); }
   .ask-field {
     border: 1px solid color-mix(in oklab, var(--foreground) 18%, transparent);
     border-radius: 14px;

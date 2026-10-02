@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import type { CompareResult, Preset } from "../api";
 import { PIPELINES, seconds, tokens } from "../format";
 
+// The agent's answer leads; the two baselines follow for comparison.
+const LANES = [...PIPELINES].reverse();
+
 interface Props {
   initialQuestion: string;
   presets: Preset[];
@@ -33,6 +36,10 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
   const types = Object.keys(QTYPE_NAMES).filter((type) => byType.has(type));
   const samples = (byType.get(qtype) ?? []).slice(0, 3);
   const submit = () => question.trim() && !busy && onAsk(question.trim());
+  // Once answers are on screen the examples fold away to give them the room.
+  const [examplesOpen, setExamplesOpen] = useState(false);
+  const answering = Boolean(result || busy);
+  const showExamples = !answering || examplesOpen;
 
   return (
     <section className="plate pointer-events-auto flex max-h-full w-full flex-col overflow-hidden">
@@ -66,7 +73,12 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
           </div>
         </div>
 
-        {types.length > 0 && (
+        {types.length > 0 && answering && (
+          <button className="examples-toggle" aria-expanded={showExamples} onClick={() => setExamplesOpen((open) => !open)}>
+            {showExamples ? "Hide examples" : "Examples"}
+          </button>
+        )}
+        {types.length > 0 && showExamples && (
           <div className="mt-3.5">
             <div className="segmented no-scrollbar max-w-full overflow-x-auto">
               {types.map((type) => (
@@ -78,7 +90,14 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
             <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] px-0.5">
               {samples.map((preset) => (
                 <li key={preset.qid}>
-                  <button className="sample" title={preset.question} onClick={() => setQuestion(preset.question)}>
+                  <button
+                    className="sample"
+                    title={preset.question}
+                    onClick={() => {
+                      setQuestion(preset.question);
+                      setExamplesOpen(false);
+                    }}
+                  >
                     {preset.question}
                   </button>
                 </li>
@@ -97,7 +116,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
 
       {(result || busy) && (
         <div className="no-scrollbar overflow-y-auto">
-          {PIPELINES.map((pipeline) => {
+          {LANES.map((pipeline) => {
             const run = result?.[pipeline.id];
             const calls = run?.agentic_trace?.llm_calls.length;
             return (
@@ -120,13 +139,15 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
                           <b>{calls}</b> LLM {calls === 1 ? "call" : "calls"}
                         </span>
                       )}
-                      {pipeline.id === "graphrag" && typeof run.retrieval_metadata.graph_operation === "string" && (
+                      {pipeline.id === "graphrag" &&
+                        typeof run.retrieval_metadata.graph_operation === "string" &&
+                        run.retrieval_metadata.graph_operation !== "none" && (
                         <span>
                           via <b>{run.retrieval_metadata.graph_operation}</b>
                         </span>
                       )}
                     </div>
-                    {run.retrieved_doc_ids.length > 0 && (
+                    {run.retrieved_doc_ids.length > 0 && !/^not found in corpus$/i.test(run.answer.trim()) && (
                       <div className="mt-2.5 flex flex-wrap gap-1.5">
                         {run.retrieved_doc_ids.slice(0, 5).map((doc) => (
                           <button key={doc} className="chip" onClick={() => onFocus([doc])} title="Show in the graph">
