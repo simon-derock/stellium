@@ -138,3 +138,38 @@ def test_retrieval_table_scores_ranked_citations_against_gold_documents(tmp_path
     row = next(line for line in output.splitlines() if line.startswith("| RAG | 0.000"))
     # Gold at rank 2: hit@1 0, hit@5 1, MRR 0.5, nDCG 1/log2(3), recall 1, precision 1/3, AP 0.5.
     assert "| 0.000 | 1.000 | 0.500 | 0.631 | 1.000 | 0.333 | 100% (1 q) | 0.500 |" in row
+
+
+def test_partial_rerun_overrides_only_the_rows_it_covers(tmp_path: Path) -> None:
+    def row(qid: str, answer: str, em: float) -> dict[str, object]:
+        return {
+            "qid": qid,
+            "qtype": "superlative",
+            "graphrag_answer": answer,
+            "graphrag_em": em,
+            "graphrag_tokens": 100,
+            "graphrag_latency_ms": 1000,
+            "graphrag_retrieved_doc_ids": [],
+        }
+
+    base = _write_jsonl(tmp_path / "base.jsonl", [row("q1", "tie", 0.0), row("q2", "right", 1.0)])
+    rerun = _write_jsonl(tmp_path / "rerun.jsonl", [row("q1", "right", 1.0)])
+    out = tmp_path / "metrics.json"
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/summarize_results.py",
+            str(base),
+            "--pipeline-from",
+            f"graphrag={rerun}",
+            "--json",
+            str(out),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    metrics = json.loads(out.read_text())
+    assert metrics["pipelines"]["graphrag"]["overall"]["exact_match"] == 2
+    assert [p["rows"] for p in metrics["provenance"]] == [2, 1]

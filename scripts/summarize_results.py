@@ -318,18 +318,26 @@ def _read_jsonl(path: str) -> list[dict[str, Any]]:
     return [json.loads(line) for line in Path(path).read_text().splitlines() if line.strip()]
 
 
-def _merge_pipeline(rows: list[dict[str, Any]], pipeline: str, path: str) -> None:
-    # Take one pipeline's fields from another run (e.g. an agent-only rerun on newer code).
+def _merge_pipeline(rows: list[dict[str, Any]], pipeline: str, path: str) -> int:
+    # Take one pipeline's fields from another run (an agent-only rerun on newer code, or a rerun
+    # of just the questions a change can affect). Rows absent from that run are left as they are.
     replacement = {row["qid"]: row for row in _read_jsonl(path)}
     prefix = f"{pipeline}_"
+    replaced = 0
     for row in rows:
-        source = replacement[row["qid"]]
+        source = replacement.get(row["qid"])
+        if source is None:
+            continue
         for key in [key for key in row if key.startswith(prefix)]:
             del row[key]
         row.update({key: value for key, value in source.items() if key.startswith(prefix)})
+        if pipeline == "agentic" and "agentic_trace" in source:
+            row["agentic_trace"] = source["agentic_trace"]
+        replaced += 1
+    return replaced
 
 
-def _manifest_summary(results_path: str, pipelines: str) -> dict[str, Any]:
+def _manifest_summary(results_path: str, pipelines: str, rows: int | None = None) -> dict[str, Any]:
     # Where each pipeline's numbers came from: the run's commit, model, and dataset hash.
     manifest_path = Path(f"{results_path}.manifest.json")
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
@@ -339,6 +347,7 @@ def _manifest_summary(results_path: str, pipelines: str) -> dict[str, Any]:
         "model": manifest.get("model"),
         "dataset_sha256": (manifest.get("dataset") or {}).get("sha256"),
         "finished_at": manifest.get("finished_at"),
+        "rows": rows,
     }
 
 
@@ -358,9 +367,10 @@ def main() -> None:
     args = parser.parse_args()
 
     rows = _read_jsonl(args.results)
+    merged = []
     for spec in args.pipeline_from:
         pipeline, _, path = spec.partition("=")
-        _merge_pipeline(rows, pipeline, path)
+        merged.append((path, pipeline, _merge_pipeline(rows, pipeline, path)))
     gold = gold_docs = articles = None
     if args.dataset:
         questions = _read_jsonl(args.dataset)
@@ -370,10 +380,8 @@ def main() -> None:
             doc["doc_id"]: f"{doc['title']}\n{doc['text']}" for doc in _read_jsonl(args.corpus)
         }
     metrics = collect_metrics(rows, gold, gold_docs, articles)
-    metrics["provenance"] = [
-        _manifest_summary(path, pipelines)
-        for path, pipelines in [(args.results, "base")]
-        + [(spec.partition("=")[2], spec.partition("=")[0]) for spec in args.pipeline_from]
+    metrics["provenance"] = [_manifest_summary(args.results, "base", len(rows))] + [
+        _manifest_summary(path, pipeline, count) for path, pipeline, count in merged
     ]
     if args.json_out:
         out = Path(args.json_out)
