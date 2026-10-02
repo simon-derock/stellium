@@ -69,3 +69,6 @@ results/*
 data/*
 !data/.gitkeep
 
+
+# Local run notes
+RUNNING.md
