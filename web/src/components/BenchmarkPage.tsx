@@ -407,6 +407,11 @@ export function BenchmarkPage({ data, themeKey, onScroll }: Props) {
           <strong>99 of 100 is every question the corpus can decide.</strong> Reaching 100 would mean picking one of two equally
           supported answers, which is a guess.
         </p>
+        <p>
+          Strict match, which keeps punctuation, sits one lower for a different reason: the gold answer to{" "}
+          <code>pub-015</code> is the infobox text with the names run together ("Dani KingLaura TrottJoanna Rowsell"), and the
+          pipelines answer "Dani King, Laura Trott, Joanna Rowsell". We do not copy the formatting slip to win the point.
+        </p>
       </Section>
 
       <Section id="method" title="Method">

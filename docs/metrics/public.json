@@ -7,13 +7,18 @@
         "scored": 100,
         "exact_match": 67.0,
         "exact_match_strict": 66.0,
+        "exact_match_ci95": [
+          0.5731,
+          0.7544
+        ],
         "token_f1": 0.6749804964539007,
         "tokens_mean": 2580.53,
         "latency_mean_s": 4.798179276080264,
         "latency_p50_s": 4.436044697002217,
         "latency_p95_s": 6.4234708869989845,
         "cost_per_100_usd": 0.6490700000000001,
-        "citations_mean": 5
+        "citations_mean": 5,
+        "estimated_token_rows": 0
       },
       "by_type": {
         "aggregation": {
@@ -67,39 +72,44 @@
         "scored": 100,
         "exact_match": 99.0,
         "exact_match_strict": 98.0,
+        "exact_match_ci95": [
+          0.9455,
+          0.9982
+        ],
         "token_f1": 0.9866666666666667,
-        "tokens_mean": 1091.53,
-        "latency_mean_s": 6.3030136277399285,
-        "latency_p50_s": 6.152382791995478,
-        "latency_p95_s": 7.629074903000401,
-        "cost_per_100_usd": 0.3483475,
-        "citations_mean": 2.14
+        "tokens_mean": 1055.91,
+        "latency_mean_s": 6.854600490429984,
+        "latency_p50_s": 6.510570638998615,
+        "latency_p95_s": 8.111767793998297,
+        "cost_per_100_usd": 0.3138375,
+        "citations_mean": 2.14,
+        "estimated_token_rows": 0
       },
       "by_type": {
         "aggregation": {
           "questions": 21,
           "exact_match": 21.0,
-          "tokens_mean": 1450.2857142857142
+          "tokens_mean": 1417.904761904762
         },
         "lookup": {
           "questions": 19,
           "exact_match": 19.0,
-          "tokens_mean": 970.3157894736842
+          "tokens_mean": 941.3684210526316
         },
         "multi_hop": {
           "questions": 28,
           "exact_match": 27.0,
-          "tokens_mean": 962.5
+          "tokens_mean": 919.3214285714286
         },
         "superlative": {
           "questions": 10,
           "exact_match": 10.0,
-          "tokens_mean": 1009.9
+          "tokens_mean": 967.9
         },
         "temporal": {
           "questions": 22,
           "exact_match": 22.0,
-          "tokens_mean": 1055.090909090909
+          "tokens_mean": 1023.1363636363636
         }
       },
       "evidence": {
@@ -127,39 +137,44 @@
         "scored": 100,
         "exact_match": 99.0,
         "exact_match_strict": 98.0,
+        "exact_match_ci95": [
+          0.9455,
+          0.9982
+        ],
         "token_f1": 0.9866666666666667,
-        "tokens_mean": 978.66,
-        "latency_mean_s": 3.77666601252,
-        "latency_p50_s": 3.295657316004508,
-        "latency_p95_s": 7.330352060998848,
-        "cost_per_100_usd": 0.3173475,
-        "citations_mean": 2.14
+        "tokens_mean": 927.54,
+        "latency_mean_s": 3.9848872212799686,
+        "latency_p50_s": 3.402581875001488,
+        "latency_p95_s": 6.933642164000048,
+        "cost_per_100_usd": 0.305685,
+        "citations_mean": 2.14,
+        "estimated_token_rows": 0
       },
       "by_type": {
         "aggregation": {
           "questions": 21,
           "exact_match": 21.0,
-          "tokens_mean": 811.952380952381
+          "tokens_mean": 746.9047619047619
         },
         "lookup": {
           "questions": 19,
           "exact_match": 19.0,
-          "tokens_mean": 1037.2105263157894
+          "tokens_mean": 781.2631578947369
         },
         "multi_hop": {
           "questions": 28,
           "exact_match": 27.0,
-          "tokens_mean": 860.8928571428571
+          "tokens_mean": 786.1428571428571
         },
         "superlative": {
           "questions": 10,
           "exact_match": 10.0,
-          "tokens_mean": 798.4
+          "tokens_mean": 733.2
         },
         "temporal": {
           "questions": 22,
           "exact_match": 22.0,
-          "tokens_mean": 1319.0454545454545
+          "tokens_mean": 1494.590909090909
         }
       },
       "evidence": {
@@ -183,18 +198,18 @@
   },
   "agent": {
     "questions": 100,
-    "steps_mean": 2.29,
+    "steps_mean": 2.35,
     "steps_median": 2.0,
-    "steps_max": 6,
-    "llm_calls_mean": 1.15,
-    "single_call_answers": 87,
-    "strategy_changes": 10,
+    "steps_max": 4,
+    "llm_calls_mean": 1.18,
+    "single_call_answers": 82,
+    "strategy_changes": 12,
     "tools": {
+      "event_attribute": 30,
       "event_at_venue_date": 28,
-      "event_attribute": 24,
       "count_events": 21,
-      "previous_edition": 19,
-      "find_events": 12,
+      "find_events": 17,
+      "previous_edition": 11,
       "rank_events": 10
     },
     "specialists": {
@@ -205,10 +220,10 @@
       "AggregationAgent": 31
     },
     "stopping_reasons": {
+      "event_attribute returned one verified graph value": 30,
       "event_at_venue_date returned one verified graph value": 27,
-      "event_attribute returned one verified graph value": 24,
       "count_events returned one verified graph value": 21,
-      "previous_edition returned one verified graph value": 17,
+      "previous_edition returned one verified graph value": 11,
       "rank_events returned one verified graph value": 10,
       "Orchestrator finished with an answer grounded in tool observations": 1
     }
@@ -241,28 +256,20 @@
       "rows": 100
     },
     {
-      "pipelines": "agentic",
-      "commit": "cc74fd5",
+      "pipelines": "graphrag",
+      "commit": "468fedf",
       "model": "command-a-03-2025",
       "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
-      "finished_at": "2026-10-02T01:19:54+0530",
+      "finished_at": "2026-10-02T19:29:59+0530",
       "rows": 100
     },
     {
-      "pipelines": "graphrag",
-      "commit": "7ab5fa2",
-      "model": "command-a-03-2025",
-      "dataset_sha256": "052b0ba905bcca9706f32b55e2bbf24c2a66ae1dfb5303f4a4fbabb2712526fc",
-      "finished_at": "2026-10-02T14:35:50+0530",
-      "rows": 10
-    },
-    {
       "pipelines": "agentic",
-      "commit": "7ab5fa2",
+      "commit": "468fedf",
       "model": "command-a-03-2025",
-      "dataset_sha256": "052b0ba905bcca9706f32b55e2bbf24c2a66ae1dfb5303f4a4fbabb2712526fc",
-      "finished_at": "2026-10-02T14:36:28+0530",
-      "rows": 10
+      "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
+      "finished_at": "2026-10-02T19:18:28+0530",
+      "rows": 100
     }
   ]
 }
