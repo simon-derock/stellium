@@ -38,6 +38,9 @@ def load_events(corpus: str) -> list[dict[str, Any]]:
                 "gold": box.gold_athlete,
                 "venue": compact(box.venue or ""),
                 "dates": compact(box.start_date or ""),
+                # Original wording, for building questions the way a person would write them.
+                "raw_venue": box.venue or "",
+                "raw_date": box.start_date or "",
             }
         )
     return events

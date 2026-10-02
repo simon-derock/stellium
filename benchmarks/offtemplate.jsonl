@@ -1,0 +1,12 @@
+{"qid": "off-001", "question": "Who directed the film Jurassic Park?", "qtype": "offtemplate_film", "answer": ["Steven Spielberg"], "gold_doc_ids": ["Q167726"]}
+{"qid": "off-002", "question": "Who directed the film Fallen?", "qtype": "offtemplate_film", "answer": ["Gregory Hoblit"], "gold_doc_ids": ["Q162225"]}
+{"qid": "off-003", "question": "Who directed the film The Room?", "qtype": "offtemplate_film", "answer": ["Tommy Wiseau"], "gold_doc_ids": ["Q533383"]}
+{"qid": "off-004", "question": "Who directed the film Scary Movie 3?", "qtype": "offtemplate_film", "answer": ["David Zucker"], "gold_doc_ids": ["Q635937"]}
+{"qid": "off-005", "question": "Who composed the music for Belly?", "qtype": "offtemplate_film", "answer": ["Stephen Cullo"], "gold_doc_ids": ["Q646077"]}
+{"qid": "off-006", "question": "Who composed the music for Bugsy?", "qtype": "offtemplate_film", "answer": ["Ennio Morricone"], "gold_doc_ids": ["Q241085"]}
+{"qid": "off-007", "question": "Who composed the music for Do the Right Thing?", "qtype": "offtemplate_film", "answer": ["Bill Lee"], "gold_doc_ids": ["Q1141252"]}
+{"qid": "off-008", "question": "In which year was Hostel released?", "qtype": "offtemplate_film", "answer": ["2005"], "gold_doc_ids": ["Q842720"]}
+{"qid": "off-009", "question": "In which year was Sirf Tum released?", "qtype": "offtemplate_film", "answer": ["1999"], "gold_doc_ids": ["Q4460079"]}
+{"qid": "off-010", "question": "Who succeeded A. N. R. Robinson as President of Trinidad and Tobago?", "qtype": "offtemplate_office", "answer": ["George Maxwell Richards"], "gold_doc_ids": ["Q634551"]}
+{"qid": "off-011", "question": "Who succeeded Ned Ray McWherter as Governor of Tennessee?", "qtype": "offtemplate_office", "answer": ["Don Sundquist"], "gold_doc_ids": ["Q881873"]}
+{"qid": "off-012", "question": "Who succeeded Bill Clinton as President of the United States?", "qtype": "offtemplate_office", "answer": ["George W. Bush"], "gold_doc_ids": ["Q1124"]}

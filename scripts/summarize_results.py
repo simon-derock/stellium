@@ -7,7 +7,7 @@ from __future__ import annotations
 import argparse
 import json
 from collections import Counter, defaultdict
-from math import log2
+from math import log2, sqrt
 from pathlib import Path
 from statistics import mean, median
 from typing import Any
@@ -21,6 +21,17 @@ _PRICE_PER_MILLION = (2.50, 10.00)
 def _percentile(values: list[float], fraction: float) -> float:
     ordered = sorted(values)
     return ordered[min(len(ordered) - 1, int(round(fraction * (len(ordered) - 1))))]
+
+
+def wilson_interval(successes: float, trials: int, z: float = 1.96) -> tuple[float, float]:
+    # 95% score interval for a proportion; unlike the normal approximation it stays inside
+    # [0, 1] and is honest at 99/100, where the plain interval would claim up to 101%.
+    if trials <= 0:
+        return (0.0, 0.0)
+    p = successes / trials
+    centre = (p + z * z / (2 * trials)) / (1 + z * z / trials)
+    half = z * sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / (1 + z * z / trials)
+    return (round(max(0.0, centre - half), 4), round(min(1.0, centre + half), 4))
 
 
 def _mean(values: list[float]) -> float | None:
@@ -52,6 +63,7 @@ def _overall(rows: list[dict[str, Any]], p: str) -> dict[str, Any]:
         "scored": len(scored),
         "exact_match": sum(row[f"{p}_em"] for row in scored),
         "exact_match_strict": sum(row.get(f"{p}_em_strict", 0) for row in scored),
+        "exact_match_ci95": wilson_interval(sum(row[f"{p}_em"] for row in scored), len(scored)),
         "token_f1": _mean([row.get(f"{p}_f1", 0.0) for row in scored]),
         "tokens_mean": mean(row[f"{p}_tokens"] for row in rows),
         "latency_mean_s": mean(latencies),
@@ -221,15 +233,22 @@ def _fmt(value: float | None, pattern: str = "{:.3f}") -> str:
     return pattern.format(value) if value is not None else "n/a"
 
 
+def _ci(overall: dict[str, Any]) -> str:
+    low, high = overall.get("exact_match_ci95", (0.0, 0.0))
+    return f"{100 * low:.1f}–{100 * high:.1f}%"
+
+
 def render_markdown(metrics: dict[str, Any]) -> str:
     pipelines: dict[str, dict[str, Any]] = metrics["pipelines"]
-    lines = ["| Pipeline | Exact match | Strict EM | Token F1 | LLM tokens / q | Latency / q |"]
-    lines.append("|---|---:|---:|---:|---:|---:|")
+    lines = [
+        "| Pipeline | Exact match | 95% CI | Strict EM | Token F1 | LLM tokens / q | Latency / q |"
+    ]
+    lines.append("|---|---:|---:|---:|---:|---:|---:|")
     for entry in pipelines.values():
         o = entry["overall"]
         lines.append(
             f"| {entry['label']} | {o['exact_match']:.0f}/{o['scored']} "
-            f"({_pct(o['exact_match'], o['scored'])}) | {_pct(o['exact_match_strict'], o['scored'])} "
+            f"({_pct(o['exact_match'], o['scored'])}) | {_ci(o)} | {_pct(o['exact_match_strict'], o['scored'])} "
             f"| {_fmt(o['token_f1'])} | {o['tokens_mean']:,.0f} | {o['latency_mean_s']:.2f} s |"
         )
 

@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from scripts.summarize_results import wilson_interval
+
 
 def _write_jsonl(path: Path, rows: list[dict[str, object]]) -> Path:
     path.write_text("".join(json.dumps(row) + "\n" for row in rows))
@@ -209,3 +211,10 @@ def test_rows_with_estimated_token_counts_are_called_out(tmp_path: Path) -> None
     assert pipelines["rag"]["overall"]["estimated_token_rows"] == 0
     assert pipelines["agentic"]["overall"]["estimated_token_rows"] == 1
     assert "estimated, not provider-reported, in: Agentic GraphRAG 1 rows" in summary
+
+
+def test_wilson_interval_stays_honest_at_the_edges() -> None:
+    assert wilson_interval(99, 100) == (0.9455, 0.9982)
+    assert wilson_interval(24, 24)[1] == 1.0
+    assert wilson_interval(24, 24)[0] < 0.87
+    assert wilson_interval(0, 0) == (0.0, 0.0)
