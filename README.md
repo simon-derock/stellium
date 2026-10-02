@@ -20,10 +20,11 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 
 | | |
 |---|---|
-| **Accuracy** | 98% Agentic GraphRAG · 98% GraphRAG · 67% RAG on 100 public questions |
-| **Cost** | 990 LLM tokens per agentic answer, about $0.32 per 100 questions |
+| **Accuracy** | 99/100 Agentic GraphRAG · 99/100 GraphRAG · 67/100 RAG on the public questions; the one miss is undecidable from the corpus |
+| **Hidden 50** | Graph pipelines agree with an independent corpus oracle on 49 of 49 decidable questions |
+| **Robustness** | Agent: 24/24 two-step questions (GraphRAG 19, RAG 15) and 12/12 reworded questions |
+| **Cost** | 928 LLM tokens per agentic answer, about $0.31 per 100 questions |
 | **Evidence** | Every graph-pipeline answer is stated in a source article it cites |
-| **Efficiency** | 86 of 100 agentic answers need a single LLM call |
 | **Stack** | TigerGraph Savanna (graph + native vector search) · Cohere Command A · local int8 reranker |
 
 ---
@@ -40,13 +41,13 @@ Hidden-set outputs for all three pipelines (answers, tokens, latency, citations,
 
 One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Token counts are LLM tokens only; graph queries and retrieval count zero.
 
-| Pipeline | Accuracy | Tokens / answer | LLM calls | Latency p50 | Cost / 100 q |
-|---|---:|---:|---:|---:|---:|
-| RAG | 67% | 2,581 | 1 | 4.4 s | $0.65 |
-| GraphRAG | **98%** | 1,094 | 2 | 6.1 s | $0.35 |
-| Agentic GraphRAG | **98%** | **990** | 1.16 | 4.5 s | **$0.32** |
+| Pipeline | Accuracy | 95% CI | Tokens / answer | LLM calls | Latency p50 | Cost / 100 q |
+|---|---:|---:|---:|---:|---:|---:|
+| RAG | 67% | 57–75% | 2,581 | 1 | 4.4 s | $0.65 |
+| GraphRAG | **99%** | 94.5–99.8% | 1,056 | 2 | 6.5 s | $0.31 |
+| Agentic GraphRAG | **99%** | 94.5–99.8% | **928** | 1.18 | **3.4 s** | **$0.31** |
 
-<sub>Latency is from the matched three-pipeline run and includes client-side request pacing. Agentic accuracy, tokens, and cost are from the final agent run on the same code.</sub>
+<sub>Graph pipelines re-run on commit 468fedf; RAG rows from 4923d3a (its code is unchanged). Latency includes client-side request pacing for a trial key. Wilson 95% intervals.</sub>
 
 ### By question type
 
@@ -55,7 +56,7 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 | Count: how many events meet a condition | 21 | 2 | 21 | 21 |
 | Lookup: one attribute of one event | 19 | 19 | 19 | 19 |
 | Multi-hop: venue and date to winner | 28 | 26 | 27 | 27 |
-| Ranking: event with the most competitors | 10 | 3 | 9 | 9 |
+| Ranking: event with the most competitors | 10 | 3 | 10 | 10 |
 | Temporal: winner at the previous Games | 22 | 17 | 22 | 22 |
 
 ### Evidence and retrieval
@@ -72,7 +73,7 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 | Grounded | Every claimed value appears in an article the pipeline cited |
 | Context recall | The gold answer is stated somewhere in the retrieved articles |
 
-The two graph-pipeline misses are genuine ties in the corpus: two events with 41 competitors each, and two events at one venue on one date. Both pipelines return every candidate instead of guessing.
+The one graph-pipeline miss, `pub-099`, is undecidable: the women's 30 km cross-country and the men's biathlon relay share the venue and the date the question names, and both articles say so. Both pipelines return both winners instead of guessing. A ranking tie that the corpus does settle (one article restates its count in prose) is now broken on that evidence.
 
 Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audits/public-final-20261002.md)
 
@@ -84,10 +85,11 @@ Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audit
 |---|---|---|
 | Fact stated in one passage | RAG | Lookups and most venue-and-date questions resolve from the top passages |
 | Count or ranking across many events | GraphRAG | Five passages hold about a third of the events; one graph query holds all |
-| Ambiguous names or a failed first lookup | Agentic | Re-plans after an error or a tie (10 strategy changes on the public set) |
-| Any structured question where cost matters | Agentic | Stops on the first verified value, below a fixed two-call pipeline |
+| Two steps chained (rank, then read the winner's attribute) | Agentic | 24/24, against 19/24 for GraphRAG's single fixed operation |
+| Ambiguous names or a failed first lookup | Agentic | Re-plans after an error or a tie |
+| Any structured question where cost matters | Agentic | Stops on the first verified value of the kind asked for |
 
-> **Finding.** On template-shaped questions the agent is not more accurate than a well-built GraphRAG. It is cheaper and corrects itself. Its value is early stopping and recovery, not raw accuracy.
+> **Finding.** On the five official templates the agent matches a well-built GraphRAG (99/100 each) at 12% fewer tokens. Where a question needs two graph steps, it is the only pipeline at 100%: it recognises the event it found as a step, not the answer, and reads the attribute next.
 
 ---
 
@@ -130,7 +132,7 @@ flowchart LR
 | Graph traversal | Venue-and-date multi-hop, previous editions, event attributes | 0 |
 | Aggregation | Counts with exact bounds; rankings with tie detection | 0 |
 | Evidence evaluation | Confirms each value against the cited article | 0 |
-| Document retrieval | Hybrid or dense passage search when the graph has no answer | 0 |
+| Document retrieval | Hybrid passage search (TigerGraph vectors + BM25, reranked) when the graph has no answer | 0 |
 | Query generation | Guarded read-only GSQL for questions no tool covers | 0 |
 
 ---
@@ -172,16 +174,20 @@ uv run python -m src.evaluate --provider cohere --pipeline all \
 uv run python scripts/summarize_results.py results/public.jsonl \
   --dataset hackathon-resources/questions/eval_public.jsonl
 
-uv run uvicorn src.api.main:app --port 8000   # open http://localhost:8000
+uv run uvicorn src.api.main:app --port 8000   # API
+
+cd web && npm ci && npm run dev                # console at http://localhost:5173
 ```
 
-Links: `/#benchmark` opens the dashboard; `/#ask=<question>` runs a comparison directly.
+Links: `?tab=benchmark` and `?tab=docs` open those pages; `?q=<question>` asks all three pipelines on load.
 
 | Tool | Purpose |
 |---|---|
 | `scripts/export_submission.py` | Hidden-set JSON and CSV: answers, tokens, latency, citations, traces |
 | `scripts/summarize_results.py` | Accuracy, retrieval, grounding, latency, and cost tables |
 | `scripts/reconcile_graph_attributes.py` | Diff or repair live graph attributes against the parser |
+| `scripts/oracle_check.py` | Independent corpus oracle for the hidden set (no pipeline imports it) |
+| `scripts/build_robustness_sets.py` | Unanswerable and off-template sets, generated from the corpus |
 | `--provider offline` | Mock graph with no network, for CI smoke runs |
 
 ---
@@ -195,8 +201,21 @@ Links: `/#benchmark` opens the dashboard; `/#ask=<question>` runs a comparison d
 | `src/graph/` | TigerGraph client, schema, compiled queries |
 | `src/coprocessor/` | BM25, rank fusion, int8 reranker |
 | `src/evaluate.py` | Benchmark runner and metrics |
+| `src/api/` | FastAPI service, graph-view projections for the canvas |
+| `web/` | React console: graph canvas, three-way answers, agent trace, benchmark and docs pages |
+| `benchmarks/` | Paraphrased, two-step, unanswerable and off-template question sets |
 | `docs/benchmark-audits/` | Every measured run, with caveats |
 | `tests/` | Unit, contract, chaos, security, and API tests |
+
+---
+
+## Deploy
+
+| Part | Where | How |
+|---|---|---|
+| API | Render (free web service) | `render.yaml` + `Dockerfile`; set TigerGraph and Cohere secrets in the dashboard |
+| Console | Cloudflare Pages | Root `web`, build `npm ci && npm run build`, output `dist`, `VITE_API_BASE` = API URL |
+| Keep-alive | Any cron | `GET /health?deep=true` every 10 minutes keeps both the API and the graph workspace awake |
 
 ---
 
