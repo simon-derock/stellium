@@ -54,6 +54,22 @@ const REPO_URL = "https://github.com/simon-derock/stellium";
 const LINK = new URLSearchParams(window.location.search);
 const LINKED_QUESTION = LINK.get("q")?.trim().slice(0, 500) ?? "";
 
+// Ask panel: left-5 + w-[26rem]; trace panel: right-5 + w-[24rem] (both from lg up).
+const PANEL_LEFT_PX = 20 + 416;
+const PANEL_RIGHT_PX = 20 + 384;
+
+function useWide() {
+  const query = "(min-width: 1024px)";
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setWide(list.matches);
+    list.addEventListener("change", update);
+    return () => list.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
 export function App() {
   const [mode, setModeNow] = useState<Mode>(() => MODES.find((m) => m.id === LINK.get("tab"))?.id ?? "ask");
   // Switching pages cross-dissolves through a View Transition where the browser has one, so the
@@ -74,7 +90,7 @@ export function App() {
       VIZ_PROFILES.find((v) => v.id === vizId)?.preferredTheme ??
       "gilt",
   );
-  const [viewId, setViewId] = useState<ViewId>("constellation");
+  const [viewId, setViewId] = useState<ViewId>("venues");
   const [focus, setFocus] = useState<string[]>([]);
   const [snapshot, setSnapshot] = useState<Snapshot>(EMPTY);
   const [selected, setSelected] = useState<GraphNode | null>(null);
@@ -94,6 +110,17 @@ export function App() {
   const [health, setHealth] = useState<Health>("checking");
 
   const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
+  // On wide screens the ask panel (left) and the agent trace (right) sit over the canvas; the
+  // graph frames itself between them.
+  const wide = useWide();
+  const tracing = Boolean(result?.agentic?.agentic_trace);
+  const clear = useMemo(
+    () =>
+      mode === "ask" && wide
+        ? { left: PANEL_LEFT_PX, right: tracing ? PANEL_RIGHT_PX : 0 }
+        : { left: 0, right: 0 },
+    [mode, wide, tracing],
+  );
   const viz = VIZ_PROFILES.find((v) => v.id === vizId) ?? VIZ_PROFILES[0]!;
   const chrome = useMemo(() => chromeFor(theme.vars), [theme]);
 
@@ -224,6 +251,7 @@ export function App() {
           selectedId={selected?.id ?? null}
           onSelect={onSelect}
           onLinkSelect={() => undefined}
+          clear={clear}
         />
       </div>
       <div className="hdr pointer-events-none absolute inset-0" />
@@ -296,7 +324,7 @@ export function App() {
 
       {mode === "ask" ? (
         <>
-          <div className="pointer-events-none absolute inset-x-4 top-[10.5rem] bottom-28 z-10 flex items-end lg:top-[10rem] xl:top-[6.75rem] lg:right-auto lg:left-5 lg:w-[26rem] lg:items-start">
+          <div className="pointer-events-none absolute inset-x-4 top-[10.5rem] bottom-28 z-10 flex items-end md:bottom-[8.5rem] lg:top-[10rem] xl:top-[6.75rem] lg:right-auto lg:left-5 lg:w-[26rem] lg:items-start">
             <AskPanel
               initialQuestion={LINKED_QUESTION}
               presets={presets}
@@ -307,17 +335,17 @@ export function App() {
               onFocus={focusOn}
             />
           </div>
-          {result?.agentic.agentic_trace && (
-            <div className="pointer-events-none absolute top-[10rem] xl:top-[6.75rem] right-5 bottom-28 z-10 hidden w-[24rem] items-start lg:flex">
+          {result?.agentic?.agentic_trace && (
+            <div className="pointer-events-none absolute top-[10rem] xl:top-[6.75rem] right-5 bottom-[8.5rem] z-10 hidden w-[24rem] items-start lg:flex">
               <TracePanel trace={result.agentic.agentic_trace} />
             </div>
           )}
-          <div className="pointer-events-none absolute inset-x-0 bottom-12 z-10 hidden justify-center px-5 md:flex">
+          <div className="pointer-events-none absolute inset-x-0 bottom-[3.75rem] z-10 hidden justify-center px-5 md:flex">
             <MetricsStrip data={bench} onOpen={() => setMode("benchmark")} />
           </div>
         </>
       ) : (
-        <div className="pointer-events-none absolute inset-x-4 top-[13.5rem] bottom-12 z-10 mx-auto flex max-w-[78rem] md:top-[10rem] xl:top-[6.75rem]">
+        <div className="pointer-events-none absolute inset-x-4 top-[13.5rem] bottom-[3.75rem] z-10 mx-auto flex max-w-[78rem] md:top-[10rem] xl:top-[6.75rem]">
           {mode === "benchmark" ? (
             <Suspense fallback={null}>
               <BenchmarkPage data={bench} themeKey={themeId} />
@@ -328,25 +356,26 @@ export function App() {
         </div>
       )}
 
-      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 grid grid-cols-[1fr_auto_1fr] items-end gap-3 px-5 pb-4">
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-center gap-3 px-4 pb-3 md:justify-between md:px-5">
         {/* The canvas explains itself on hover; a selected node is the only caption worth space. */}
-        <div className="pointer-events-auto hidden min-w-0 truncate text-[12px] text-[color:var(--faint)] md:block">
+        <div className="pointer-events-auto hidden min-w-0 truncate pb-2 text-[12px] text-[color:var(--faint)] md:block">
           {selected ? `${selected.type} · ${selected.label}` : ""}
         </div>
-        <a className="signature pointer-events-auto col-start-2" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
-          <span className="signature-by">Built by</span>
-          <span className="signature-name">Philip Simon Derock</span>
-          <span className="signature-rule" aria-hidden="true" />
-          <span className="signature-event">TigerGraph GraphRAG Hackathon · 2026</span>
-        </a>
-        {/* Status only speaks up when something is off: waking or unreachable. */}
-        <div className="pointer-events-auto flex justify-end">
+        <div className="pointer-events-auto flex items-center gap-3">
+          {/* Status only speaks up when something is off: waking or unreachable. */}
           {(health === "waking" || health === "down") && (
             <span className="inline-flex items-center gap-2">
               <span className="status-dot" data-state={health} />
               <span className="tag">{health === "waking" ? "Waking the graph" : "Graph unreachable"}</span>
             </span>
           )}
+          <a className="signature" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
+            <span>
+              Built by <b>Philip Simon Derock</b>
+            </span>
+            <span className="signature-dot" aria-hidden="true" />
+            <span>TigerGraph GraphRAG Hackathon 2026</span>
+          </a>
         </div>
       </footer>
     </main>

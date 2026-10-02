@@ -54,6 +54,8 @@ interface Props {
   selectedId: string | null;
   onSelect: (node: GraphNode | null) => void;
   onLinkSelect: (edge: GraphEdge | null) => void;
+  // Canvas pixels covered by panels on each side; the graph frames itself in the space between.
+  clear?: { left: number; right: number };
 }
 
 function useSize() {
@@ -86,7 +88,7 @@ function hash(id: string) {
   return (h >>> 0) / 4294967296;
 }
 
-export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect, onLinkSelect }: Props) {
+export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect, onLinkSelect, clear }: Props) {
   const { ref, size } = useSize();
   const fgRef = useRef<any>(null);
   const [hovered, setHovered] = useState<string | null>(null);
@@ -214,7 +216,12 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
   const finalRef = useRef(new Map<string, Pt>());
   const draggedRef = useRef(new Set<string>());
   const [animating, setAnimating] = useState(false);
-  const frame = useCallback(() => {
+  const clearLeft = clear?.left ?? 0;
+  const clearRight = clear?.right ?? 0;
+  const clearRef = useRef({ left: clearLeft, right: clearRight });
+  const glideRef = useRef(0);
+  clearRef.current = { left: clearLeft, right: clearRight };
+  const frame = useCallback((ms = 0) => {
     const fg = fgRef.current;
     const final = finalRef.current;
     if (!fg || !size.w || !size.h || !final.size) return;
@@ -232,20 +239,44 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
     // wide screens the header above and the metrics strip below are kept clear as well.
     const phone = size.w < 600;
     const side = phone ? 36 : 80;
+    // Keep clear of side panels too, as long as that still leaves the graph a real stage.
+    const panels = clearRef.current;
+    const roomy = size.w - panels.left - panels.right > size.w * 0.38;
+    const left = roomy ? Math.max(side, panels.left + 28) : side;
+    const right = roomy ? Math.max(side, panels.right + 28) : side;
     const top = phone ? 36 : 84;
     const bottom = phone ? 36 : 124;
     const fill = 0.94;
     const k =
       Math.min(
-        (size.w - side * 2) / Math.max(1, maxX - minX),
+        (size.w - left - right) / Math.max(1, maxX - minX),
         (size.h - top - bottom) / Math.max(1, maxY - minY),
-        2.2,
+        // small neighbourhoods may come in close, but never so close a single node fills the stage
+        4,
       ) * fill;
     const scale = Math.max(0.04, k);
-    programmaticUntilRef.current = performance.now() + 200;
     // centre the shape in the clear band, not the whole canvas
-    fg.centerAt((minX + maxX) / 2, (minY + maxY) / 2 - (top - bottom) / (2 * scale), 0);
-    fg.zoom(scale, 0);
+    const to = {
+      x: (minX + maxX) / 2 - (left - right) / (2 * scale),
+      y: (minY + maxY) / 2 - (top - bottom) / (2 * scale),
+      k: scale,
+    };
+    // Our own glide, not the library's: each new framing cancels the one before, so a glide
+    // started for the previous graph can never drag the camera off the next one.
+    const glide = ++glideRef.current;
+    programmaticUntilRef.current = performance.now() + ms + 200;
+    const from = { ...fg.centerAt(), k: fg.zoom() } as { x: number; y: number; k: number };
+    const start = performance.now();
+    const step = (now: number) => {
+      if (glide !== glideRef.current) return;
+      const t = ms > 0 ? Math.min(1, (now - start) / ms) : 1;
+      const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      fg.zoom(from.k + (to.k - from.k) * e, 0);
+      fg.centerAt(from.x + (to.x - from.x) * e, from.y + (to.y - from.y) * e, 0);
+      if (t < 1) requestAnimationFrame(step);
+    };
+    if (ms > 0) requestAnimationFrame(step);
+    else step(start);
   }, [size.h, size.w]);
   const frameRef = useRef(frame);
   frameRef.current = frame;
@@ -253,6 +284,15 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
   useEffect(() => {
     if (!userRef.current) frame();
   }, [frame]);
+  // A panel opening or closing glides the graph into the space that is left.
+  const panelsSeen = useRef(false);
+  useEffect(() => {
+    if (!panelsSeen.current) {
+      panelsSeen.current = true;
+      return;
+    }
+    if (!userRef.current) frameRef.current(700);
+  }, [clearLeft, clearRight]);
 
   /* ---------- intro: the shape blooms out from its centre, once, then rests ---------- */
   useLayoutEffect(() => {
@@ -760,7 +800,9 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
       ctx.font = `${active ? 500 : 400} ${labelSize}px "IBM Plex Mono", ui-monospace, monospace`;
       ctx.textBaseline = "middle";
       const label = n.label?.trim() || n.type || n.id;
-      const labelWidth = ctx.measureText(label).width;
+      // IBM Plex Mono advances 0.6em per glyph, so the width is arithmetic, not a measurement
+      // on every node of every frame.
+      const labelWidth = label.length * labelSize * 0.6;
       const neighbors = labelNeighborsRef.current.get(n.id) ?? [];
       const preferred = preferredLabelSide(n, neighbors, hash(n.id));
       const gap = Math.max(5 / Math.max(scale, 0.45), r * 0.72);

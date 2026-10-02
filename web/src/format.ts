@@ -20,11 +20,15 @@ export function percent(part: number, whole: number): string {
 }
 
 // Every event a result cited, in order of first appearance, for the investigation view.
+export function isNotFound(answer: string): boolean {
+  return /^not found in corpus\.?$/i.test(answer.trim());
+}
+
 export function citedEvents(result: CompareResult | null): string[] {
   if (!result) return [];
   // A pipeline that found nothing retrieved near misses, not evidence; leave those out.
   const ids = [result.agentic, result.graphrag, result.rag]
-    .filter((r) => !/^not found in corpus$/i.test(r.answer.trim()))
+    .filter((r): r is NonNullable<typeof r> => r !== null && !isNotFound(r.answer))
     .flatMap((r) => r.retrieved_doc_ids);
   return [...new Set(ids)];
 }

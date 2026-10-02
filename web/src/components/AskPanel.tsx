@@ -2,7 +2,7 @@
 // side by side with their LLM tokens, latency and citations.
 import { useMemo, useState } from "react";
 import type { CompareResult, Preset } from "../api";
-import { PIPELINES, seconds, tokens } from "../format";
+import { PIPELINES, isNotFound, seconds, tokens } from "../format";
 
 // The agent's answer leads; the two baselines follow for comparison.
 const LANES = [...PIPELINES].reverse();
@@ -38,8 +38,12 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
   const submit = () => question.trim() && !busy && onAsk(question.trim());
   // Once answers are on screen the examples fold away to give them the room.
   const [examplesOpen, setExamplesOpen] = useState(false);
-  const answering = Boolean(result || busy);
-  const showExamples = !answering || examplesOpen;
+  const chat = result?.intent === "chat" && !busy;
+  const answering = Boolean(result || busy) && !chat;
+  // One example of each kind of question the graph answers, for the welcome card.
+  const starters = ["multi_hop", "temporal", "superlative"].flatMap((type) => byType.get(type)?.slice(0, 1) ?? []);
+  // The welcome card carries its own examples, so the list stays folded behind it.
+  const showExamples = (!answering && !chat) || examplesOpen;
 
   return (
     <section className="plate pointer-events-auto flex max-h-full w-full flex-col overflow-hidden">
@@ -73,7 +77,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
           </div>
         </div>
 
-        {types.length > 0 && answering && (
+        {types.length > 0 && (answering || chat) && (
           <button className="examples-toggle" aria-expanded={showExamples} onClick={() => setExamplesOpen((open) => !open)}>
             {showExamples ? "Hide examples" : "Examples"}
           </button>
@@ -114,7 +118,37 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
         </div>
       )}
 
-      {(result || busy) && (
+      {chat && (
+        <div className="welcome">
+          <div className="welcome-title">Hello. Ask me about the Olympics.</div>
+          <p className="welcome-body">
+            Every answer comes from a TigerGraph graph of Olympic events and the Wikipedia articles behind them,
+            worked out three ways side by side. Try one of these:
+          </p>
+          <ul className="grid gap-1.5">
+            {starters.map((preset) => (
+              <li key={preset.qid}>
+                <button
+                  className="welcome-sample"
+                  title={preset.question}
+                  onClick={() => {
+                    setQuestion(preset.question);
+                    onAsk(preset.question);
+                  }}
+                >
+                  <span className="welcome-sample-kind">{QTYPE_NAMES[preset.qtype]}</span>
+                  <span className="truncate">{preset.question}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="welcome-meta">
+            Intent check · {tokens(result?.intent_tokens ?? 0)} LLM tokens · no pipeline needed
+          </div>
+        </div>
+      )}
+
+      {answering && (
         <div className="no-scrollbar overflow-y-auto">
           {LANES.map((pipeline) => {
             const run = result?.[pipeline.id];
@@ -147,7 +181,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
                         </span>
                       )}
                     </div>
-                    {run.retrieved_doc_ids.length > 0 && !/^not found in corpus$/i.test(run.answer.trim()) && (
+                    {run.retrieved_doc_ids.length > 0 && !isNotFound(run.answer) && (
                       <div className="mt-2.5 flex flex-wrap gap-1.5">
                         {run.retrieved_doc_ids.slice(0, 5).map((doc) => (
                           <button key={doc} className="chip" onClick={() => onFocus([doc])} title="Show in the graph">

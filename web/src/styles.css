@@ -190,36 +190,33 @@ main[data-scheme="dark"] { color-scheme: dark; }
     box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset, 0 18px 40px -22px var(--shadow);
   }
   .pill-divider { width: 1px; height: 18px; margin: 0 6px; background: var(--hair); flex: none; }
-  /* Signature: the maker's name set in the wordmark's serif, flanked by quiet tracked caps. */
+  /* Signature: a quiet pill in the navigation's own material, mirroring it from the bottom right. */
   .signature {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 4px 10px;
+    gap: 2px 10px;
+    min-height: 32px;
+    padding: 6px 15px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--ink) 92%, transparent);
+    backdrop-filter: var(--glass);
+    -webkit-backdrop-filter: var(--glass);
+    border: 1px solid var(--hair);
+    box-shadow: 0 1px 0 color-mix(in oklab, var(--foreground) 6%, transparent) inset, 0 18px 40px -22px var(--shadow);
+    font-size: 12px;
+    font-weight: 450;
+    letter-spacing: 0.005em;
+    color: var(--faint);
     text-decoration: none;
     white-space: nowrap;
+    transition: color 220ms ease, border-color 220ms ease;
   }
-  .signature-by, .signature-event {
-    font-size: 10px;
-    font-weight: 500;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--faint);
-    transition: color 240ms ease;
-  }
-  .signature-name {
-    font-family: var(--font-wordmark);
-    font-size: 15.5px;
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    color: var(--soft);
-    transition: color 240ms ease;
-  }
-  .signature-rule { width: 1px; height: 11px; background: var(--hair); }
-  .signature:hover .signature-name { color: var(--accent); }
-  .signature:hover .signature-by, .signature:hover .signature-event { color: var(--soft); }
+  .signature b { font-weight: 550; color: var(--soft); transition: color 220ms ease; }
+  .signature-dot { width: 3px; height: 3px; border-radius: 999px; background: var(--accent); opacity: 0.8; }
+  .signature:hover { color: var(--soft); border-color: color-mix(in oklab, var(--foreground) 20%, transparent); }
+  .signature:hover b { color: var(--foreground); }
   .glide {
     position: absolute;
     top: 0;
@@ -324,6 +321,32 @@ main[data-scheme="dark"] { color-scheme: dark; }
   .strip-value small { font-size: 12px; font-weight: 500; color: var(--faint); margin-left: 3px; letter-spacing: 0; }
 
   /* ---------------- ask panel ---------------- */
+  /* Small talk: a welcome in place of the three lanes, with one question of each kind to try. */
+  .welcome { border-top: 1px solid var(--hair); padding: 18px 20px 16px; }
+  .welcome-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; color: var(--foreground); }
+  .welcome-body { margin-top: 6px; font-size: 13px; line-height: 1.55; color: var(--soft); }
+  .welcome ul { margin-top: 12px; grid-template-columns: minmax(0, 1fr); }
+  .welcome-sample > .truncate { min-width: 0; flex: 1 1 auto; }
+  .welcome-sample {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+    padding: 9px 12px;
+    border: 1px solid var(--hair);
+    border-radius: 11px;
+    font-size: 13px;
+    text-align: left;
+    color: var(--foreground);
+    transition: background-color 200ms ease, border-color 200ms ease;
+  }
+  .welcome-sample:hover {
+    background: color-mix(in oklab, var(--foreground) 5%, transparent);
+    border-color: color-mix(in oklab, var(--foreground) 22%, transparent);
+  }
+  .welcome-sample-kind { flex: none; width: 6.5rem; font-size: 11.5px; font-weight: 500; color: var(--accent); }
+  .welcome-meta { margin-top: 12px; font-size: 11.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
   .examples-toggle {
     margin-top: 10px;
     padding: 2px 2px;
@@ -491,8 +514,7 @@ main[data-scheme="dark"] { color-scheme: dark; }
     .menu-popover { position: fixed; }
     .wordmark { font-size: 21px; }
     .strip-cell { padding: 9px 13px 10px; }
-    .signature { flex-direction: column; gap: 5px; }
-    .signature-rule { display: none; }
+    .signature { border-radius: 16px; padding: 7px 14px; }
     /* On a phone the ask panel owns the lower half; give the graph the band above it. */
     main[data-mode="ask"] .parallax { top: 150px; bottom: auto; height: 34dvh; }
   }

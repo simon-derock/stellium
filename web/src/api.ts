@@ -45,12 +45,15 @@ export interface PipelineResult {
   agentic_trace: AgentTrace | null;
 }
 
+// Small talk stops at the intent check: intent "chat" and no pipeline results.
 export interface CompareResult {
   qid: string;
   question: string;
-  rag: PipelineResult;
-  graphrag: PipelineResult;
-  agentic: PipelineResult;
+  intent: "ask" | "chat";
+  intent_tokens: number;
+  rag: PipelineResult | null;
+  graphrag: PipelineResult | null;
+  agentic: PipelineResult | null;
 }
 
 export interface Preset {
