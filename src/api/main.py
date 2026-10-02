@@ -361,6 +361,12 @@ async def benchmark_metrics() -> dict[str, Any]:
     return metrics
 
 
+@app.get("/api/v1/metrics/index")
+async def published_metric_sets() -> list[str]:
+    # Which sets have results yet, so the console only asks for what exists.
+    return [name for name in _METRIC_SETS if (_METRICS_DIR / f"{name}.json").exists()]
+
+
 @app.get("/api/v1/metrics/{name}")
 async def named_metrics(name: str) -> dict[str, Any]:
     if name not in _METRIC_SETS or not (_METRICS_DIR / f"{name}.json").exists():

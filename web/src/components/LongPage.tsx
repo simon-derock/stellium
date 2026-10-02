@@ -1,22 +1,18 @@
 // A document-style page over the dimmed graph: contents on the left, prose on the right.
 // Scrolling is inertia-smoothed (Lenis) and layered for depth: the page title drifts slower than
-// the text and fades, sections rise in (CSS scroll-driven), and the scroll position is reported
-// so the graph behind can move on its own, deeper layer.
+// the text and fades, and sections rise in as they arrive. The graph behind stays still.
 import Lenis from "lenis";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 interface Props {
   sections: { id: string; title: string }[];
   children: ReactNode;
-  onScroll?: (top: number) => void;
 }
 
-export function LongPage({ sections, children, onScroll }: Props) {
+export function LongPage({ sections, children }: Props) {
   const scroller = useRef<HTMLElement>(null);
   const content = useRef<HTMLDivElement>(null);
   const lenis = useRef<Lenis | null>(null);
-  const report = useRef(onScroll);
-  report.current = onScroll;
   const [current, setCurrent] = useState(sections[0]?.id ?? "");
 
   useEffect(() => {
@@ -25,7 +21,6 @@ export function LongPage({ sections, children, onScroll }: Props) {
     if (!wrapper || !inner) return;
     const publish = (top: number) => {
       wrapper.style.setProperty("--scroll", top.toFixed(1));
-      report.current?.(top);
     };
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       const onNative = () => publish(wrapper.scrollTop);

@@ -491,6 +491,9 @@ def test_named_metrics_serve_only_published_documents() -> None:
     assert client.get("/api/v1/metrics/hidden_oracle").json()["hidden"]["pipelines"]
     assert client.get("/api/v1/metrics/..%2Fsecrets").status_code == 404
     assert client.get("/api/v1/metrics/unknown").status_code == 404
+    published = client.get("/api/v1/metrics/index").json()
+    assert {"public", "compositional", "hidden_oracle"} <= set(published)
+    assert all(client.get(f"/api/v1/metrics/{name}").status_code == 200 for name in published)
 
 
 def test_graph_stats_count_the_loaded_catalog(monkeypatch: pytest.MonkeyPatch) -> None:

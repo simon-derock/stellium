@@ -7,6 +7,7 @@ import {
   compare,
   fetchHealth,
   fetchMetricSet,
+  fetchPublishedSets,
   fetchMetrics,
   fetchOracle,
   fetchPresets,
@@ -97,24 +98,6 @@ export function App() {
   const chrome = useMemo(() => chromeFor(theme.vars), [theme]);
 
 
-  // Parallax: the canvas drifts at a fraction of the page scroll, eased towards its target on
-  // every frame so the motion stays smooth whatever the scroll device sends.
-  const canvasLayer = useRef<HTMLDivElement>(null);
-  const drift = useRef({ target: 0, now: 0, frame: 0 });
-  const onPageScroll = useCallback((top: number) => {
-    const d = drift.current;
-    d.target = -Math.min(top * 0.2, 260);
-    if (d.frame) return;
-    const step = () => {
-      d.now += (d.target - d.now) * 0.12;
-      canvasLayer.current?.style.setProperty("--parallax", `${d.now.toFixed(2)}px`);
-      d.frame = Math.abs(d.target - d.now) > 0.1 ? requestAnimationFrame(step) : 0;
-    };
-    d.frame = requestAnimationFrame(step);
-  }, []);
-  useEffect(() => {
-    if (mode === "ask") onPageScroll(0);
-  }, [mode, onPageScroll]);
 
   // Fetch the benchmark page's chart bundle while idle, so its first opening is instant.
   useEffect(() => {
@@ -134,10 +117,18 @@ export function App() {
     fetchPresets().then(setPresets).catch(() => setPresets([]));
     // Each published document arrives on its own; a missing one only hides its numbers.
     fetchMetrics().then((d) => setBench((b) => ({ ...b, public: d }))).catch(() => undefined);
-    for (const name of ["paraphrase", "compositional", "unanswerable", "offtemplate"] as const) {
-      fetchMetricSet(name).then((d) => setBench((b) => ({ ...b, [name]: d }))).catch(() => undefined);
-    }
-    fetchOracle().then((d) => setBench((b) => ({ ...b, oracle: d }))).catch(() => undefined);
+    // Ask only for the sets that have been published, so nothing 404s in the console.
+    fetchPublishedSets()
+      .then((published) => {
+        for (const name of ["paraphrase", "compositional", "unanswerable", "offtemplate"] as const) {
+          if (!published.includes(name)) continue;
+          fetchMetricSet(name).then((d) => setBench((b) => ({ ...b, [name]: d }))).catch(() => undefined);
+        }
+        if (published.includes("hidden_oracle")) {
+          fetchOracle().then((d) => setBench((b) => ({ ...b, oracle: d }))).catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
     fetchStats().then(setStats).catch(() => setStats(null));
     return () => window.clearTimeout(slow);
   }, []);
@@ -220,7 +211,7 @@ export function App() {
       data-mode={mode}
       className={`app-shell theme-${themeId} relative h-dvh w-full overflow-hidden bg-background text-foreground`}
     >
-      <div ref={canvasLayer} className="parallax">
+      <div className="parallax">
         <GraphSurface
           nodes={snapshot.graph_nodes}
           edges={snapshot.graph_edges}
@@ -325,24 +316,27 @@ export function App() {
         <div className="pointer-events-none absolute inset-x-4 top-[13.5rem] bottom-12 z-10 mx-auto flex max-w-[78rem] md:top-[10rem] xl:top-[6.75rem]">
           {mode === "benchmark" ? (
             <Suspense fallback={null}>
-              <BenchmarkPage data={bench} themeKey={themeId} onScroll={onPageScroll} />
+              <BenchmarkPage data={bench} themeKey={themeId} />
             </Suspense>
           ) : (
-            <DocsPage stats={stats} onScroll={onPageScroll} />
+            <DocsPage stats={stats} />
           )}
         </div>
       )}
 
-      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-end justify-between gap-2 px-5 pb-4">
+      <footer className="pointer-events-none absolute inset-x-0 bottom-0 z-10 grid grid-cols-[1fr_auto_1fr] items-end gap-3 px-5 pb-4">
         {/* The canvas explains itself on hover; a selected node is the only caption worth space. */}
-        <div className="pointer-events-auto hidden text-[12px] text-[color:var(--faint)] md:block">
+        <div className="pointer-events-auto hidden min-w-0 truncate text-[12px] text-[color:var(--faint)] md:block">
           {selected ? `${selected.type} · ${selected.label}` : ""}
         </div>
-        <div className="pointer-events-auto flex flex-wrap items-center justify-end gap-x-5 gap-y-1">
-          <a className="credit" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
-            Built by <b>Philip Simon Derock</b> · TigerGraph GraphRAG Hackathon 2026
-          </a>
-          {/* Status only speaks up when something is off: waking or unreachable. */}
+        <a className="signature pointer-events-auto col-start-2" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
+          <span className="signature-by">Built by</span>
+          <span className="signature-name">Philip Simon Derock</span>
+          <span className="signature-rule" aria-hidden="true" />
+          <span className="signature-event">TigerGraph GraphRAG Hackathon · 2026</span>
+        </a>
+        {/* Status only speaks up when something is off: waking or unreachable. */}
+        <div className="pointer-events-auto flex justify-end">
           {(health === "waking" || health === "down") && (
             <span className="inline-flex items-center gap-2">
               <span className="status-dot" data-state={health} />

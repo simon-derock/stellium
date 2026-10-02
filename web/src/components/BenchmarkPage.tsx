@@ -82,10 +82,9 @@ function TypeLedger({ metrics }: { metrics: Metrics }) {
 interface Props {
   data: BenchData;
   themeKey: string;
-  onScroll?: (top: number) => void;
 }
 
-export function BenchmarkPage({ data, themeKey, onScroll }: Props) {
+export function BenchmarkPage({ data, themeKey }: Props) {
   const metrics = data.public;
   const palette = usePalette(themeKey);
   if (!metrics) {
@@ -100,7 +99,7 @@ export function BenchmarkPage({ data, themeKey, onScroll }: Props) {
   const oracle = data.oracle;
 
   return (
-    <LongPage sections={SECTIONS} onScroll={onScroll}>
+    <LongPage sections={SECTIONS}>
       <h1>Benchmark</h1>
       <p className="lede">
         The same questions answered three ways by one model, Cohere <code>command-a-03-2025</code>, at temperature 0. Every

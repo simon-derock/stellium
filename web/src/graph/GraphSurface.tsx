@@ -215,18 +215,24 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
       minY = Math.min(minY, p.y);
       maxY = Math.max(maxY, p.y);
     }
-    // Marks and labels reach well past their node centres, so the shape gets real air around it.
-    const pad = size.w < 600 ? 52 : 112;
-    const fill = 0.86;
+    // Marks and labels reach well past their node centres, so the shape gets air around it; on
+    // wide screens the header above and the metrics strip below are kept clear as well.
+    const phone = size.w < 600;
+    const side = phone ? 36 : 80;
+    const top = phone ? 36 : 84;
+    const bottom = phone ? 36 : 124;
+    const fill = 0.94;
     const k =
       Math.min(
-        (size.w - pad * 2) / Math.max(1, maxX - minX),
-        (size.h - pad * 2) / Math.max(1, maxY - minY),
+        (size.w - side * 2) / Math.max(1, maxX - minX),
+        (size.h - top - bottom) / Math.max(1, maxY - minY),
         2.2,
       ) * fill;
+    const scale = Math.max(0.04, k);
     programmaticUntilRef.current = performance.now() + 200;
-    fg.centerAt((minX + maxX) / 2, (minY + maxY) / 2, 0);
-    fg.zoom(Math.max(0.04, k), 0);
+    // centre the shape in the clear band, not the whole canvas
+    fg.centerAt((minX + maxX) / 2, (minY + maxY) / 2 - (top - bottom) / (2 * scale), 0);
+    fg.zoom(scale, 0);
   }, [size.h, size.w]);
   const frameRef = useRef(frame);
   frameRef.current = frame;
