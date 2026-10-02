@@ -24,6 +24,7 @@ from src.pipelines.toolkit import (
     TOOL_PARAMETERS,
     GraphToolkit,
     ToolOutcome,
+    asked_kind,
     catalog_for,
     unsupported_arguments,
 )
@@ -498,6 +499,7 @@ class AgenticPipeline:
             {"role": "user", "content": f"Question: {question}"},
         ]
         verified: set[str] = set()
+        asked = asked_kind(question)
         pending_candidates: list[str] = []
         observations: list[str] = []
         cache: dict[str, dict[str, Any]] = {}
@@ -591,6 +593,15 @@ class AgenticPipeline:
                 cache[cache_key] = observation
             tool_latency = (time.perf_counter() - tool_started) * 1000
             verified.update(values)
+            # A verified value of the wrong kind is a hop, not the answer: the event with the most
+            # competitors when the question asks who won it.
+            value_kind = outcome.answer_kind if outcome is not None and outcome.conclusive else None
+            intermediate = asked is not None and value_kind is not None and value_kind != asked
+            if intermediate:
+                observation = {
+                    **observation,
+                    "note": f"This {value_kind} is an intermediate result; the question asks for a {asked}.",
+                }
             state.strategy_history.append(tool)
             state.tool_history.append(
                 ToolAuditCall(
@@ -639,8 +650,8 @@ class AgenticPipeline:
                 )
             previous = (tool, str(status))
 
-            if outcome is not None and outcome.conclusive and outcome.answer is not None:
-                # Evidence-sufficiency stop: a single verified graph value answers the question.
+            if outcome is not None and outcome.answer is not None and not intermediate:
+                # Evidence-sufficiency stop: a single verified value of the asked kind.
                 state.final_answer = outcome.answer
                 checked = any(item.text for item in outcome.evidence)
                 state.confidence_score = 0.98 if checked else 0.9

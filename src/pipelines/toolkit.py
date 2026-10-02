@@ -34,6 +34,34 @@ EVENT_ATTRIBUTES = (
     "dates",
 )
 _MAX_LISTED_EVENTS = 25
+# What kind of value each attribute and each event-level tool returns.
+_ATTRIBUTE_KINDS = {
+    "gold_athlete": "person",
+    "silver_athlete": "person",
+    "bronze_athlete": "person",
+    "gold_noc": "nation",
+    "silver_noc": "nation",
+    "bronze_noc": "nation",
+    "competitor_count": "number",
+    "nation_count": "number",
+    "venue": "venue",
+    "dates": "date",
+}
+_TOOL_KINDS = {"count_events": "number", "rank_events": "event", "find_events": "event"}
+# Head nouns after "which"/"what" that name the kind of answer wanted.
+_HEAD_KINDS = {
+    **dict.fromkeys(("venue", "venues", "stadium", "arena"), "venue"),
+    **dict.fromkeys(("nation", "nations", "country", "countries", "noc"), "nation"),
+    **dict.fromkeys(("athlete", "athletes", "person", "competitor", "medallist"), "person"),
+    **dict.fromkeys(("date", "dates", "day"), "date"),
+    **dict.fromkeys(("number", "count"), "number"),
+    **dict.fromkeys(("event", "events", "competition", "discipline"), "event"),
+}
+# Words that close a wh-phrase: the verb or preposition after its head noun.
+_PHRASE_ENDS = frozenset(
+    "at in of on for with from to by was were is are had has did does do held won took".split()
+)
+_WH_KINDS = {"who": "person", "whom": "person", "whose": "person", "where": "venue", "when": "date"}
 # Infobox fields read "  competitors: 41"; prose never starts with a short key and a colon.
 _INFOBOX_LINE = re.compile(r"^\s*(?:\[infobox|[a-z_ ]{2,30}\s*[:=])", re.IGNORECASE)
 
@@ -117,6 +145,34 @@ class ToolOutcome:
     @property
     def ambiguous(self) -> bool:
         return self.answer is None and len(self.candidates) > 1
+
+    @property
+    def answer_kind(self) -> str | None:
+        if self.tool in _TOOL_KINDS:
+            return _TOOL_KINDS[self.tool]
+        return _ATTRIBUTE_KINDS.get(str(self.observation.get("attribute", "")))
+
+
+def asked_kind(question: str) -> str | None:
+    # Expected answer type from the wh-phrase: "how many" wants a number, "who" a person. After
+    # "which"/"what" the phrase's head noun decides, i.e. its last noun before the verb or
+    # preposition, so "which cross-country skiing event" asks for an event, not a country.
+    # None when the wording does not say, and then the tool's value is trusted.
+    words = fold(question).split()
+    for index, word in enumerate(words):
+        if word == "how" and words[index + 1 : index + 2] == ["many"] or word == "count":
+            return "number"
+        if word in _WH_KINDS:
+            return _WH_KINDS[word]
+        if word in {"which", "what", "name"}:
+            heads: list[str | None] = [None]
+            for following in words[index + 1 : index + 7]:
+                if following in _PHRASE_ENDS:
+                    break
+                if following in _HEAD_KINDS:
+                    heads.append(_HEAD_KINDS[following])
+            return heads[-1]
+    return None
 
 
 def _as_int(value: Any) -> int:

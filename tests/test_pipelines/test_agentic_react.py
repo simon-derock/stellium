@@ -166,6 +166,49 @@ async def test_failed_lookup_then_passage_search_records_strategy_change() -> No
 
 
 @pytest.mark.asyncio
+async def test_an_event_found_on_the_way_is_a_hop_when_the_question_asks_who() -> None:
+    pipeline, chat = _pipeline(
+        _action("rank_events", {"sport": "rowing", "year": 2004, "order": "desc"}),
+        _action(
+            "event_attribute",
+            {
+                "event": "Rowing at the 2004 Summer Olympics – Men's single sculls",
+                "attribute": "gold_athlete",
+            },
+        ),
+    )
+
+    result = await pipeline.run(
+        "q11", "Who won gold in the rowing event with the most competitors at the 2004 Games?"
+    )
+
+    trace = _trace(result)
+    assert result.answer == "Ada Stone"
+    assert chat.await_count == 2
+    assert [call["tool_name"] for call in trace["tools_called"]] == [
+        "rank_events",
+        "event_attribute",
+    ]
+    hop = chat.await_args_list[1].args[0][-1]["content"]
+    assert "intermediate result; the question asks for a person" in hop
+    assert trace["stopping_reason"].startswith("event_attribute returned one verified graph value")
+
+
+@pytest.mark.asyncio
+async def test_ranking_question_still_stops_on_the_event() -> None:
+    pipeline, chat = _pipeline(
+        _action("rank_events", {"sport": "rowing", "year": 2004, "order": "desc"})
+    )
+
+    result = await pipeline.run(
+        "q12", "Which rowing event at the 2004 Summer Olympics had the most competitors?"
+    )
+
+    assert result.answer == "Rowing at the 2004 Summer Olympics – Men's single sculls"
+    assert chat.await_count == 1
+
+
+@pytest.mark.asyncio
 async def test_dense_only_search_is_not_a_separate_tool() -> None:
     # Hybrid search already fuses the TigerGraph vector hits, so a dense-only call is refused.
     assert "vector_search" not in _REACT_SYSTEM_PROMPT

@@ -5,7 +5,14 @@ import pytest
 
 from src.coprocessor import Coprocessor
 from src.models import Chunk
-from src.pipelines.toolkit import AGGREGATOR, ENTITY_LINKER, EVALUATOR, GraphToolkit
+from src.pipelines.toolkit import (
+    AGGREGATOR,
+    ENTITY_LINKER,
+    EVALUATOR,
+    GraphToolkit,
+    ToolOutcome,
+    asked_kind,
+)
 from tests.graph_fixtures import EVENTS, seeded_graph, seeded_toolkit
 
 
@@ -151,3 +158,39 @@ def test_infobox_lines_are_not_prose_confirmation() -> None:
         {"R08M": "  competitors: 33", "R08W": "  competitors: 33\nNations: 16"}
     )
     assert toolkit.rank_events("rowing", 2008).ambiguous
+
+
+@pytest.mark.parametrize(
+    ("question", "kind"),
+    [
+        ("How many nations competed in the event with the most competitors?", "number"),
+        ("Count the archery events with over 40 archers.", "number"),
+        ("Who won gold in the archery event with the most competitors?", "person"),
+        ("Name the pole vault gold medallist from 2012.", "person"),
+        ("At which venue was the diving event with the most competitors held?", "venue"),
+        ("Which cross-country skiing event had the highest number of competitors?", "event"),
+        ("Which nation won the team event?", "nation"),
+        ("When was the final held?", "date"),
+        ("Of the archery events, which one had the most entrants?", None),
+        ("Tell me about rowing.", None),
+    ],
+)
+def test_asked_kind_reads_the_head_of_the_wh_phrase(question: str, kind: str | None) -> None:
+    assert asked_kind(question) == kind
+
+
+@pytest.mark.parametrize(
+    ("tool", "attribute", "kind"),
+    [
+        ("rank_events", "competitor_count", "event"),
+        ("count_events", "", "number"),
+        ("event_attribute", "gold_athlete", "person"),
+        ("event_attribute", "nation_count", "number"),
+        ("event_at_venue_date", "venue", "venue"),
+        ("gsql_query", "", None),
+    ],
+)
+def test_answer_kind_follows_the_tool_then_the_attribute(
+    tool: str, attribute: str, kind: str | None
+) -> None:
+    assert ToolOutcome(tool=tool, observation={"attribute": attribute}).answer_kind == kind
