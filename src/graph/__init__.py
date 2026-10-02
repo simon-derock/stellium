@@ -530,6 +530,21 @@ CREATE OR REPLACE QUERY vector_search_chunks (
 # ---------------------------------------------------------------------------
 
 
+# How long one read waits for a suspended workspace before the error reaches the caller.
+_RESUME_WAIT_S = float(os.environ.get("STELLIUM_GRAPH_RESUME_WAIT_S", "180"))
+
+
+def _is_resuming(exc: Exception) -> bool:
+    # While a suspended workspace resumes, Savanna answers 5xx or an HTML "Starting workspace"
+    # page that pyTigerGraph then fails to parse as JSON.
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    message = str(exc).casefold()
+    return status in (500, 502, 503, 504) or any(
+        marker in message
+        for marker in ("starting workspace", "bad gateway", "internal server error")
+    )
+
+
 def _is_auth_failure(exc: Exception) -> bool:
     # A Savanna restart invalidates the session token; pyTigerGraph then fails every request with
     # an authentication error (or a 401/403) until a new connection mints a fresh token.
@@ -548,11 +563,16 @@ class GraphClient:
     conn: tg.TigerGraphConnection = field(default_factory=connect)
 
     def _read[T](self, call: Callable[[tg.TigerGraphConnection], T]) -> T:
-        # Reads reconnect once on a stale token instead of failing until the server restarts.
+        # Reads survive a workspace resume or a stale token: wait for the workspace when it is
+        # waking, then reconnect (a restart also drops the session token) and retry once.
         try:
             return call(self.conn)
         except Exception as exc:
-            if isinstance(self.conn, MockTigerGraphConnection) or not _is_auth_failure(exc):
+            if isinstance(self.conn, MockTigerGraphConnection):
+                raise
+            if _is_resuming(exc):
+                wait_for_graph_ready(self.conn.host, timeout_s=_RESUME_WAIT_S)
+            elif not _is_auth_failure(exc):
                 raise
             self.conn = connect()
             return call(self.conn)

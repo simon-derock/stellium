@@ -376,6 +376,52 @@ def test_reads_reconnect_once_after_a_stale_token(monkeypatch: pytest.MonkeyPatc
     assert stale.runInstalledQuery.call_count == 1
 
 
+@pytest.mark.parametrize(
+    "error",
+    [
+        RuntimeError("Cannot parse json: <html><title>Starting workspace</title></html>"),
+        RuntimeError("502 Server Error: Bad Gateway for url: https://graph.example/restpp"),
+    ],
+)
+def test_reads_wait_for_a_resuming_workspace_then_retry_once(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    graph_module = sys.modules[GraphClient.__module__]
+    waking = MagicMock(host="https://graph.example")
+    waking.runInstalledQuery.side_effect = error
+    fresh = MagicMock()
+    fresh.runInstalledQuery.return_value = [{"match_count": 2, "events": [], "gold_doc_ids": []}]
+    waited = MagicMock(return_value=12.0)
+    monkeypatch.setattr(graph_module, "wait_for_graph_ready", waited)
+    monkeypatch.setattr(graph_module, "connect", lambda: fresh)
+    client = GraphClient(conn=waking)
+
+    result = client.run_aggregation(sport="Rowing", year=2008, min_competitors=10)
+
+    assert result["count"] == 2
+    assert waited.call_args.args == ("https://graph.example",)
+    assert client.conn is fresh
+
+
+def test_a_workspace_that_never_resumes_surfaces_the_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph_module = sys.modules[GraphClient.__module__]
+    waking = MagicMock(host="https://graph.example")
+    waking.runInstalledQuery.side_effect = RuntimeError("Starting workspace")
+    reconnect = MagicMock()
+    monkeypatch.setattr(
+        graph_module,
+        "wait_for_graph_ready",
+        MagicMock(side_effect=RuntimeError("did not become ready")),
+    )
+    monkeypatch.setattr(graph_module, "connect", reconnect)
+
+    with pytest.raises(RuntimeError, match="did not become ready"):
+        GraphClient(conn=waking).run_aggregation(sport="Rowing")
+    reconnect.assert_not_called()
+
+
 def test_other_graph_errors_are_raised_without_reconnecting(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
