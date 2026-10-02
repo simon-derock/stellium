@@ -24,12 +24,12 @@ export function LongPage({ sections, children }: Props) {
     const titles = Array.from(inner.querySelectorAll<HTMLElement>(":scope > h1, :scope > .lede"));
     let last = -1;
     const publish = (top: number) => {
-      const y = Math.min(top, 460);
+      const y = Math.min(top, 300);
       if (y === last) return;
       last = y;
       for (const title of titles) {
         title.style.transform = `translate3d(0, ${(y * 0.32).toFixed(1)}px, 0)`;
-        title.style.opacity = String(Math.max(0, 1 - y / 420));
+        title.style.opacity = String(Math.max(0, 1 - y / 240));
       }
     };
     // Reduced motion: native scrolling, and the title stays put.
