@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from scripts.summarize_results import _manifest_summary, _merge_pipeline
+
 _PIPELINES = ("rag", "graphrag", "agentic")
 # Per-call fields that describe the local run setup, not the answer; older traces still carry them.
 _PRIVATE_CALL_FIELDS = frozenset({"credential_alias"})
@@ -81,10 +83,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Export benchmark results for submission")
     parser.add_argument("--results", required=True, help="results JSONL from src.evaluate")
     parser.add_argument("--out", required=True, help="output path stem, e.g. submission/hidden")
+    parser.add_argument(
+        "--pipeline-from",
+        action="append",
+        default=[],
+        metavar="PIPELINE=RESULTS",
+        help="take one pipeline's rows from a newer run of the same questions",
+    )
     args = parser.parse_args()
 
     results_path = Path(args.results)
     rows = [json.loads(line) for line in results_path.read_text().splitlines() if line.strip()]
+    provenance = [_manifest_summary(args.results, "base", len(rows))]
+    for spec in args.pipeline_from:
+        pipeline, path = spec.split("=", 1)
+        provenance.append(_manifest_summary(path, pipeline, _merge_pipeline(rows, pipeline, path)))
     manifest_path = results_path.with_suffix(results_path.suffix + ".manifest.json")
     manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
 
@@ -103,6 +116,7 @@ def main() -> None:
             for key in ("model", "provider", "git_commit", "dataset", "started_at", "finished_at")
         },
         "token_accounting": "LLM input+output tokens only; graph queries and retrieval count 0",
+        "provenance": provenance,
         "questions": questions,
     }
     out = Path(args.out)

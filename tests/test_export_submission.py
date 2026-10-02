@@ -61,3 +61,41 @@ def test_export_writes_json_and_csv_with_traces(tmp_path: Path) -> None:
         flat = next(csv.DictReader(csv_file))
     assert flat["agentic_agents"] == "OrchestratorAgent;EntityLinkingAgent"
     assert flat["agentic_llm_calls"] == "1"
+
+
+def test_a_newer_pipeline_run_replaces_its_rows_and_is_recorded(tmp_path: Path) -> None:
+    base = tmp_path / "base.jsonl"
+    newer = tmp_path / "newer.jsonl"
+    common = {"qid": "eval-001", "qtype": "lookup", "question": "How many nations?"}
+    base.write_text(json.dumps({**common, "rag_answer": "12", "agentic_answer": "11"}) + "\n")
+    newer.write_text(json.dumps({**common, "agentic_answer": "12", "agentic_tokens": 640}) + "\n")
+    newer.with_suffix(".jsonl.manifest.json").write_text(json.dumps({"git_commit": "abcdef1234"}))
+
+    subprocess.run(
+        [
+            sys.executable,
+            "scripts/export_submission.py",
+            "--results",
+            str(base),
+            "--pipeline-from",
+            f"agentic={newer}",
+            "--out",
+            str(tmp_path / "out" / "hidden"),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    document = json.loads((tmp_path / "out" / "hidden.json").read_text())
+    question = document["questions"][0]
+    assert question["rag"]["answer"] == "12"
+    assert question["agentic"]["answer"] == "12"
+    assert question["agentic"]["llm_tokens"]["total"] == 640
+    assert document["provenance"][1] == {
+        "pipelines": "agentic",
+        "commit": "abcdef1",
+        "model": None,
+        "dataset_sha256": None,
+        "finished_at": None,
+        "rows": 1,
+    }
