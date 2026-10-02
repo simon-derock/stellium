@@ -1,10 +1,11 @@
 // Pure presentation helpers, kept apart from components so they can be unit tested.
 import type { CompareResult, PipelineId, TraceEvent } from "./api";
 
+// Best first: the agent leads every table, card, chart and answer list; RAG, the baseline, closes.
 export const PIPELINES: { id: PipelineId; name: string; color: string }[] = [
-  { id: "rag", name: "RAG", color: "var(--rag)" },
-  { id: "graphrag", name: "GraphRAG", color: "var(--graphrag)" },
   { id: "agentic", name: "Agentic GraphRAG", color: "var(--agentic)" },
+  { id: "graphrag", name: "GraphRAG", color: "var(--graphrag)" },
+  { id: "rag", name: "RAG", color: "var(--rag)" },
 ];
 
 export function tokens(n: number): string {

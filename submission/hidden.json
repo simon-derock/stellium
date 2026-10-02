@@ -34,10 +34,10 @@
     },
     {
       "pipelines": "agentic",
-      "commit": "59cbd67",
+      "commit": "f75fb5c",
       "model": "command-a-03-2025",
       "dataset_sha256": "a2742f449765bb66c7ccc87a281560de3327894fe656a3b2f415f68d990c7d0a",
-      "finished_at": "2026-10-03T00:57:06+0530",
+      "finished_at": "2026-10-03T01:33:21+0530",
       "rows": 50
     }
   ],
@@ -96,7 +96,7 @@
           "output": 82,
           "total": 742
         },
-        "latency_s": 2.329,
+        "latency_s": 2.032,
         "citations": [
           "Q942805"
         ],
@@ -125,8 +125,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 82,
-              "latency_ms": 1656.856637004239,
-              "provider_latency_ms": 1656.635681996704
+              "latency_ms": 1356.9404309964739,
+              "provider_latency_ms": 1356.8043679988477
             }
           ],
           "tools_called": [
@@ -140,7 +140,7 @@
               },
               "output_summary": "{\"event\": \"Tennis at the 2004 Summer Olympics – Women's doubles\", \"attribute\": \"gold_athlete\", \"value\": \"Li Ting, Sun Tiantian\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Tennis at the 2004 Summer Olympics – Women's doubles\", \"event_id\": \"Q942805\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q942805\", \"line\": \"Gold: Li Ting, Sun Tiantian\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 54.885469005967025
+              "latency_ms": 55.33011600346072
             }
           ],
           "chunks_retrieved": 1,
@@ -153,7 +153,7 @@
           "final_answer": "Li Ting, Sun Tiantian",
           "confidence_score": 0.98,
           "total_tokens": 742,
-          "total_latency_ms": 2328.5441170010017,
+          "total_latency_ms": 2031.7609109988553,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -172,7 +172,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 54.885469005967025,
+              "latency_ms": 55.33011600346072,
               "observation": {
                 "event": "Tennis at the 2004 Summer Olympics – Women's doubles",
                 "attribute": "gold_athlete",
@@ -256,7 +256,7 @@
           "output": 68,
           "total": 720
         },
-        "latency_s": 1.464,
+        "latency_s": 1.504,
         "citations": [
           "Q5443136"
         ],
@@ -285,8 +285,8 @@
               "token_source": "billed",
               "prompt_tokens": 652,
               "completion_tokens": 68,
-              "latency_ms": 1426.235965998785,
-              "provider_latency_ms": 1426.0695870034397
+              "latency_ms": 1464.4485940007144,
+              "provider_latency_ms": 1464.3460509978468
             }
           ],
           "tools_called": [
@@ -299,7 +299,7 @@
               },
               "output_summary": "{\"event\": \"Fencing at the 1988 Summer Olympics – Men's foil\", \"attribute\": \"nation_count\", \"value\": \"29\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Fencing at the 1988 Summer Olympics – Men's foil\", \"event_id\": \"Q5443136\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q5443136\", \"line\": \"nations: 29\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.91782900568796
+              "latency_ms": 39.15635800512973
             }
           ],
           "chunks_retrieved": 1,
@@ -312,7 +312,7 @@
           "final_answer": "29",
           "confidence_score": 0.98,
           "total_tokens": 720,
-          "total_latency_ms": 1463.6756810068619,
+          "total_latency_ms": 1504.0512049963581,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -330,7 +330,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 36.91782900568796,
+              "latency_ms": 39.15635800512973,
               "observation": {
                 "event": "Fencing at the 1988 Summer Olympics – Men's foil",
                 "attribute": "nation_count",
@@ -420,15 +420,15 @@
           "output": 88,
           "total": 747
         },
-        "latency_s": 1.596,
+        "latency_s": 1.718,
         "citations": [
           "Q1005322",
+          "Q1063589",
+          "Q727488",
+          "Q1005614",
           "Q628945",
           "Q938833",
-          "Q727488",
           "Q1064728",
-          "Q1063589",
-          "Q1005614",
           "Q635304"
         ],
         "model": "command-a-03-2025",
@@ -454,8 +454,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 88,
-              "latency_ms": 1553.578868995828,
-              "provider_latency_ms": 1553.4355670024524
+              "latency_ms": 1675.1092790000257,
+              "provider_latency_ms": 1674.980386000243
             }
           ],
           "tools_called": [
@@ -469,20 +469,20 @@
                 "comparison": "more_than",
                 "threshold": 30
               },
-              "output_summary": "{\"count\": 8, \"filters\": {\"sport\": \"Cycling\", \"year\": 2008, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 31, \"competitors_max\": null}, \"matching_events\": [\"Cycling at the 2008 Summer Olympics – Men's team sprint\", \"Cycling at the 2008 Summer Olympics – Men's BMX\", \"Cycling at the 2008 Summer Olympics – Men's individual road race\", \"Cycling at the 2008 Summer Olympics – Men's Madison\", \"Cycling at the 2008 Summer Olympics – Women's individual road race\", \"Cycling at the 2008 Summer Olympics – Men's cross-country\", \"Cycling at the 2008 Summer Olympics – Men's road time trial\", \"Cycling at the 2008 Summer Olympics – Men's team pursuit\"]}",
+              "output_summary": "{\"count\": 8, \"filters\": {\"sport\": \"Cycling\", \"year\": 2008, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 31, \"competitors_max\": null}, \"matching_events\": [\"Cycling at the 2008 Summer Olympics – Men's team sprint\", \"Cycling at the 2008 Summer Olympics – Men's BMX\", \"Cycling at the 2008 Summer Olympics – Men's individual road race\", \"Cycling at the 2008 Summer Olympics – Men's Madison\", \"Cycling at the 2008 Summer Olympics – Men's team pursuit\", \"Cycling at the 2008 Summer Olympics – Men's cross-country\", \"Cycling at the 2008 Summer Olympics – Men's road time trial\", \"Cycling at the 2008 Summer Olympics – Women's individual road race\"]}",
               "llm_tokens": 0,
-              "latency_ms": 41.989657998783514
+              "latency_ms": 42.37410799396457
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q1005322",
+            "Q1063589",
+            "Q727488",
+            "Q1005614",
             "Q628945",
             "Q938833",
-            "Q727488",
             "Q1064728",
-            "Q1063589",
-            "Q1005614",
             "Q635304"
           ],
           "strategy_changed": false,
@@ -491,7 +491,7 @@
           "final_answer": "8",
           "confidence_score": 0.9,
           "total_tokens": 747,
-          "total_latency_ms": 1595.8575710028526,
+          "total_latency_ms": 1717.8844000009121,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -512,7 +512,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 41.989657998783514,
+              "latency_ms": 42.37410799396457,
               "observation": {
                 "count": 8,
                 "filters": {
@@ -528,10 +528,10 @@
                   "Cycling at the 2008 Summer Olympics – Men's BMX",
                   "Cycling at the 2008 Summer Olympics – Men's individual road race",
                   "Cycling at the 2008 Summer Olympics – Men's Madison",
-                  "Cycling at the 2008 Summer Olympics – Women's individual road race",
+                  "Cycling at the 2008 Summer Olympics – Men's team pursuit",
                   "Cycling at the 2008 Summer Olympics – Men's cross-country",
                   "Cycling at the 2008 Summer Olympics – Men's road time trial",
-                  "Cycling at the 2008 Summer Olympics – Men's team pursuit"
+                  "Cycling at the 2008 Summer Olympics – Women's individual road race"
                 ]
               }
             }
@@ -593,7 +593,7 @@
           "output": 75,
           "total": 732
         },
-        "latency_s": 1.605,
+        "latency_s": 1.535,
         "citations": [
           "Q7500817"
         ],
@@ -622,8 +622,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 75,
-              "latency_ms": 1556.6681370037259,
-              "provider_latency_ms": 1556.5793729983852
+              "latency_ms": 1483.4174599964172,
+              "provider_latency_ms": 1483.299501996953
             }
           ],
           "tools_called": [
@@ -637,7 +637,7 @@
               },
               "output_summary": "{\"event\": \"Shooting at the 2000 Summer Olympics – Women's 25 metre pistol\", \"attribute\": \"gold_athlete\", \"value\": \"Mariya Grozdeva\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Shooting at the 2000 Summer Olympics – Women's 25 metre pistol\", \"event_id\": \"Q7500817\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q7500817\", \"line\": \"gold: Mariya Grozdeva\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 47.72369600686943
+              "latency_ms": 51.47004500031471
             }
           ],
           "chunks_retrieved": 1,
@@ -650,7 +650,7 @@
           "final_answer": "Mariya Grozdeva",
           "confidence_score": 0.98,
           "total_tokens": 732,
-          "total_latency_ms": 1604.6452019945718,
+          "total_latency_ms": 1535.3410780007835,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -669,7 +669,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 47.72369600686943,
+              "latency_ms": 51.47004500031471,
               "observation": {
                 "event": "Shooting at the 2000 Summer Olympics – Women's 25 metre pistol",
                 "attribute": "gold_athlete",
@@ -751,7 +751,7 @@
           "output": 76,
           "total": 733
         },
-        "latency_s": 1.774,
+        "latency_s": 1.735,
         "citations": [
           "Q26263261"
         ],
@@ -778,8 +778,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 76,
-              "latency_ms": 1399.4253559940262,
-              "provider_latency_ms": 1399.2940220050514
+              "latency_ms": 1342.9927069955738,
+              "provider_latency_ms": 1342.8298930011806
             }
           ],
           "tools_called": [
@@ -794,7 +794,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Sailing at the 2016 Summer Olympics – Men's 470\", \"competitor_count\": 52}, {\"event\": \"Sailing at the 2016 Summer Olympics – Laser\", \"competitor_count\": 46}, {\"event\": \"Sailing at the 2016 Summer Olympics – 49er\", \"competitor_count\": 40}, {\"event\": \"Sailing at the 2016 Summer Olympics – 49er FX\", \"competitor_count\": 40}, {\"event\": \"Sailing at the 2016 Summer Olympics – Nacra 17\", \"competitor_count\": 40}], \"events_ranked\": 10}",
               "llm_tokens": 0,
-              "latency_ms": 373.97076100023696
+              "latency_ms": 391.45253500464605
             }
           ],
           "chunks_retrieved": 0,
@@ -807,7 +807,7 @@
           "final_answer": "Sailing at the 2016 Summer Olympics – Men's 470",
           "confidence_score": 0.9,
           "total_tokens": 733,
-          "total_latency_ms": 1773.801816998457,
+          "total_latency_ms": 1734.6804200060433,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -827,7 +827,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 373.97076100023696,
+              "latency_ms": 391.45253500464605,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -918,12 +918,12 @@
           "output": 93,
           "total": 755
         },
-        "latency_s": 2.555,
+        "latency_s": 3.003,
         "citations": [
           "Q220386",
           "Q848689",
-          "Q384953",
-          "Q595962"
+          "Q595962",
+          "Q384953"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -948,8 +948,8 @@
               "token_source": "billed",
               "prompt_tokens": 662,
               "completion_tokens": 93,
-              "latency_ms": 2516.157108002517,
-              "provider_latency_ms": 2516.0399569940637
+              "latency_ms": 2960.0296650023665,
+              "provider_latency_ms": 2959.9591590013006
             }
           ],
           "tools_called": [
@@ -963,17 +963,17 @@
                 "comparison": "more_than",
                 "threshold": 62
               },
-              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Cross-country skiing\", \"year\": 2010, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 63, \"competitors_max\": null}, \"matching_events\": [\"Cross-country skiing at the 2010 Winter Olympics – Women's 15 kilometre pursuit\", \"Cross-country skiing at the 2010 Winter Olympics – Women's 10 kilometre freestyle\", \"Cross-country skiing at the 2010 Winter Olympics – Men's 30 kilometre pursuit\", \"Cross-country skiing at the 2010 Winter Olympics – Men's 15 kilometre freestyle\"]}",
+              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Cross-country skiing\", \"year\": 2010, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 63, \"competitors_max\": null}, \"matching_events\": [\"Cross-country skiing at the 2010 Winter Olympics – Men's 30 kilometre pursuit\", \"Cross-country skiing at the 2010 Winter Olympics – Women's 15 kilometre pursuit\", \"Cross-country skiing at the 2010 Winter Olympics – Women's 10 kilometre freestyle\", \"Cross-country skiing at the 2010 Winter Olympics – Men's 15 kilometre freestyle\"]}",
               "llm_tokens": 0,
-              "latency_ms": 38.34723900217796
+              "latency_ms": 42.83788400061894
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q220386",
             "Q848689",
-            "Q384953",
-            "Q595962"
+            "Q595962",
+            "Q384953"
           ],
           "strategy_changed": false,
           "strategy_change_rationale": null,
@@ -981,7 +981,7 @@
           "final_answer": "4",
           "confidence_score": 0.9,
           "total_tokens": 755,
-          "total_latency_ms": 2554.9321369981044,
+          "total_latency_ms": 3003.344456999912,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -1002,7 +1002,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 38.34723900217796,
+              "latency_ms": 42.83788400061894,
               "observation": {
                 "count": 4,
                 "filters": {
@@ -1014,9 +1014,9 @@
                   "competitors_max": null
                 },
                 "matching_events": [
+                  "Cross-country skiing at the 2010 Winter Olympics – Men's 30 kilometre pursuit",
                   "Cross-country skiing at the 2010 Winter Olympics – Women's 15 kilometre pursuit",
                   "Cross-country skiing at the 2010 Winter Olympics – Women's 10 kilometre freestyle",
-                  "Cross-country skiing at the 2010 Winter Olympics – Men's 30 kilometre pursuit",
                   "Cross-country skiing at the 2010 Winter Olympics – Men's 15 kilometre freestyle"
                 ]
               }
@@ -1079,10 +1079,10 @@
         "answer": "Oleksandr Usyk",
         "llm_tokens": {
           "input": 1836,
-          "output": 155,
-          "total": 1991
+          "output": 156,
+          "total": 1992
         },
-        "latency_s": 3.992,
+        "latency_s": 3.351,
         "citations": [
           "Q326384"
         ],
@@ -1113,8 +1113,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 77,
-              "latency_ms": 2158.5468890043558,
-              "provider_latency_ms": 2158.4241929958807
+              "latency_ms": 1345.9207930063712,
+              "provider_latency_ms": 1345.8255699952133
             },
             {
               "step": 2,
@@ -1123,9 +1123,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 1179,
-              "completion_tokens": 78,
-              "latency_ms": 1793.0486420009402,
-              "provider_latency_ms": 1792.8732370055513
+              "completion_tokens": 79,
+              "latency_ms": 1962.7040370032773,
+              "provider_latency_ms": 1962.5926590015297
             }
           ],
           "tools_called": [
@@ -1141,7 +1141,7 @@
               },
               "output_summary": "{\"events\": [\"Boxing at the 2012 Summer Olympics – Men's heavyweight\", \"Boxing at the 2012 Summer Olympics – Men's light heavyweight\", \"Boxing at the 2012 Summer Olympics – Men's super heavyweight\", \"Boxing at the 2012 Summer Olympics – Men's flyweight\", \"Boxing at the 2012 Summer Olympics – Men's lightweight\", \"Boxing at the 2012 Summer Olympics – Men's welterweight\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Boxing at the 2012 Summer Olympics – Men's heavyweight\", \"event_id\": \"Q326384\", \"score\": 1.0}, {\"event\": \"Boxing at the 2012 Summer Olympics – Men's light heavyweight\", \"event_id\": \"Q348720\", \"score\": 0.8}, {\"event\": \"Boxing at the 2012 Summer Olympics – Men's super heavyweight\", \"event_id\": \"Q326382\", \"score\": 0.8}, {\"event\": \"Boxing at the 2012 Summer Olympics – Men's flyweight\", \"event_id\": \"Q332673\", \"score\": 0.5}, {\"event\": \"Boxing at the 2012 Summer Olympics – Men's lightweight\", \"event_id\": \"Q31844\", \"score\": 0.5}]}, \"candidates\": [\"Boxing at the 2012 Summer Olympics – Men's heavyweight\", \"Boxing at the 2012 Summer Olympics – Men's light heavyweight\", \"Boxing at the 2012 Summer Olympics – Men's super heavyweight\", \"Boxing at the 2012 Summer Olympics – Men's flyweight\", \"Boxing at the 2012 Summer Olympics – Men's lightweight\", \"Boxing at the 2012 Summer Olympics – Men's welterweight\"]}",
               "llm_tokens": 0,
-              "latency_ms": 2.274571997986641
+              "latency_ms": 1.0394640048616566
             },
             {
               "step": 2,
@@ -1152,7 +1152,7 @@
               },
               "output_summary": "{\"event\": \"Boxing at the 2012 Summer Olympics – Men's heavyweight\", \"attribute\": \"gold_athlete\", \"value\": \"Oleksandr Usyk\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Boxing at the 2012 Summer Olympics – Men's heavyweight\", \"event_id\": \"Q326384\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q326384\", \"line\": \"gold: Oleksandr Usyk\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.56630800105631
+              "latency_ms": 40.63538800255628
             }
           ],
           "chunks_retrieved": 1,
@@ -1164,8 +1164,8 @@
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "Oleksandr Usyk",
           "confidence_score": 0.98,
-          "total_tokens": 1991,
-          "total_latency_ms": 3991.8814310003654,
+          "total_tokens": 1992,
+          "total_latency_ms": 3350.9213349971105,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -1186,7 +1186,7 @@
               "event": "observation",
               "step": 1,
               "tool": "find_events",
-              "latency_ms": 2.274571997986641,
+              "latency_ms": 1.0394640048616566,
               "observation": {
                 "events": [
                   "Boxing at the 2012 Summer Olympics – Men's heavyweight",
@@ -1238,7 +1238,7 @@
             },
             {
               "event": "plan",
-              "thought": "The event I need is \"Boxing at the 2012 Summer Olympics – Men's heavyweight\". Now I will find the gold medalist for this event.",
+              "thought": "The event I need is \"Boxing at the 2012 Summer Olympics – Men's heavyweight\". Now I will find the gold medal winner of this event.",
               "action": "event_attribute",
               "action_input": {
                 "event": "Boxing at the 2012 Summer Olympics – Men's heavyweight",
@@ -1250,7 +1250,7 @@
               "event": "observation",
               "step": 2,
               "tool": "event_attribute",
-              "latency_ms": 36.56630800105631,
+              "latency_ms": 40.63538800255628,
               "observation": {
                 "event": "Boxing at the 2012 Summer Olympics – Men's heavyweight",
                 "attribute": "gold_athlete",
@@ -1336,11 +1336,11 @@
           "output": 88,
           "total": 747
         },
-        "latency_s": 1.714,
+        "latency_s": 2.916,
         "citations": [
           "Q7400323",
-          "Q7400318",
           "Q7400322",
+          "Q7400318",
           "Q7400319"
         ],
         "model": "command-a-03-2025",
@@ -1366,8 +1366,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 88,
-              "latency_ms": 1677.464776999841,
-              "provider_latency_ms": 1677.3971259972313
+              "latency_ms": 2874.480635000509,
+              "provider_latency_ms": 2874.3818959992495
             }
           ],
           "tools_called": [
@@ -1381,16 +1381,16 @@
                 "comparison": "more_than",
                 "threshold": 46
               },
-              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Sailing\", \"year\": 1996, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 47, \"competitors_max\": null}, \"matching_events\": [\"Sailing at the 1996 Summer Olympics – Star\", \"Sailing at the 1996 Summer Olympics – Laser\", \"Sailing at the 1996 Summer Olympics – Men's 470\", \"Sailing at the 1996 Summer Olympics – Soling\"]}",
+              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Sailing\", \"year\": 1996, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 47, \"competitors_max\": null}, \"matching_events\": [\"Sailing at the 1996 Summer Olympics – Soling\", \"Sailing at the 1996 Summer Olympics – Star\", \"Sailing at the 1996 Summer Olympics – Laser\", \"Sailing at the 1996 Summer Olympics – Men's 470\"]}",
               "llm_tokens": 0,
-              "latency_ms": 36.61994000140112
+              "latency_ms": 41.6339599978528
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q7400323",
-            "Q7400318",
             "Q7400322",
+            "Q7400318",
             "Q7400319"
           ],
           "strategy_changed": false,
@@ -1399,7 +1399,7 @@
           "final_answer": "4",
           "confidence_score": 0.9,
           "total_tokens": 747,
-          "total_latency_ms": 1714.3047110002954,
+          "total_latency_ms": 2916.4657360015553,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -1420,7 +1420,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 36.61994000140112,
+              "latency_ms": 41.6339599978528,
               "observation": {
                 "count": 4,
                 "filters": {
@@ -1432,10 +1432,10 @@
                   "competitors_max": null
                 },
                 "matching_events": [
+                  "Sailing at the 1996 Summer Olympics – Soling",
                   "Sailing at the 1996 Summer Olympics – Star",
                   "Sailing at the 1996 Summer Olympics – Laser",
-                  "Sailing at the 1996 Summer Olympics – Men's 470",
-                  "Sailing at the 1996 Summer Olympics – Soling"
+                  "Sailing at the 1996 Summer Olympics – Men's 470"
                 ]
               }
             }
@@ -1498,7 +1498,7 @@
           "output": 76,
           "total": 733
         },
-        "latency_s": 2.988,
+        "latency_s": 2.633,
         "citations": [
           "Q7400344"
         ],
@@ -1525,8 +1525,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 76,
-              "latency_ms": 2588.2059130017296,
-              "provider_latency_ms": 2588.1236650020583
+              "latency_ms": 2191.528669995023,
+              "provider_latency_ms": 2191.4534800016554
             }
           ],
           "tools_called": [
@@ -1534,14 +1534,14 @@
               "step": 1,
               "tool_name": "rank_events",
               "input_args": {
-                "sport": "Sailing",
+                "sport": "sailing",
                 "year": 2004,
                 "season": "Summer",
                 "order": "desc"
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Sailing at the 2004 Summer Olympics – Men's 470\", \"competitor_count\": 54}, {\"event\": \"Sailing at the 2004 Summer Olympics – Yngling\", \"competitor_count\": 48}, {\"event\": \"Sailing at the 2004 Summer Olympics – Laser\", \"competitor_count\": 42}, {\"event\": \"Sailing at the 2004 Summer Olympics – Women's 470\", \"competitor_count\": 40}, {\"event\": \"Sailing at the 2004 Summer Olympics – 49er\", \"competitor_count\": 38}], \"events_ranked\": 11}",
               "llm_tokens": 0,
-              "latency_ms": 399.7736300007091
+              "latency_ms": 441.50521000119625
             }
           ],
           "chunks_retrieved": 0,
@@ -1554,7 +1554,7 @@
           "final_answer": "Sailing at the 2004 Summer Olympics – Men's 470",
           "confidence_score": 0.9,
           "total_tokens": 733,
-          "total_latency_ms": 2988.310423999792,
+          "total_latency_ms": 2633.2651500051725,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -1563,7 +1563,7 @@
               "thought": "I will use the rank_events tool to find the sailing event at the 2004 Summer Olympics with the highest number of competitors.",
               "action": "rank_events",
               "action_input": {
-                "sport": "Sailing",
+                "sport": "sailing",
                 "year": 2004,
                 "season": "Summer",
                 "order": "desc"
@@ -1574,7 +1574,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 399.7736300007091,
+              "latency_ms": 441.50521000119625,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -1662,7 +1662,7 @@
           "output": 68,
           "total": 718
         },
-        "latency_s": 1.743,
+        "latency_s": 1.525,
         "citations": [
           "Q10497009"
         ],
@@ -1691,8 +1691,8 @@
               "token_source": "billed",
               "prompt_tokens": 650,
               "completion_tokens": 68,
-              "latency_ms": 1705.710916998214,
-              "provider_latency_ms": 1705.5923170046299
+              "latency_ms": 1483.6779210017994,
+              "provider_latency_ms": 1483.5860220046015
             }
           ],
           "tools_called": [
@@ -1705,7 +1705,7 @@
               },
               "output_summary": "{\"event\": \"Boxing at the 1996 Summer Olympics – Flyweight\", \"attribute\": \"nation_count\", \"value\": \"32\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Boxing at the 1996 Summer Olympics – Flyweight\", \"event_id\": \"Q10497009\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q10497009\", \"line\": \"competitors: 32\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.9130090039107
+              "latency_ms": 40.82016299798852
             }
           ],
           "chunks_retrieved": 1,
@@ -1718,7 +1718,7 @@
           "final_answer": "32",
           "confidence_score": 0.98,
           "total_tokens": 718,
-          "total_latency_ms": 1742.9269490021397,
+          "total_latency_ms": 1524.8940539968316,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -1736,7 +1736,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 36.9130090039107,
+              "latency_ms": 40.82016299798852,
               "observation": {
                 "event": "Boxing at the 1996 Summer Olympics – Flyweight",
                 "attribute": "nation_count",
@@ -1822,7 +1822,7 @@
           "output": 88,
           "total": 747
         },
-        "latency_s": 1.516,
+        "latency_s": 1.906,
         "citations": [
           "Q7979973",
           "Q7979968",
@@ -1852,8 +1852,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 88,
-              "latency_ms": 1476.0264979995554,
-              "provider_latency_ms": 1475.9426259988686
+              "latency_ms": 1863.644702003512,
+              "provider_latency_ms": 1863.563332000922
             }
           ],
           "tools_called": [
@@ -1869,7 +1869,7 @@
               },
               "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Weightlifting\", \"year\": 1992, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 25, \"competitors_max\": null}, \"matching_events\": [\"Weightlifting at the 1992 Summer Olympics – Men's 60 kg\", \"Weightlifting at the 1992 Summer Olympics – Men's 82.5 kg\", \"Weightlifting at the 1992 Summer Olympics – Men's 100 kg\", \"Weightlifting at the 1992 Summer Olympics – Men's 75 kg\"]}",
               "llm_tokens": 0,
-              "latency_ms": 39.607621998584364
+              "latency_ms": 41.996296000434086
             }
           ],
           "chunks_retrieved": 0,
@@ -1885,7 +1885,7 @@
           "final_answer": "4",
           "confidence_score": 0.9,
           "total_tokens": 747,
-          "total_latency_ms": 1515.9538930020062,
+          "total_latency_ms": 1905.8693019978818,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -1906,7 +1906,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 39.607621998584364,
+              "latency_ms": 41.996296000434086,
               "observation": {
                 "count": 4,
                 "filters": {
@@ -1986,7 +1986,7 @@
           "output": 65,
           "total": 722
         },
-        "latency_s": 1.37,
+        "latency_s": 1.425,
         "citations": [
           "Q25991452"
         ],
@@ -2015,8 +2015,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 65,
-              "latency_ms": 1334.614753999631,
-              "provider_latency_ms": 1334.4787940004608
+              "latency_ms": 1383.2299810019322,
+              "provider_latency_ms": 1383.15435199911
             }
           ],
           "tools_called": [
@@ -2029,7 +2029,7 @@
               },
               "output_summary": "{\"event\": \"Swimming at the 2016 Summer Olympics – Men's 100 metre butterfly\", \"attribute\": \"nation_count\", \"value\": \"32\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Swimming at the 2016 Summer Olympics – Men's 100 metre butterfly\", \"event_id\": \"Q25991452\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q25991452\", \"line\": \"nations: 32\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 35.6027180023375
+              "latency_ms": 41.0924480020185
             }
           ],
           "chunks_retrieved": 1,
@@ -2042,7 +2042,7 @@
           "final_answer": "32",
           "confidence_score": 0.98,
           "total_tokens": 722,
-          "total_latency_ms": 1370.4844460007735,
+          "total_latency_ms": 1424.5885950003867,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -2060,7 +2060,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 35.6027180023375,
+              "latency_ms": 41.0924480020185,
               "observation": {
                 "event": "Swimming at the 2016 Summer Olympics – Men's 100 metre butterfly",
                 "attribute": "nation_count",
@@ -2148,14 +2148,14 @@
           "output": 88,
           "total": 747
         },
-        "latency_s": 1.637,
+        "latency_s": 1.421,
         "citations": [
           "Q24761058",
           "Q26260960",
-          "Q24760634",
-          "Q25476845",
           "Q26260943",
-          "Q25476835"
+          "Q24760634",
+          "Q25476835",
+          "Q25476845"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -2180,8 +2180,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 88,
-              "latency_ms": 1599.7989230017993,
-              "provider_latency_ms": 1599.685323999438
+              "latency_ms": 1378.9638689995627,
+              "provider_latency_ms": 1378.8658560006297
             }
           ],
           "tools_called": [
@@ -2195,19 +2195,19 @@
                 "comparison": "more_than",
                 "threshold": 27
               },
-              "output_summary": "{\"count\": 6, \"filters\": {\"sport\": \"Cycling\", \"year\": 2016, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 28, \"competitors_max\": null}, \"matching_events\": [\"Cycling at the 2016 Summer Olympics – Women's cross-country\", \"Cycling at the 2016 Summer Olympics – Women's individual road race\", \"Cycling at the 2016 Summer Olympics – Women's team pursuit\", \"Cycling at the 2016 Summer Olympics – Men's individual road race\", \"Cycling at the 2016 Summer Olympics – Men's team pursuit\", \"Cycling at the 2016 Summer Olympics – Men's cross-country\"]}",
+              "output_summary": "{\"count\": 6, \"filters\": {\"sport\": \"Cycling\", \"year\": 2016, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 28, \"competitors_max\": null}, \"matching_events\": [\"Cycling at the 2016 Summer Olympics – Women's individual road race\", \"Cycling at the 2016 Summer Olympics – Women's team pursuit\", \"Cycling at the 2016 Summer Olympics – Men's individual road race\", \"Cycling at the 2016 Summer Olympics – Men's team pursuit\", \"Cycling at the 2016 Summer Olympics – Women's cross-country\", \"Cycling at the 2016 Summer Olympics – Men's cross-country\"]}",
               "llm_tokens": 0,
-              "latency_ms": 36.99755799607374
+              "latency_ms": 41.477473998384085
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q24761058",
             "Q26260960",
-            "Q24760634",
-            "Q25476845",
             "Q26260943",
-            "Q25476835"
+            "Q24760634",
+            "Q25476835",
+            "Q25476845"
           ],
           "strategy_changed": false,
           "strategy_change_rationale": null,
@@ -2215,7 +2215,7 @@
           "final_answer": "6",
           "confidence_score": 0.9,
           "total_tokens": 747,
-          "total_latency_ms": 1637.0362550005666,
+          "total_latency_ms": 1420.7141769948066,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -2236,7 +2236,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 36.99755799607374,
+              "latency_ms": 41.477473998384085,
               "observation": {
                 "count": 6,
                 "filters": {
@@ -2248,11 +2248,11 @@
                   "competitors_max": null
                 },
                 "matching_events": [
-                  "Cycling at the 2016 Summer Olympics – Women's cross-country",
                   "Cycling at the 2016 Summer Olympics – Women's individual road race",
                   "Cycling at the 2016 Summer Olympics – Women's team pursuit",
                   "Cycling at the 2016 Summer Olympics – Men's individual road race",
                   "Cycling at the 2016 Summer Olympics – Men's team pursuit",
+                  "Cycling at the 2016 Summer Olympics – Women's cross-country",
                   "Cycling at the 2016 Summer Olympics – Men's cross-country"
                 ]
               }
@@ -2312,10 +2312,10 @@
         "answer": "Michaela Dorfmeister",
         "llm_tokens": {
           "input": 657,
-          "output": 97,
-          "total": 754
+          "output": 93,
+          "total": 750
         },
-        "latency_s": 2.003,
+        "latency_s": 1.579,
         "citations": [
           "Q771123"
         ],
@@ -2343,9 +2343,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 657,
-              "completion_tokens": 97,
-              "latency_ms": 1967.3556340057985,
-              "provider_latency_ms": 1967.2841379942838
+              "completion_tokens": 93,
+              "latency_ms": 1538.103630002297,
+              "provider_latency_ms": 1537.96461699676
             }
           ],
           "tools_called": [
@@ -2360,7 +2360,7 @@
               },
               "output_summary": "{\"event\": \"Alpine skiing at the 2006 Winter Olympics – Women's downhill\", \"attribute\": \"gold_athlete\", \"value\": \"Michaela Dorfmeister\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Alpine skiing at the 2006 Winter Olympics – Women's downhill\", \"event_id\": \"Q771123\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q771123\", \"line\": \"gold: Michaela Dorfmeister\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 35.46794299472822
+              "latency_ms": 40.112932001648005
             }
           ],
           "chunks_retrieved": 1,
@@ -2372,14 +2372,14 @@
           "stopping_reason": "event_at_venue_date returned one verified graph value stated in the cited source article",
           "final_answer": "Michaela Dorfmeister",
           "confidence_score": 0.98,
-          "total_tokens": 754,
-          "total_latency_ms": 2003.0409510000027,
+          "total_tokens": 750,
+          "total_latency_ms": 1578.5515509996912,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I need to find the event held at San Sicario on February 15, 2006, and then look up the gold medalist for that event.",
+              "thought": "I need to find the event held at San Sicario on February 15, 2006, and then determine the gold medalist.",
               "action": "event_at_venue_date",
               "action_input": {
                 "venue": "San Sicario",
@@ -2393,7 +2393,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 35.46794299472822,
+              "latency_ms": 40.112932001648005,
               "observation": {
                 "event": "Alpine skiing at the 2006 Winter Olympics – Women's downhill",
                 "attribute": "gold_athlete",
@@ -2477,7 +2477,7 @@
           "output": 79,
           "total": 735
         },
-        "latency_s": 1.508,
+        "latency_s": 2.232,
         "citations": [
           "Q26219858"
         ],
@@ -2506,8 +2506,8 @@
               "token_source": "billed",
               "prompt_tokens": 656,
               "completion_tokens": 79,
-              "latency_ms": 1471.5559140022378,
-              "provider_latency_ms": 1471.4753200023551
+              "latency_ms": 2191.729325997585,
+              "provider_latency_ms": 2191.5661960010766
             }
           ],
           "tools_called": [
@@ -2515,12 +2515,12 @@
               "step": 1,
               "tool_name": "event_attribute",
               "input_args": {
-                "event": "Athletics at the 2016 Summer Olympics - Men's 400 metres",
+                "event": "Athletics at the 2016 Summer Olympics – Men's 400 metres",
                 "attribute": "nation_count"
               },
               "output_summary": "{\"event\": \"Athletics at the 2016 Summer Olympics – Men's 400 metres\", \"attribute\": \"nation_count\", \"value\": \"35\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Athletics at the 2016 Summer Olympics – Men's 400 metres\", \"event_id\": \"Q26219858\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q26219858\", \"line\": \"nations: 35\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.67391199996928
+              "latency_ms": 39.504926004156005
             }
           ],
           "chunks_retrieved": 1,
@@ -2533,16 +2533,16 @@
           "final_answer": "35",
           "confidence_score": 0.98,
           "total_tokens": 735,
-          "total_latency_ms": 1508.4682730011991,
+          "total_latency_ms": 2231.6600769991055,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I will look up the event \"Athletics at the 2016 Summer Olympics - Men's 400 metres\" and find the nation_count attribute.",
+              "thought": "I will look up the event \"Athletics at the 2016 Summer Olympics – Men's 400 metres\" and find the nation_count attribute.",
               "action": "event_attribute",
               "action_input": {
-                "event": "Athletics at the 2016 Summer Olympics - Men's 400 metres",
+                "event": "Athletics at the 2016 Summer Olympics – Men's 400 metres",
                 "attribute": "nation_count"
               },
               "final_answer": null
@@ -2551,7 +2551,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 36.67391199996928,
+              "latency_ms": 39.504926004156005,
               "observation": {
                 "event": "Athletics at the 2016 Summer Olympics – Men's 400 metres",
                 "attribute": "nation_count",
@@ -2632,10 +2632,10 @@
         "answer": "22",
         "llm_tokens": {
           "input": 653,
-          "output": 75,
-          "total": 728
+          "output": 73,
+          "total": 726
         },
-        "latency_s": 1.406,
+        "latency_s": 1.729,
         "citations": [
           "Q848278"
         ],
@@ -2663,9 +2663,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 653,
-              "completion_tokens": 75,
-              "latency_ms": 1368.25026099541,
-              "provider_latency_ms": 1368.1709000011324
+              "completion_tokens": 73,
+              "latency_ms": 1687.4211009999271,
+              "provider_latency_ms": 1687.3326389977592
             }
           ],
           "tools_called": [
@@ -2673,12 +2673,12 @@
               "step": 1,
               "tool_name": "event_attribute",
               "input_args": {
-                "event": "Athletics at the 2008 Summer Olympics - Women's shot put",
+                "event": "Athletics at the 2008 Summer Olympics – Women's shot put",
                 "attribute": "nation_count"
               },
               "output_summary": "{\"event\": \"Athletics at the 2008 Summer Olympics – Women's shot put\", \"attribute\": \"nation_count\", \"value\": \"22\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Athletics at the 2008 Summer Olympics – Women's shot put\", \"event_id\": \"Q848278\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q848278\", \"line\": \"nations: 22\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.97722499782685
+              "latency_ms": 40.75928800011752
             }
           ],
           "chunks_retrieved": 1,
@@ -2690,17 +2690,17 @@
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "22",
           "confidence_score": 0.98,
-          "total_tokens": 728,
-          "total_latency_ms": 1405.5639389989665,
+          "total_tokens": 726,
+          "total_latency_ms": 1728.5652770005981,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I need to find the number of nations that competed in the Women's shot put event in Athletics at the 2008 Summer Olympics.",
+              "thought": "I will look up the event \"Athletics at the 2008 Summer Olympics – Women's shot put\" and find the nation_count attribute.",
               "action": "event_attribute",
               "action_input": {
-                "event": "Athletics at the 2008 Summer Olympics - Women's shot put",
+                "event": "Athletics at the 2008 Summer Olympics – Women's shot put",
                 "attribute": "nation_count"
               },
               "final_answer": null
@@ -2709,7 +2709,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 36.97722499782685,
+              "latency_ms": 40.75928800011752,
               "observation": {
                 "event": "Athletics at the 2008 Summer Olympics – Women's shot put",
                 "attribute": "nation_count",
@@ -2790,7 +2790,7 @@
           "output": 82,
           "total": 742
         },
-        "latency_s": 1.382,
+        "latency_s": 1.757,
         "citations": [
           "Q1222270"
         ],
@@ -2819,8 +2819,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 82,
-              "latency_ms": 1328.8714890004485,
-              "provider_latency_ms": 1328.7400860062917
+              "latency_ms": 1705.377831000078,
+              "provider_latency_ms": 1705.2910519996658
             }
           ],
           "tools_called": [
@@ -2834,7 +2834,7 @@
               },
               "output_summary": "{\"event\": \"Rowing at the 2012 Summer Olympics – Women's single sculls\", \"attribute\": \"gold_athlete\", \"value\": \"Miroslava Knapková\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Rowing at the 2012 Summer Olympics – Women's single sculls\", \"event_id\": \"Q1222270\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q1222270\", \"line\": \"gold: Miroslava Knapková\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 52.74235700198915
+              "latency_ms": 51.69583099632291
             }
           ],
           "chunks_retrieved": 1,
@@ -2847,7 +2847,7 @@
           "final_answer": "Miroslava Knapková",
           "confidence_score": 0.98,
           "total_tokens": 742,
-          "total_latency_ms": 1382.0401880002464,
+          "total_latency_ms": 1757.3035850000451,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -2866,7 +2866,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 52.74235700198915,
+              "latency_ms": 51.69583099632291,
               "observation": {
                 "event": "Rowing at the 2012 Summer Olympics – Women's single sculls",
                 "attribute": "gold_athlete",
@@ -2947,7 +2947,7 @@
           "output": 77,
           "total": 735
         },
-        "latency_s": 1.787,
+        "latency_s": 1.455,
         "citations": [
           "Q26234144"
         ],
@@ -2976,8 +2976,8 @@
               "token_source": "billed",
               "prompt_tokens": 658,
               "completion_tokens": 77,
-              "latency_ms": 1738.633437998942,
-              "provider_latency_ms": 1738.4581240039552
+              "latency_ms": 1399.8433879969525,
+              "provider_latency_ms": 1399.6918609991553
             }
           ],
           "tools_called": [
@@ -2991,7 +2991,7 @@
               },
               "output_summary": "{\"event\": \"Athletics at the 2016 Summer Olympics – Women's javelin throw\", \"attribute\": \"gold_athlete\", \"value\": \"Sara Kolak\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Athletics at the 2016 Summer Olympics – Women's javelin throw\", \"event_id\": \"Q26234144\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q26234144\", \"line\": \"gold: Sara Kolak\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 47.655834001488984
+              "latency_ms": 54.69848699431168
             }
           ],
           "chunks_retrieved": 1,
@@ -3004,7 +3004,7 @@
           "final_answer": "Sara Kolak",
           "confidence_score": 0.98,
           "total_tokens": 735,
-          "total_latency_ms": 1786.5942780044861,
+          "total_latency_ms": 1454.8704730041209,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -3023,7 +3023,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 47.655834001488984,
+              "latency_ms": 54.69848699431168,
               "observation": {
                 "event": "Athletics at the 2016 Summer Olympics – Women's javelin throw",
                 "attribute": "gold_athlete",
@@ -3110,7 +3110,7 @@
           "output": 89,
           "total": 749
         },
-        "latency_s": 1.581,
+        "latency_s": 1.539,
         "citations": [
           "Q1005643",
           "Q1222533",
@@ -3140,8 +3140,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 89,
-              "latency_ms": 1543.8077479993808,
-              "provider_latency_ms": 1543.7304779989063
+              "latency_ms": 1497.960979002528,
+              "provider_latency_ms": 1497.8773080001702
             }
           ],
           "tools_called": [
@@ -3155,9 +3155,9 @@
                 "comparison": "more_than",
                 "threshold": 45
               },
-              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Alpine skiing\", \"year\": 1998, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 46, \"competitors_max\": null}, \"matching_events\": [\"Alpine skiing at the 1998 Winter Olympics – Men's slalom\", \"Alpine skiing at the 1998 Winter Olympics – Women's giant slalom\", \"Alpine skiing at the 1998 Winter Olympics – Women's slalom\", \"Alpine skiing at the 1998 Winter Olympics – Men's giant slalom\"]}",
+              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Alpine skiing\", \"year\": 1998, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 46, \"competitors_max\": null}, \"matching_events\": [\"Alpine skiing at the 1998 Winter Olympics – Women's slalom\", \"Alpine skiing at the 1998 Winter Olympics – Men's slalom\", \"Alpine skiing at the 1998 Winter Olympics – Women's giant slalom\", \"Alpine skiing at the 1998 Winter Olympics – Men's giant slalom\"]}",
               "llm_tokens": 0,
-              "latency_ms": 36.53720800502924
+              "latency_ms": 41.014822003489826
             }
           ],
           "chunks_retrieved": 0,
@@ -3173,7 +3173,7 @@
           "final_answer": "4",
           "confidence_score": 0.9,
           "total_tokens": 749,
-          "total_latency_ms": 1580.5539979992318,
+          "total_latency_ms": 1539.1798590062535,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -3194,7 +3194,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 36.53720800502924,
+              "latency_ms": 41.014822003489826,
               "observation": {
                 "count": 4,
                 "filters": {
@@ -3206,9 +3206,9 @@
                   "competitors_max": null
                 },
                 "matching_events": [
+                  "Alpine skiing at the 1998 Winter Olympics – Women's slalom",
                   "Alpine skiing at the 1998 Winter Olympics – Men's slalom",
                   "Alpine skiing at the 1998 Winter Olympics – Women's giant slalom",
-                  "Alpine skiing at the 1998 Winter Olympics – Women's slalom",
                   "Alpine skiing at the 1998 Winter Olympics – Men's giant slalom"
                 ]
               }
@@ -3271,7 +3271,7 @@
           "output": 71,
           "total": 726
         },
-        "latency_s": 1.312,
+        "latency_s": 1.733,
         "citations": [
           "Q2353475"
         ],
@@ -3300,8 +3300,8 @@
               "token_source": "billed",
               "prompt_tokens": 655,
               "completion_tokens": 71,
-              "latency_ms": 1263.5086410009535,
-              "provider_latency_ms": 1263.4329439970315
+              "latency_ms": 1683.7710100007826,
+              "provider_latency_ms": 1683.6663049980416
             }
           ],
           "tools_called": [
@@ -3315,7 +3315,7 @@
               },
               "output_summary": "{\"event\": \"Shooting at the 2012 Summer Olympics – Men's 50 metre pistol\", \"attribute\": \"gold_athlete\", \"value\": \"Jin Jong-oh\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Shooting at the 2012 Summer Olympics – Men's 50 metre pistol\", \"event_id\": \"Q2353475\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q2353475\", \"line\": \"gold: Jin Jong-oh\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 48.584253003355116
+              "latency_ms": 48.87685500580119
             }
           ],
           "chunks_retrieved": 1,
@@ -3328,7 +3328,7 @@
           "final_answer": "Jin Jong-oh",
           "confidence_score": 0.98,
           "total_tokens": 726,
-          "total_latency_ms": 1312.293013004819,
+          "total_latency_ms": 1732.8924409957835,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -3347,7 +3347,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 48.584253003355116,
+              "latency_ms": 48.87685500580119,
               "observation": {
                 "event": "Shooting at the 2012 Summer Olympics – Men's 50 metre pistol",
                 "attribute": "gold_athlete",
@@ -3427,11 +3427,11 @@
       "agentic": {
         "answer": "Tyler Clary",
         "llm_tokens": {
-          "input": 1532,
-          "output": 158,
-          "total": 1690
+          "input": 2062,
+          "output": 166,
+          "total": 2228
         },
-        "latency_s": 3.03,
+        "latency_s": 3.471,
         "citations": [
           "Q2071160"
         ],
@@ -3461,9 +3461,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 662,
-              "completion_tokens": 93,
-              "latency_ms": 1769.395233997784,
-              "provider_latency_ms": 1769.2849730010494
+              "completion_tokens": 74,
+              "latency_ms": 1486.5849140041973,
+              "provider_latency_ms": 1486.5063580000424
             },
             {
               "step": 2,
@@ -3471,10 +3471,10 @@
               "model_name": "command-a-03-2025",
               "provider": "cohere",
               "token_source": "billed",
-              "prompt_tokens": 870,
-              "completion_tokens": 65,
-              "latency_ms": 1222.3443839975516,
-              "provider_latency_ms": 1222.2055150050437
+              "prompt_tokens": 1400,
+              "completion_tokens": 92,
+              "latency_ms": 1940.2652680000756,
+              "provider_latency_ms": 1940.13800900575
             }
           ],
           "tools_called": [
@@ -3482,14 +3482,13 @@
               "step": 1,
               "tool_name": "find_events",
               "input_args": {
-                "event": "Swimming at the 2012 Summer Olympics - Men's 200 metre backstroke",
+                "event": "men's 200 metre backstroke",
                 "year": 2012,
-                "season": "Summer",
-                "gender": "Men"
+                "season": "Summer"
               },
-              "output_summary": "{\"events\": [\"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\"], \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\", \"event_id\": \"Q2071160\", \"score\": 1.0}]}, \"candidates\": [\"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\"]}",
+              "output_summary": "{\"events\": [\"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\", \"Athletics at the 2012 Summer Olympics – Men's 200 metres\", \"Swimming at the 2012 Summer Olympics – Men's 200 metre breaststroke\", \"Swimming at the 2012 Summer Olympics – Women's 200 metre backstroke\", \"Swimming at the 2012 Summer Olympics – Men's 200 metre individual medley\", \"Athletics at the 2012 Summer Olympics – Women's 200 metres\", \"Swimming at the 2012 Summer Olympics – Women's 200 metre breaststroke\", \"Swimming at the 2012 Summer Olympics – Women's 200 metre butterfly\", \"Swimming at the 2012 Summer Olympics – Women's 200 metre freestyle\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\", \"event_id\": \"Q2071160\", \"score\": 1.0}, {\"event\": \"Athletics at the 2012 Summer Olympics – Men's 200 metres\", \"event_id\": \"Q1649415\", \"score\": 0.857}, {\"event\": \"Swimming at the 2012 Summer Olympics – Men's 200 metre breaststroke\", \"event_id\": \"Q905555\", \"score\": 0.75}, {\"event\": \"Swimming at the 2012 Summer Olympics – Women's 200 metre backstroke\", \"event_id\": \"Q2051400\", \"score\": 0.75}, {\"event\": \"Swimming at the 2012 Summer Olympics – Men's 200 metre individual medley\", \"event_id\": \"Q916930\", \"score\": 0.667}]}, \"candidates\": [\"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\", \"Athletics at the 2012 Summer Olympics – Men's 200 metres\", \"Swimming at the 2012 Summer Olympics – Men's 200 metre breaststroke\", ",
               "llm_tokens": 0,
-              "latency_ms": 0.597762998950202
+              "latency_ms": 4.89597900013905
             },
             {
               "step": 2,
@@ -3500,20 +3499,20 @@
               },
               "output_summary": "{\"event\": \"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\", \"attribute\": \"gold_athlete\", \"value\": \"Tyler Clary\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\", \"event_id\": \"Q2071160\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q2071160\", \"line\": \"gold: Tyler Clary\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.6629229974933
+              "latency_ms": 39.095690997783095
             }
           ],
           "chunks_retrieved": 1,
           "citations": [
             "Q2071160"
           ],
-          "strategy_changed": false,
-          "strategy_change_rationale": null,
+          "strategy_changed": true,
+          "strategy_change_rationale": "find_events was ambiguous; switched to event_attribute for the missing evidence",
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "Tyler Clary",
           "confidence_score": 0.98,
-          "total_tokens": 1690,
-          "total_latency_ms": 3029.6104379958706,
+          "total_tokens": 2228,
+          "total_latency_ms": 3471.487948001595,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -3522,10 +3521,9 @@
               "thought": "I need to find the men's 200 metre backstroke swimming event at the Summer Olympics held immediately before 2016.",
               "action": "find_events",
               "action_input": {
-                "event": "Swimming at the 2012 Summer Olympics - Men's 200 metre backstroke",
+                "event": "men's 200 metre backstroke",
                 "year": 2012,
-                "season": "Summer",
-                "gender": "Men"
+                "season": "Summer"
               },
               "final_answer": null
             },
@@ -3533,29 +3531,65 @@
               "event": "observation",
               "step": 1,
               "tool": "find_events",
-              "latency_ms": 0.597762998950202,
+              "latency_ms": 4.89597900013905,
               "observation": {
                 "events": [
-                  "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke"
+                  "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke",
+                  "Athletics at the 2012 Summer Olympics – Men's 200 metres",
+                  "Swimming at the 2012 Summer Olympics – Men's 200 metre breaststroke",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre backstroke",
+                  "Swimming at the 2012 Summer Olympics – Men's 200 metre individual medley",
+                  "Athletics at the 2012 Summer Olympics – Women's 200 metres",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre breaststroke",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre butterfly",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre freestyle"
                 ],
                 "linking": {
-                  "method": "exact_title",
+                  "method": "label_token_f1",
                   "matches": [
                     {
                       "event": "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke",
                       "event_id": "Q2071160",
                       "score": 1.0
+                    },
+                    {
+                      "event": "Athletics at the 2012 Summer Olympics – Men's 200 metres",
+                      "event_id": "Q1649415",
+                      "score": 0.857
+                    },
+                    {
+                      "event": "Swimming at the 2012 Summer Olympics – Men's 200 metre breaststroke",
+                      "event_id": "Q905555",
+                      "score": 0.75
+                    },
+                    {
+                      "event": "Swimming at the 2012 Summer Olympics – Women's 200 metre backstroke",
+                      "event_id": "Q2051400",
+                      "score": 0.75
+                    },
+                    {
+                      "event": "Swimming at the 2012 Summer Olympics – Men's 200 metre individual medley",
+                      "event_id": "Q916930",
+                      "score": 0.667
                     }
                   ]
                 },
                 "candidates": [
-                  "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke"
+                  "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke",
+                  "Athletics at the 2012 Summer Olympics – Men's 200 metres",
+                  "Swimming at the 2012 Summer Olympics – Men's 200 metre breaststroke",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre backstroke",
+                  "Swimming at the 2012 Summer Olympics – Men's 200 metre individual medley",
+                  "Athletics at the 2012 Summer Olympics – Women's 200 metres",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre breaststroke",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre butterfly",
+                  "Swimming at the 2012 Summer Olympics – Women's 200 metre freestyle"
                 ]
               }
             },
             {
               "event": "plan",
-              "thought": "I have found the event, now I need to find the gold medalist.",
+              "thought": "The event I'm looking for is \"Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke\". Now I need to find the gold medal winner of this event.",
               "action": "event_attribute",
               "action_input": {
                 "event": "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke",
@@ -3567,7 +3601,7 @@
               "event": "observation",
               "step": 2,
               "tool": "event_attribute",
-              "latency_ms": 36.6629229974933,
+              "latency_ms": 39.095690997783095,
               "observation": {
                 "event": "Swimming at the 2012 Summer Olympics – Men's 200 metre backstroke",
                 "attribute": "gold_athlete",
@@ -3648,10 +3682,10 @@
         "answer": "40",
         "llm_tokens": {
           "input": 655,
-          "output": 75,
-          "total": 730
+          "output": 76,
+          "total": 731
         },
-        "latency_s": 1.824,
+        "latency_s": 1.543,
         "citations": [
           "Q15055036"
         ],
@@ -3679,9 +3713,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 655,
-              "completion_tokens": 75,
-              "latency_ms": 1786.5633710025577,
-              "provider_latency_ms": 1786.3411790021928
+              "completion_tokens": 76,
+              "latency_ms": 1503.7356640023063,
+              "provider_latency_ms": 1503.6470470004133
             }
           ],
           "tools_called": [
@@ -3694,7 +3728,7 @@
               },
               "output_summary": "{\"event\": \"Cross-country skiing at the 2014 Winter Olympics – Men's sprint\", \"attribute\": \"nation_count\", \"value\": \"40\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Cross-country skiing at the 2014 Winter Olympics – Men's sprint\", \"event_id\": \"Q15055036\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q15055036\", \"line\": \"nations: 40\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.72766300587682
+              "latency_ms": 39.150453005277086
             }
           ],
           "chunks_retrieved": 1,
@@ -3706,14 +3740,14 @@
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "40",
           "confidence_score": 0.98,
-          "total_tokens": 730,
-          "total_latency_ms": 1823.626206998597,
+          "total_tokens": 731,
+          "total_latency_ms": 1543.195920996368,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I will look up the event \"Cross-country skiing at the 2014 Winter Olympics - Men's sprint\" and find the nation_count attribute.",
+              "thought": "I will look up the event \"Cross-country skiing at the 2014 Winter Olympics - Men's sprint\" and find the number of nations that competed.",
               "action": "event_attribute",
               "action_input": {
                 "event": "Cross-country skiing at the 2014 Winter Olympics - Men's sprint",
@@ -3725,7 +3759,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 36.72766300587682,
+              "latency_ms": 39.150453005277086,
               "observation": {
                 "event": "Cross-country skiing at the 2014 Winter Olympics – Men's sprint",
                 "attribute": "nation_count",
@@ -3814,12 +3848,12 @@
           "output": 87,
           "total": 746
         },
-        "latency_s": 1.422,
+        "latency_s": 1.458,
         "citations": [
           "Q4443764",
-          "Q4354069",
-          "Q7500812",
           "Q4443765",
+          "Q7500812",
+          "Q4354069",
           "Q7500813",
           "Q7500816",
           "Q4443763"
@@ -3847,8 +3881,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 87,
-              "latency_ms": 1381.730820001394,
-              "provider_latency_ms": 1381.599496002309
+              "latency_ms": 1414.2186080061947,
+              "provider_latency_ms": 1414.1056009975728
             }
           ],
           "tools_called": [
@@ -3862,17 +3896,17 @@
                 "comparison": "more_than",
                 "threshold": 42
               },
-              "output_summary": "{\"count\": 7, \"filters\": {\"sport\": \"Shooting\", \"year\": 2000, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 43, \"competitors_max\": null}, \"matching_events\": [\"Shooting at the 2000 Summer Olympics – Men's 50 metre rifle three positions\", \"Shooting at the 2000 Summer Olympics – Men's skeet\", \"Shooting at the 2000 Summer Olympics – Men's 10 metre air rifle\", \"Shooting at the 2000 Summer Olympics – Women's 10 metre air pistol\", \"Shooting at the 2000 Summer Olympics – Women's 10 metre air rifle\", \"Shooting at the 2000 Summer Olympics – Men's 10 metre air pistol\", \"Shooting at the 2000 Summer Olympics – Men's 50 metre rifle prone\"]}",
+              "output_summary": "{\"count\": 7, \"filters\": {\"sport\": \"Shooting\", \"year\": 2000, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 43, \"competitors_max\": null}, \"matching_events\": [\"Shooting at the 2000 Summer Olympics – Women's 10 metre air pistol\", \"Shooting at the 2000 Summer Olympics – Men's 50 metre rifle three positions\", \"Shooting at the 2000 Summer Olympics – Women's 10 metre air rifle\", \"Shooting at the 2000 Summer Olympics – Men's 10 metre air pistol\", \"Shooting at the 2000 Summer Olympics – Men's 50 metre rifle prone\", \"Shooting at the 2000 Summer Olympics – Men's skeet\", \"Shooting at the 2000 Summer Olympics – Men's 10 metre air rifle\"]}",
               "llm_tokens": 0,
-              "latency_ms": 39.784772001439705
+              "latency_ms": 43.684018004569225
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q4443764",
-            "Q4354069",
-            "Q7500812",
             "Q4443765",
+            "Q7500812",
+            "Q4354069",
             "Q7500813",
             "Q7500816",
             "Q4443763"
@@ -3883,7 +3917,7 @@
           "final_answer": "7",
           "confidence_score": 0.9,
           "total_tokens": 746,
-          "total_latency_ms": 1421.8579939988558,
+          "total_latency_ms": 1458.3433420048095,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -3904,7 +3938,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 39.784772001439705,
+              "latency_ms": 43.684018004569225,
               "observation": {
                 "count": 7,
                 "filters": {
@@ -3916,13 +3950,13 @@
                   "competitors_max": null
                 },
                 "matching_events": [
-                  "Shooting at the 2000 Summer Olympics – Men's 50 metre rifle three positions",
-                  "Shooting at the 2000 Summer Olympics – Men's skeet",
-                  "Shooting at the 2000 Summer Olympics – Men's 10 metre air rifle",
                   "Shooting at the 2000 Summer Olympics – Women's 10 metre air pistol",
+                  "Shooting at the 2000 Summer Olympics – Men's 50 metre rifle three positions",
                   "Shooting at the 2000 Summer Olympics – Women's 10 metre air rifle",
                   "Shooting at the 2000 Summer Olympics – Men's 10 metre air pistol",
-                  "Shooting at the 2000 Summer Olympics – Men's 50 metre rifle prone"
+                  "Shooting at the 2000 Summer Olympics – Men's 50 metre rifle prone",
+                  "Shooting at the 2000 Summer Olympics – Men's skeet",
+                  "Shooting at the 2000 Summer Olympics – Men's 10 metre air rifle"
                 ]
               }
             }
@@ -3985,7 +4019,7 @@
           "output": 81,
           "total": 741
         },
-        "latency_s": 2.537,
+        "latency_s": 1.929,
         "citations": [
           "Q1004937"
         ],
@@ -4012,8 +4046,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 81,
-              "latency_ms": 2220.835085994622,
-              "provider_latency_ms": 2220.7095109988586
+              "latency_ms": 1561.0864750051405,
+              "provider_latency_ms": 1560.9992879981291
             }
           ],
           "tools_called": [
@@ -4028,7 +4062,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Cross-country skiing at the 1998 Winter Olympics – Men's 10 kilometre classical\", \"competitor_count\": 97}, {\"event\": \"Cross-country skiing at the 1998 Winter Olympics – Men's 15 kilometre freestyle pursuit\", \"competitor_count\": 87}, {\"event\": \"Cross-country skiing at the 1998 Winter Olympics – Men's 4 × 10 kilometre relay\", \"competitor_count\": 80}, {\"event\": \"Cross-country skiing at the 1998 Winter Olympics – Men's 50 kilometre freestyle\", \"competitor_count\": 79}, {\"event\": \"Cross-country skiing at the 1998 Winter Olympics – Women's 5 kilometre classical\", \"competitor_count\": 79}], \"events_ranked\": 9}",
               "llm_tokens": 0,
-              "latency_ms": 316.05259900243254
+              "latency_ms": 367.5049410012434
             }
           ],
           "chunks_retrieved": 0,
@@ -4041,7 +4075,7 @@
           "final_answer": "Cross-country skiing at the 1998 Winter Olympics – Men's 10 kilometre classical",
           "confidence_score": 0.9,
           "total_tokens": 741,
-          "total_latency_ms": 2537.1715590008534,
+          "total_latency_ms": 1928.841419001401,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -4061,7 +4095,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 316.05259900243254,
+              "latency_ms": 367.5049410012434,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -4148,7 +4182,7 @@
           "output": 69,
           "total": 726
         },
-        "latency_s": 1.663,
+        "latency_s": 1.791,
         "citations": [
           "Q22968979"
         ],
@@ -4175,8 +4209,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 69,
-              "latency_ms": 1198.9093619995401,
-              "provider_latency_ms": 1198.8485570036573
+              "latency_ms": 1280.673111003125,
+              "provider_latency_ms": 1280.5027259964845
             }
           ],
           "tools_called": [
@@ -4191,7 +4225,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Rowing at the 2016 Summer Olympics – Women's eight\", \"competitor_count\": 56}, {\"event\": \"Rowing at the 2016 Summer Olympics – Men's coxless four\", \"competitor_count\": 52}, {\"event\": \"Rowing at the 2016 Summer Olympics – Men's lightweight coxless four\", \"competitor_count\": 52}, {\"event\": \"Rowing at the 2016 Summer Olympics – Men's lightweight double sculls\", \"competitor_count\": 40}, {\"event\": \"Rowing at the 2016 Summer Olympics – Men's quadruple sculls\", \"competitor_count\": 40}], \"events_ranked\": 13}",
               "llm_tokens": 0,
-              "latency_ms": 463.90191100363154
+              "latency_ms": 509.6138599983533
             }
           ],
           "chunks_retrieved": 0,
@@ -4204,7 +4238,7 @@
           "final_answer": "Rowing at the 2016 Summer Olympics – Women's eight",
           "confidence_score": 0.9,
           "total_tokens": 726,
-          "total_latency_ms": 1662.9895220030448,
+          "total_latency_ms": 1790.6689939991338,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -4224,7 +4258,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 463.90191100363154,
+              "latency_ms": 509.6138599983533,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -4310,10 +4344,10 @@
         "answer": "22",
         "llm_tokens": {
           "input": 652,
-          "output": 71,
-          "total": 723
+          "output": 69,
+          "total": 721
         },
-        "latency_s": 1.285,
+        "latency_s": 3.158,
         "citations": [
           "Q632472"
         ],
@@ -4341,9 +4375,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 652,
-              "completion_tokens": 71,
-              "latency_ms": 1247.3884709979757,
-              "provider_latency_ms": 1247.3069760017097
+              "completion_tokens": 69,
+              "latency_ms": 3118.7667769991094,
+              "provider_latency_ms": 3118.698434001999
             }
           ],
           "tools_called": [
@@ -4356,7 +4390,7 @@
               },
               "output_summary": "{\"event\": \"Fencing at the 2000 Summer Olympics – Men's foil\", \"attribute\": \"nation_count\", \"value\": \"22\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Fencing at the 2000 Summer Olympics – Men's foil\", \"event_id\": \"Q632472\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q632472\", \"line\": \"nations: 22\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.94520100543741
+              "latency_ms": 39.123112001107074
             }
           ],
           "chunks_retrieved": 1,
@@ -4368,14 +4402,14 @@
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "22",
           "confidence_score": 0.98,
-          "total_tokens": 723,
-          "total_latency_ms": 1284.6303080004873,
+          "total_tokens": 721,
+          "total_latency_ms": 3158.2152800037875,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I will look up the event \"Fencing at the 2000 Summer Olympics - Men's foil\" and find the nation_count attribute.",
+              "thought": "I need to find the nation_count attribute of the event \"Fencing at the 2000 Summer Olympics - Men's foil\".",
               "action": "event_attribute",
               "action_input": {
                 "event": "Fencing at the 2000 Summer Olympics - Men's foil",
@@ -4387,7 +4421,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_attribute",
-              "latency_ms": 36.94520100543741,
+              "latency_ms": 39.123112001107074,
               "observation": {
                 "event": "Fencing at the 2000 Summer Olympics – Men's foil",
                 "attribute": "nation_count",
@@ -4466,10 +4500,10 @@
         "answer": "Cycling at the 2012 Summer Olympics – Men's individual road race",
         "llm_tokens": {
           "input": 657,
-          "output": 75,
-          "total": 732
+          "output": 70,
+          "total": 727
         },
-        "latency_s": 2.085,
+        "latency_s": 1.999,
         "citations": [
           "Q754412"
         ],
@@ -4495,9 +4529,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 657,
-              "completion_tokens": 75,
-              "latency_ms": 1444.0365039990866,
-              "provider_latency_ms": 1443.9652880028007
+              "completion_tokens": 70,
+              "latency_ms": 1289.3879279945395,
+              "provider_latency_ms": 1289.3105420007487
             }
           ],
           "tools_called": [
@@ -4505,14 +4539,14 @@
               "step": 1,
               "tool_name": "rank_events",
               "input_args": {
-                "sport": "cycling",
+                "sport": "Cycling",
                 "year": 2012,
                 "season": "Summer",
                 "order": "desc"
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Cycling at the 2012 Summer Olympics – Men's individual road race\", \"competitor_count\": 144}, {\"event\": \"Cycling at the 2012 Summer Olympics – Women's individual road race\", \"competitor_count\": 66}, {\"event\": \"Cycling at the 2012 Summer Olympics – Men's cross-country\", \"competitor_count\": 47}, {\"event\": \"Cycling at the 2012 Summer Olympics – Men's team pursuit\", \"competitor_count\": 44}, {\"event\": \"Cycling at the 2012 Summer Olympics – Men's road time trial\", \"competitor_count\": 37}], \"events_ranked\": 18}",
               "llm_tokens": 0,
-              "latency_ms": 640.2086099988082
+              "latency_ms": 709.2125079943798
             }
           ],
           "chunks_retrieved": 0,
@@ -4524,17 +4558,17 @@
           "stopping_reason": "rank_events returned one verified graph value",
           "final_answer": "Cycling at the 2012 Summer Olympics – Men's individual road race",
           "confidence_score": 0.9,
-          "total_tokens": 732,
-          "total_latency_ms": 2084.5032389988774,
+          "total_tokens": 727,
+          "total_latency_ms": 1998.9061419983045,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I will use the rank_events tool to find the cycling event at the 2012 Summer Olympics with the highest number of competitors.",
+              "thought": "I need to find the cycling event at the 2012 Summer Olympics with the highest number of competitors.",
               "action": "rank_events",
               "action_input": {
-                "sport": "cycling",
+                "sport": "Cycling",
                 "year": 2012,
                 "season": "Summer",
                 "order": "desc"
@@ -4545,7 +4579,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 640.2086099988082,
+              "latency_ms": 709.2125079943798,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -4636,7 +4670,7 @@
           "output": 87,
           "total": 746
         },
-        "latency_s": 3.503,
+        "latency_s": 6.276,
         "citations": [
           "Q2521962",
           "Q305439",
@@ -4665,8 +4699,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 87,
-              "latency_ms": 3464.3577270035166,
-              "provider_latency_ms": 3464.259830005176
+              "latency_ms": 6235.968403001607,
+              "provider_latency_ms": 6235.892153999885
             }
           ],
           "tools_called": [
@@ -4680,9 +4714,9 @@
                 "comparison": "more_than",
                 "threshold": 19
               },
-              "output_summary": "{\"count\": 3, \"filters\": {\"sport\": \"Wrestling\", \"year\": 2012, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 20, \"competitors_max\": null}, \"matching_events\": [\"Wrestling at the 2012 Summer Olympics – Women's freestyle 63 kg\", \"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 84 kg\", \"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg\"]}",
+              "output_summary": "{\"count\": 3, \"filters\": {\"sport\": \"Wrestling\", \"year\": 2012, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 20, \"competitors_max\": null}, \"matching_events\": [\"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg\", \"Wrestling at the 2012 Summer Olympics – Women's freestyle 63 kg\", \"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 84 kg\"]}",
               "llm_tokens": 0,
-              "latency_ms": 37.94594499777304
+              "latency_ms": 39.95122599735623
             }
           ],
           "chunks_retrieved": 0,
@@ -4697,7 +4731,7 @@
           "final_answer": "3",
           "confidence_score": 0.9,
           "total_tokens": 746,
-          "total_latency_ms": 3502.5989549976657,
+          "total_latency_ms": 6276.19572399999,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -4718,7 +4752,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 37.94594499777304,
+              "latency_ms": 39.95122599735623,
               "observation": {
                 "count": 3,
                 "filters": {
@@ -4730,9 +4764,9 @@
                   "competitors_max": null
                 },
                 "matching_events": [
+                  "Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg",
                   "Wrestling at the 2012 Summer Olympics – Women's freestyle 63 kg",
-                  "Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 84 kg",
-                  "Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg"
+                  "Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 84 kg"
                 ]
               }
             }
@@ -4798,11 +4832,11 @@
           "output": 87,
           "total": 746
         },
-        "latency_s": 1.246,
+        "latency_s": 1.626,
         "citations": [
+          "Q31844",
           "Q31850",
-          "Q348714",
-          "Q31844"
+          "Q348714"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -4827,8 +4861,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 87,
-              "latency_ms": 1209.7102420011652,
-              "provider_latency_ms": 1209.653341997182
+              "latency_ms": 1584.7722980033723,
+              "provider_latency_ms": 1584.6635600028094
             }
           ],
           "tools_called": [
@@ -4842,16 +4876,16 @@
                 "comparison": "more_than",
                 "threshold": 26
               },
-              "output_summary": "{\"count\": 3, \"filters\": {\"sport\": \"Boxing\", \"year\": 2012, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 27, \"competitors_max\": null}, \"matching_events\": [\"Boxing at the 2012 Summer Olympics – Men's lightweight\", \"Boxing at the 2012 Summer Olympics – Men's light welterweight\", \"Boxing at the 2012 Summer Olympics – Men's welterweight\"]}",
+              "output_summary": "{\"count\": 3, \"filters\": {\"sport\": \"Boxing\", \"year\": 2012, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 27, \"competitors_max\": null}, \"matching_events\": [\"Boxing at the 2012 Summer Olympics – Men's welterweight\", \"Boxing at the 2012 Summer Olympics – Men's lightweight\", \"Boxing at the 2012 Summer Olympics – Men's light welterweight\"]}",
               "llm_tokens": 0,
-              "latency_ms": 36.1270310022519
+              "latency_ms": 41.30858900316525
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
+            "Q31844",
             "Q31850",
-            "Q348714",
-            "Q31844"
+            "Q348714"
           ],
           "strategy_changed": false,
           "strategy_change_rationale": null,
@@ -4859,7 +4893,7 @@
           "final_answer": "3",
           "confidence_score": 0.9,
           "total_tokens": 746,
-          "total_latency_ms": 1246.0249270006898,
+          "total_latency_ms": 1626.4362710062414,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -4880,7 +4914,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 36.1270310022519,
+              "latency_ms": 41.30858900316525,
               "observation": {
                 "count": 3,
                 "filters": {
@@ -4892,9 +4926,9 @@
                   "competitors_max": null
                 },
                 "matching_events": [
+                  "Boxing at the 2012 Summer Olympics – Men's welterweight",
                   "Boxing at the 2012 Summer Olympics – Men's lightweight",
-                  "Boxing at the 2012 Summer Olympics – Men's light welterweight",
-                  "Boxing at the 2012 Summer Olympics – Men's welterweight"
+                  "Boxing at the 2012 Summer Olympics – Men's light welterweight"
                 ]
               }
             }
@@ -4957,7 +4991,7 @@
           "output": 77,
           "total": 735
         },
-        "latency_s": 1.682,
+        "latency_s": 1.841,
         "citations": [
           "Q1005746"
         ],
@@ -4984,8 +5018,8 @@
               "token_source": "billed",
               "prompt_tokens": 658,
               "completion_tokens": 77,
-              "latency_ms": 1317.6334870004212,
-              "provider_latency_ms": 1317.562406999059
+              "latency_ms": 1448.393897000642,
+              "provider_latency_ms": 1448.3296309990692
             }
           ],
           "tools_called": [
@@ -5000,7 +5034,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Alpine skiing at the 1994 Winter Olympics – Men's super-G\", \"competitor_count\": 69}, {\"event\": \"Alpine skiing at the 1994 Winter Olympics – Men's giant slalom\", \"competitor_count\": 61}, {\"event\": \"Alpine skiing at the 1994 Winter Olympics – Men's slalom\", \"competitor_count\": 57}, {\"event\": \"Alpine skiing at the 1994 Winter Olympics – Men's combined\", \"competitor_count\": 56}, {\"event\": \"Alpine skiing at the 1994 Winter Olympics – Men's downhill\", \"competitor_count\": 55}], \"events_ranked\": 10}",
               "llm_tokens": 0,
-              "latency_ms": 364.14058500668034
+              "latency_ms": 392.55620499898214
             }
           ],
           "chunks_retrieved": 0,
@@ -5013,7 +5047,7 @@
           "final_answer": "Alpine skiing at the 1994 Winter Olympics – Men's super-G",
           "confidence_score": 0.9,
           "total_tokens": 735,
-          "total_latency_ms": 1681.9956250037649,
+          "total_latency_ms": 1841.1342760009575,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -5033,7 +5067,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 364.14058500668034,
+              "latency_ms": 392.55620499898214,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -5117,11 +5151,11 @@
       "agentic": {
         "answer": "Kim Un-guk",
         "llm_tokens": {
-          "input": 1515,
-          "output": 145,
-          "total": 1660
+          "input": 1514,
+          "output": 144,
+          "total": 1658
         },
-        "latency_s": 2.776,
+        "latency_s": 3.205,
         "citations": [
           "Q1139399"
         ],
@@ -5151,9 +5185,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 660,
-              "completion_tokens": 83,
-              "latency_ms": 1567.481008998584,
-              "provider_latency_ms": 1567.3942740031634
+              "completion_tokens": 82,
+              "latency_ms": 1857.7144230002887,
+              "provider_latency_ms": 1857.6002350018825
             },
             {
               "step": 2,
@@ -5161,10 +5195,10 @@
               "model_name": "command-a-03-2025",
               "provider": "cohere",
               "token_source": "billed",
-              "prompt_tokens": 855,
+              "prompt_tokens": 854,
               "completion_tokens": 62,
-              "latency_ms": 1170.5542679992504,
-              "provider_latency_ms": 1170.4278769975645
+              "latency_ms": 1307.4175590008963,
+              "provider_latency_ms": 1307.3344450021978
             }
           ],
           "tools_called": [
@@ -5175,12 +5209,12 @@
                 "sport": "weightlifting",
                 "year": 2012,
                 "season": "Summer",
-                "gender": "men's",
+                "gender": "men",
                 "event": "62 kg"
               },
               "output_summary": "{\"events\": [\"Weightlifting at the 2012 Summer Olympics – Men's 62 kg\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Weightlifting at the 2012 Summer Olympics – Men's 62 kg\", \"event_id\": \"Q1139399\", \"score\": 1.0}]}, \"candidates\": [\"Weightlifting at the 2012 Summer Olympics – Men's 62 kg\"]}",
               "llm_tokens": 0,
-              "latency_ms": 1.2106960057280958
+              "latency_ms": 0.9400420021847822
             },
             {
               "step": 2,
@@ -5191,7 +5225,7 @@
               },
               "output_summary": "{\"event\": \"Weightlifting at the 2012 Summer Olympics – Men's 62 kg\", \"attribute\": \"gold_athlete\", \"value\": \"Kim Un-guk\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Weightlifting at the 2012 Summer Olympics – Men's 62 kg\", \"event_id\": \"Q1139399\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q1139399\", \"line\": \"gold: Kim Un-guk\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 36.411032000614796
+              "latency_ms": 38.78401299880352
             }
           ],
           "chunks_retrieved": 1,
@@ -5203,8 +5237,8 @@
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "Kim Un-guk",
           "confidence_score": 0.98,
-          "total_tokens": 1660,
-          "total_latency_ms": 2776.165076000325,
+          "total_tokens": 1658,
+          "total_latency_ms": 3205.2057980035897,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -5216,7 +5250,7 @@
                 "sport": "weightlifting",
                 "year": 2012,
                 "season": "Summer",
-                "gender": "men's",
+                "gender": "men",
                 "event": "62 kg"
               },
               "final_answer": null
@@ -5225,7 +5259,7 @@
               "event": "observation",
               "step": 1,
               "tool": "find_events",
-              "latency_ms": 1.2106960057280958,
+              "latency_ms": 0.9400420021847822,
               "observation": {
                 "events": [
                   "Weightlifting at the 2012 Summer Olympics – Men's 62 kg"
@@ -5259,7 +5293,7 @@
               "event": "observation",
               "step": 2,
               "tool": "event_attribute",
-              "latency_ms": 36.411032000614796,
+              "latency_ms": 38.78401299880352,
               "observation": {
                 "event": "Weightlifting at the 2012 Summer Olympics – Men's 62 kg",
                 "attribute": "gold_athlete",
@@ -5341,7 +5375,7 @@
           "output": 212,
           "total": 1834
         },
-        "latency_s": 5.693,
+        "latency_s": 3.49,
         "citations": [
           "Q916747",
           "Q938791"
@@ -5370,8 +5404,8 @@
               "token_source": "billed",
               "prompt_tokens": 656,
               "completion_tokens": 74,
-              "latency_ms": 1366.3353340016329,
-              "provider_latency_ms": 1366.2511559959967
+              "latency_ms": 1374.9276310045389,
+              "provider_latency_ms": 1374.8503230017377
             },
             {
               "step": 2,
@@ -5381,8 +5415,8 @@
               "token_source": "billed",
               "prompt_tokens": 966,
               "completion_tokens": 138,
-              "latency_ms": 4239.515527995536,
-              "provider_latency_ms": 4239.41410700354
+              "latency_ms": 2026.8827399995644,
+              "provider_latency_ms": 2026.80772900203
             }
           ],
           "tools_called": [
@@ -5396,7 +5430,7 @@
               },
               "output_summary": "{\"status\": \"ambiguous\", \"detail\": \"Several events were held at this venue on this date.\", \"events\": [{\"event\": \"Short-track speed skating at the 2010 Winter Olympics – Women's 1500 metres\", \"gold_athlete\": \"Zhou Yang\"}, {\"event\": \"Short-track speed skating at the 2010 Winter Olympics – Men's 1000 metres\", \"gold_athlete\": \"Lee Jung-su\"}], \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Short-track speed skating at the 2010 Winter Olympics – Women's 1500 metres\", \"event_id\": \"Q916747\", \"score\": 1.0}, {\"event\": \"Short-track speed skating at the 2010 Winter Olympics – Men's 1000 metres\", \"event_id\": \"Q938791\", \"score\": 1.0}]}, \"candidates\": [\"Zhou Yang\", \"Lee Jung-su\"]}",
               "llm_tokens": 0,
-              "latency_ms": 86.34354099922348
+              "latency_ms": 87.71583299676422
             }
           ],
           "chunks_retrieved": 0,
@@ -5410,7 +5444,7 @@
           "final_answer": "Zhou Yang; Lee Jung-su",
           "confidence_score": 0.9,
           "total_tokens": 1834,
-          "total_latency_ms": 5692.58266199904,
+          "total_latency_ms": 3489.8577370040584,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -5429,7 +5463,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 86.34354099922348,
+              "latency_ms": 87.71583299676422,
               "observation": {
                 "status": "ambiguous",
                 "detail": "Several events were held at this venue on this date.",
@@ -5540,7 +5574,7 @@
           "output": 89,
           "total": 749
         },
-        "latency_s": 1.54,
+        "latency_s": 2.417,
         "citations": [
           "Q1005804",
           "Q1222713",
@@ -5570,8 +5604,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 89,
-              "latency_ms": 1500.3271090026828,
-              "provider_latency_ms": 1500.2602039967314
+              "latency_ms": 2374.888906000706,
+              "provider_latency_ms": 2374.8023320003995
             }
           ],
           "tools_called": [
@@ -5585,9 +5619,9 @@
                 "comparison": "more_than",
                 "threshold": 57
               },
-              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Alpine skiing\", \"year\": 1988, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 58, \"competitors_max\": null}, \"matching_events\": [\"Alpine skiing at the 1988 Winter Olympics – Men's slalom\", \"Alpine skiing at the 1988 Winter Olympics – Men's giant slalom\", \"Alpine skiing at the 1988 Winter Olympics – Men's super-G\", \"Alpine skiing at the 1988 Winter Olympics – Women's giant slalom\"]}",
+              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Alpine skiing\", \"year\": 1988, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 58, \"competitors_max\": null}, \"matching_events\": [\"Alpine skiing at the 1988 Winter Olympics – Men's giant slalom\", \"Alpine skiing at the 1988 Winter Olympics – Men's slalom\", \"Alpine skiing at the 1988 Winter Olympics – Men's super-G\", \"Alpine skiing at the 1988 Winter Olympics – Women's giant slalom\"]}",
               "llm_tokens": 0,
-              "latency_ms": 39.73250499984715
+              "latency_ms": 41.608469997299835
             }
           ],
           "chunks_retrieved": 0,
@@ -5603,7 +5637,7 @@
           "final_answer": "4",
           "confidence_score": 0.9,
           "total_tokens": 749,
-          "total_latency_ms": 1540.4055190010695,
+          "total_latency_ms": 2416.788037997321,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -5624,7 +5658,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 39.73250499984715,
+              "latency_ms": 41.608469997299835,
               "observation": {
                 "count": 4,
                 "filters": {
@@ -5636,8 +5670,8 @@
                   "competitors_max": null
                 },
                 "matching_events": [
-                  "Alpine skiing at the 1988 Winter Olympics – Men's slalom",
                   "Alpine skiing at the 1988 Winter Olympics – Men's giant slalom",
+                  "Alpine skiing at the 1988 Winter Olympics – Men's slalom",
                   "Alpine skiing at the 1988 Winter Olympics – Men's super-G",
                   "Alpine skiing at the 1988 Winter Olympics – Women's giant slalom"
                 ]
@@ -5700,11 +5734,11 @@
       "agentic": {
         "answer": "Bakhtiyar Akhmedov",
         "llm_tokens": {
-          "input": 1610,
-          "output": 178,
-          "total": 1788
+          "input": 1622,
+          "output": 190,
+          "total": 1812
         },
-        "latency_s": 3.198,
+        "latency_s": 3.39,
         "citations": [
           "Q581364"
         ],
@@ -5734,9 +5768,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 662,
-              "completion_tokens": 75,
-              "latency_ms": 1406.7451800001436,
-              "provider_latency_ms": 1406.5751529997215
+              "completion_tokens": 87,
+              "latency_ms": 1694.2760210004053,
+              "provider_latency_ms": 1694.1871059971163
             },
             {
               "step": 2,
@@ -5744,10 +5778,10 @@
               "model_name": "command-a-03-2025",
               "provider": "cohere",
               "token_source": "billed",
-              "prompt_tokens": 948,
+              "prompt_tokens": 960,
               "completion_tokens": 103,
-              "latency_ms": 1714.8334669982432,
-              "provider_latency_ms": 1714.7030730047845
+              "latency_ms": 1615.635137000936,
+              "provider_latency_ms": 1615.5519710009685
             }
           ],
           "tools_called": [
@@ -5755,13 +5789,15 @@
               "step": 1,
               "tool_name": "find_events",
               "input_args": {
-                "event": "men's freestyle 120 kg wrestling",
+                "sport": "Wrestling",
                 "year": 2012,
-                "season": "Summer"
+                "season": "Summer",
+                "gender": "Men",
+                "event": "freestyle 120 kg"
               },
               "output_summary": "{\"events\": [\"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\", \"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\", \"event_id\": \"Q677063\", \"score\": 1.0}, {\"event\": \"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg\", \"event_id\": \"Q2550697\", \"score\": 0.667}]}, \"candidates\": [\"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\", \"Wrestling at the 2012 Summer Olympics – Men's Greco-Roman 120 kg\"]}",
               "llm_tokens": 0,
-              "latency_ms": 1.1939569958485663
+              "latency_ms": 0.8508099999744445
             },
             {
               "step": 2,
@@ -5773,7 +5809,7 @@
               },
               "output_summary": "{\"event\": \"Wrestling at the 2008 Summer Olympics – Men's freestyle 120 kg\", \"attribute\": \"gold_athlete\", \"value\": \"Bakhtiyar Akhmedov\", \"from_event\": \"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\", \"traversal\": \"PRECEDES\", \"previous_games_year\": 2008, \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\", \"event_id\": \"Q677063\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q581364\", \"line\": \"gold: Bakhtiyar Akhmedov\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 74.86396099557169
+              "latency_ms": 79.10099400032777
             }
           ],
           "chunks_retrieved": 1,
@@ -5785,8 +5821,8 @@
           "stopping_reason": "previous_edition returned one verified graph value stated in the cited source article",
           "final_answer": "Bakhtiyar Akhmedov",
           "confidence_score": 0.98,
-          "total_tokens": 1788,
-          "total_latency_ms": 3198.171442003513,
+          "total_tokens": 1812,
+          "total_latency_ms": 3390.2361930013285,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -5795,9 +5831,11 @@
               "thought": "I need to find the men's freestyle 120 kg wrestling event at the Summer Olympics held immediately before 2012.",
               "action": "find_events",
               "action_input": {
-                "event": "men's freestyle 120 kg wrestling",
+                "sport": "Wrestling",
                 "year": 2012,
-                "season": "Summer"
+                "season": "Summer",
+                "gender": "Men",
+                "event": "freestyle 120 kg"
               },
               "final_answer": null
             },
@@ -5805,7 +5843,7 @@
               "event": "observation",
               "step": 1,
               "tool": "find_events",
-              "latency_ms": 1.1939569958485663,
+              "latency_ms": 0.8508099999744445,
               "observation": {
                 "events": [
                   "Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg",
@@ -5834,7 +5872,7 @@
             },
             {
               "event": "plan",
-              "thought": "I found two events, but only \"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\" matches the question. Now I need to find the previous edition of this event.",
+              "thought": "I found two events, but only \"Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg\" matches the freestyle requirement. I will now find the previous edition of this event.",
               "action": "previous_edition",
               "action_input": {
                 "event": "Wrestling at the 2012 Summer Olympics – Men's freestyle 120 kg",
@@ -5847,7 +5885,7 @@
               "event": "observation",
               "step": 2,
               "tool": "previous_edition",
-              "latency_ms": 74.86396099557169,
+              "latency_ms": 79.10099400032777,
               "observation": {
                 "event": "Wrestling at the 2008 Summer Olympics – Men's freestyle 120 kg",
                 "attribute": "gold_athlete",
@@ -5933,7 +5971,7 @@
           "output": 75,
           "total": 732
         },
-        "latency_s": 2.204,
+        "latency_s": 2.03,
         "citations": [
           "Q370500"
         ],
@@ -5960,8 +5998,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 75,
-              "latency_ms": 1724.6358580014203,
-              "provider_latency_ms": 1724.5606599972234
+              "latency_ms": 1516.6395279957214,
+              "provider_latency_ms": 1516.577458998654
             }
           ],
           "tools_called": [
@@ -5976,7 +6014,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Rowing at the 2012 Summer Olympics – Women's eight\", \"competitor_count\": 56}, {\"event\": \"Rowing at the 2012 Summer Olympics – Men's coxless four\", \"competitor_count\": 52}, {\"event\": \"Rowing at the 2012 Summer Olympics – Men's lightweight coxless four\", \"competitor_count\": 52}, {\"event\": \"Rowing at the 2012 Summer Olympics – Men's quadruple sculls\", \"competitor_count\": 52}, {\"event\": \"Rowing at the 2012 Summer Olympics – Men's lightweight double sculls\", \"competitor_count\": 40}], \"events_ranked\": 13}",
               "llm_tokens": 0,
-              "latency_ms": 478.9643789990805
+              "latency_ms": 513.1012760029989
             }
           ],
           "chunks_retrieved": 0,
@@ -5989,7 +6027,7 @@
           "final_answer": "Rowing at the 2012 Summer Olympics – Women's eight",
           "confidence_score": 0.9,
           "total_tokens": 732,
-          "total_latency_ms": 2203.8473740030895,
+          "total_latency_ms": 2029.9716959998477,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -6009,7 +6047,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 478.9643789990805,
+              "latency_ms": 513.1012760029989,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -6096,13 +6134,13 @@
         "answer": "3",
         "llm_tokens": {
           "input": 663,
-          "output": 94,
-          "total": 757
+          "output": 95,
+          "total": 758
         },
-        "latency_s": 1.553,
+        "latency_s": 1.428,
         "citations": [
-          "Q47309929",
           "Q47309900",
+          "Q47309929",
           "Q47309958"
         ],
         "model": "command-a-03-2025",
@@ -6127,9 +6165,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 663,
-              "completion_tokens": 94,
-              "latency_ms": 1514.8656130040763,
-              "provider_latency_ms": 1514.7687810022035
+              "completion_tokens": 95,
+              "latency_ms": 1387.0474889990874,
+              "provider_latency_ms": 1386.950116000662
             }
           ],
           "tools_called": [
@@ -6137,7 +6175,7 @@
               "step": 1,
               "tool_name": "count_events",
               "input_args": {
-                "sport": "short track speed skating",
+                "sport": "short-track speed skating",
                 "year": 2018,
                 "season": "Winter",
                 "comparison": "more_than",
@@ -6145,13 +6183,13 @@
               },
               "output_summary": "{\"count\": 3, \"filters\": {\"sport\": \"Short-track speed skating\", \"year\": 2018, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 35, \"competitors_max\": null}, \"matching_events\": [\"Short-track speed skating at the 2018 Winter Olympics – Men's 1500 metres\", \"Short-track speed skating at the 2018 Winter Olympics – Women's 1500 metres\", \"Short-track speed skating at the 2018 Winter Olympics – Women's 3000 metre relay\"]}",
               "llm_tokens": 0,
-              "latency_ms": 37.47163100342732
+              "latency_ms": 40.32513700076379
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
-            "Q47309929",
             "Q47309900",
+            "Q47309929",
             "Q47309958"
           ],
           "strategy_changed": false,
@@ -6159,8 +6197,8 @@
           "stopping_reason": "count_events returned one verified graph value",
           "final_answer": "3",
           "confidence_score": 0.9,
-          "total_tokens": 757,
-          "total_latency_ms": 1552.588257000025,
+          "total_tokens": 758,
+          "total_latency_ms": 1427.694550002343,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -6169,7 +6207,7 @@
               "thought": "I will use the count_events tool to find the number of short-track speed skating events at the 2018 Winter Olympics with more than 34 competitors.",
               "action": "count_events",
               "action_input": {
-                "sport": "short track speed skating",
+                "sport": "short-track speed skating",
                 "year": 2018,
                 "season": "Winter",
                 "comparison": "more_than",
@@ -6181,7 +6219,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 37.47163100342732,
+              "latency_ms": 40.32513700076379,
               "observation": {
                 "count": 3,
                 "filters": {
@@ -6258,7 +6296,7 @@
           "output": 76,
           "total": 733
         },
-        "latency_s": 1.86,
+        "latency_s": 2.005,
         "citations": [
           "Q7400319"
         ],
@@ -6285,8 +6323,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 76,
-              "latency_ms": 1495.9479259996442,
-              "provider_latency_ms": 1495.8498689957196
+              "latency_ms": 1611.0540019944892,
+              "provider_latency_ms": 1610.9876669943333
             }
           ],
           "tools_called": [
@@ -6294,14 +6332,14 @@
               "step": 1,
               "tool_name": "rank_events",
               "input_args": {
-                "sport": "sailing",
+                "sport": "Sailing",
                 "year": 1996,
                 "season": "Summer",
                 "order": "desc"
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Sailing at the 1996 Summer Olympics – Men's 470\", \"competitor_count\": 72}, {\"event\": \"Sailing at the 1996 Summer Olympics – Soling\", \"competitor_count\": 66}, {\"event\": \"Sailing at the 1996 Summer Olympics – Laser\", \"competitor_count\": 56}, {\"event\": \"Sailing at the 1996 Summer Olympics – Star\", \"competitor_count\": 50}, {\"event\": \"Sailing at the 1996 Summer Olympics – Men's Mistral One Design\", \"competitor_count\": 46}], \"events_ranked\": 10}",
               "llm_tokens": 0,
-              "latency_ms": 364.22627099818783
+              "latency_ms": 393.53414200013503
             }
           ],
           "chunks_retrieved": 0,
@@ -6314,7 +6352,7 @@
           "final_answer": "Sailing at the 1996 Summer Olympics – Men's 470",
           "confidence_score": 0.9,
           "total_tokens": 733,
-          "total_latency_ms": 1860.4440309936763,
+          "total_latency_ms": 2004.7683029988548,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -6323,7 +6361,7 @@
               "thought": "I will use the rank_events tool to find the sailing event at the 1996 Summer Olympics with the highest number of competitors.",
               "action": "rank_events",
               "action_input": {
-                "sport": "sailing",
+                "sport": "Sailing",
                 "year": 1996,
                 "season": "Summer",
                 "order": "desc"
@@ -6334,7 +6372,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 364.22627099818783,
+              "latency_ms": 393.53414200013503,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -6442,27 +6480,27 @@
           "output": 88,
           "total": 747
         },
-        "latency_s": 1.346,
+        "latency_s": 1.625,
         "citations": [
-          "Q848291",
           "Q853003",
+          "Q848291",
+          "Q743905",
+          "Q932865",
+          "Q922361",
+          "Q917328",
+          "Q917333",
+          "Q947750",
+          "Q677027",
+          "Q1066390",
           "Q693595",
           "Q247070",
           "Q257545",
           "Q947691",
           "Q853072",
-          "Q917333",
-          "Q754844",
-          "Q288549",
-          "Q1066390",
-          "Q743905",
-          "Q932865",
-          "Q922361",
-          "Q917328",
           "Q917348",
           "Q947678",
-          "Q947750",
-          "Q677027",
+          "Q754844",
+          "Q288549",
           "Q853023",
           "Q853040"
         ],
@@ -6489,8 +6527,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 88,
-              "latency_ms": 1305.7464160010568,
-              "provider_latency_ms": 1305.6281079989276
+              "latency_ms": 1582.5717630068539,
+              "provider_latency_ms": 1582.4640579958213
             }
           ],
           "tools_called": [
@@ -6506,30 +6544,30 @@
               },
               "output_summary": "{\"count\": 21, \"filters\": {\"sport\": \"Athletics\", \"year\": 2008, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 41, \"competitors_max\": null}, \"matching_events\": [\"Athletics at the 2008 Summer Olympics – Men's shot put\", \"Athletics at the 2008 Summer Olympics – Men's 200 metres\", \"Athletics at the 2008 Summer Olympics – Men's marathon\", \"Athletics at the 2008 Summer Olympics – Women's 400 metres\", \"Athletics at the 2008 Summer Olympics – Women's marathon\", \"Athletics at the 2008 Summer Olympics – Men's 5000 metres\", \"Athletics at the 2008 Summer Olympics – Women's long jump\", \"Athletics at the 2008 Summer Olympics – Women's javelin throw\", \"Athletics at the 2008 Summer Olympics – Women's heptathlon\", \"Athletics at the 2008 Summer Olympics – Men's 110 metres hurdles\", \"Athletics at the 2008 Summer Olympics – Men's 50 kilometres walk\", \"Athletics at the 2008 Summer Olympics – Men's 400 metres\", \"Athletics at the 2008 Summer Olympics – Women's hammer throw\", \"Athletics at the 2008 Summer Olympics – Men's 1500 metres\", \"Athletics at the 2008 Summer Olympics – Women's 200 metres\", \"Athletics at the 2008 Summer Olympics – Women's 20 kilometres walk\", \"Athletics at the 2008 Summer Olympics – Women's 3000 metres steeplechase\", \"Athletics at the 2008 Summer Olympics – Men's 100 metres\", \"Athletics at the 2008 Summer Olympics – Men's 800 metres\", \"Athletics at the 2008 Summer Olympics – Men's 20 kilometres walk\", \"Athletics at the 2008 Summer Olympics – Women's 100 metres\"]}",
               "llm_tokens": 0,
-              "latency_ms": 39.96838400053093
+              "latency_ms": 42.17379900364904
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
-            "Q848291",
             "Q853003",
+            "Q848291",
+            "Q743905",
+            "Q932865",
+            "Q922361",
+            "Q917328",
+            "Q917333",
+            "Q947750",
+            "Q677027",
+            "Q1066390",
             "Q693595",
             "Q247070",
             "Q257545",
             "Q947691",
             "Q853072",
-            "Q917333",
-            "Q754844",
-            "Q288549",
-            "Q1066390",
-            "Q743905",
-            "Q932865",
-            "Q922361",
-            "Q917328",
             "Q917348",
             "Q947678",
-            "Q947750",
-            "Q677027",
+            "Q754844",
+            "Q288549",
             "Q853023",
             "Q853040"
           ],
@@ -6539,7 +6577,7 @@
           "final_answer": "21",
           "confidence_score": 0.9,
           "total_tokens": 747,
-          "total_latency_ms": 1346.1874069980695,
+          "total_latency_ms": 1625.2153449968318,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -6560,7 +6598,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 39.96838400053093,
+              "latency_ms": 42.17379900364904,
               "observation": {
                 "count": 21,
                 "filters": {
@@ -6659,7 +6697,7 @@
           "output": 87,
           "total": 746
         },
-        "latency_s": 1.417,
+        "latency_s": 1.922,
         "citations": [
           "Q10497008",
           "Q10495989",
@@ -6688,8 +6726,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 87,
-              "latency_ms": 1374.8833810022916,
-              "provider_latency_ms": 1374.7370609999052
+              "latency_ms": 1881.6495629944257,
+              "provider_latency_ms": 1881.5865439974004
             }
           ],
           "tools_called": [
@@ -6705,7 +6743,7 @@
               },
               "output_summary": "{\"count\": 3, \"filters\": {\"sport\": \"Boxing\", \"year\": 1992, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 31, \"competitors_max\": null}, \"matching_events\": [\"Boxing at the 1992 Summer Olympics – Featherweight\", \"Boxing at the 1992 Summer Olympics – Bantamweight\", \"Boxing at the 1992 Summer Olympics – Flyweight\"]}",
               "llm_tokens": 0,
-              "latency_ms": 41.28689999924973
+              "latency_ms": 40.464824000082444
             }
           ],
           "chunks_retrieved": 0,
@@ -6720,7 +6758,7 @@
           "final_answer": "3",
           "confidence_score": 0.9,
           "total_tokens": 746,
-          "total_latency_ms": 1416.580591998354,
+          "total_latency_ms": 1922.2928499948466,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -6741,7 +6779,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 41.28689999924973,
+              "latency_ms": 40.464824000082444,
               "observation": {
                 "count": 3,
                 "filters": {
@@ -6814,10 +6852,10 @@
         "answer": "Nouria Mérah-Benida",
         "llm_tokens": {
           "input": 682,
-          "output": 92,
-          "total": 774
+          "output": 94,
+          "total": 776
         },
-        "latency_s": 1.63,
+        "latency_s": 2.038,
         "citations": [
           "Q3628760"
         ],
@@ -6845,9 +6883,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 682,
-              "completion_tokens": 92,
-              "latency_ms": 1578.456109004037,
-              "provider_latency_ms": 1578.3262419936364
+              "completion_tokens": 94,
+              "latency_ms": 1986.3124499970581,
+              "provider_latency_ms": 1986.2071460011066
             }
           ],
           "tools_called": [
@@ -6857,11 +6895,11 @@
               "input_args": {
                 "venue": "Stadium Australia",
                 "date": "27 September 2000 (heats) 29 September 2000 (semi-finals) 30 September 2000 (final)",
-                "attribute": "title"
+                "attribute": "gold_athlete"
               },
               "output_summary": "{\"event\": \"Athletics at the 2000 Summer Olympics – Women's 1500 metres\", \"attribute\": \"gold_athlete\", \"value\": \"Nouria Mérah-Benida\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Athletics at the 2000 Summer Olympics – Women's 1500 metres\", \"event_id\": \"Q3628760\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q3628760\", \"line\": \"gold: Nouria Mérah-Benida\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 51.00020799727645
+              "latency_ms": 51.212944999861065
             }
           ],
           "chunks_retrieved": 1,
@@ -6873,8 +6911,8 @@
           "stopping_reason": "event_at_venue_date returned one verified graph value stated in the cited source article",
           "final_answer": "Nouria Mérah-Benida",
           "confidence_score": 0.98,
-          "total_tokens": 774,
-          "total_latency_ms": 1629.8349310018239,
+          "total_tokens": 776,
+          "total_latency_ms": 2037.82206899632,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -6885,7 +6923,7 @@
               "action_input": {
                 "venue": "Stadium Australia",
                 "date": "27 September 2000 (heats) 29 September 2000 (semi-finals) 30 September 2000 (final)",
-                "attribute": "title"
+                "attribute": "gold_athlete"
               },
               "final_answer": null
             },
@@ -6893,7 +6931,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 51.00020799727645,
+              "latency_ms": 51.212944999861065,
               "observation": {
                 "event": "Athletics at the 2000 Summer Olympics – Women's 1500 metres",
                 "attribute": "gold_athlete",
@@ -6979,11 +7017,11 @@
           "output": 89,
           "total": 749
         },
-        "latency_s": 2.076,
+        "latency_s": 1.489,
         "citations": [
           "Q917743",
-          "Q2574045",
           "Q1042644",
+          "Q2574045",
           "Q1005801"
         ],
         "model": "command-a-03-2025",
@@ -7009,8 +7047,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 89,
-              "latency_ms": 2035.8915429969784,
-              "provider_latency_ms": 2035.7940020039678
+              "latency_ms": 1447.3467399948277,
+              "provider_latency_ms": 1447.2827490026248
             }
           ],
           "tools_called": [
@@ -7024,16 +7062,16 @@
                 "comparison": "more_than",
                 "threshold": 63
               },
-              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Alpine skiing\", \"year\": 2006, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 64, \"competitors_max\": null}, \"matching_events\": [\"Alpine skiing at the 2006 Winter Olympics – Women's slalom\", \"Alpine skiing at the 2006 Winter Olympics – Men's slalom\", \"Alpine skiing at the 2006 Winter Olympics – Women's giant slalom\", \"Alpine skiing at the 2006 Winter Olympics – Men's giant slalom\"]}",
+              "output_summary": "{\"count\": 4, \"filters\": {\"sport\": \"Alpine skiing\", \"year\": 2006, \"season\": \"Winter\", \"gender\": null, \"competitors_min\": 64, \"competitors_max\": null}, \"matching_events\": [\"Alpine skiing at the 2006 Winter Olympics – Men's slalom\", \"Alpine skiing at the 2006 Winter Olympics – Women's giant slalom\", \"Alpine skiing at the 2006 Winter Olympics – Women's slalom\", \"Alpine skiing at the 2006 Winter Olympics – Men's giant slalom\"]}",
               "llm_tokens": 0,
-              "latency_ms": 39.64588500093669
+              "latency_ms": 41.12105999956839
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q917743",
-            "Q2574045",
             "Q1042644",
+            "Q2574045",
             "Q1005801"
           ],
           "strategy_changed": false,
@@ -7042,7 +7080,7 @@
           "final_answer": "4",
           "confidence_score": 0.9,
           "total_tokens": 749,
-          "total_latency_ms": 2075.860315002501,
+          "total_latency_ms": 1488.6782219982706,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -7063,7 +7101,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 39.64588500093669,
+              "latency_ms": 41.12105999956839,
               "observation": {
                 "count": 4,
                 "filters": {
@@ -7075,9 +7113,9 @@
                   "competitors_max": null
                 },
                 "matching_events": [
-                  "Alpine skiing at the 2006 Winter Olympics – Women's slalom",
                   "Alpine skiing at the 2006 Winter Olympics – Men's slalom",
                   "Alpine skiing at the 2006 Winter Olympics – Women's giant slalom",
+                  "Alpine skiing at the 2006 Winter Olympics – Women's slalom",
                   "Alpine skiing at the 2006 Winter Olympics – Men's giant slalom"
                 ]
               }
@@ -7137,19 +7175,20 @@
       "agentic": {
         "answer": "Dmitry Monakov",
         "llm_tokens": {
-          "input": 656,
-          "output": 64,
-          "total": 720
+          "input": 1546,
+          "output": 154,
+          "total": 1700
         },
-        "latency_s": 1.415,
+        "latency_s": 3.044,
         "citations": [
           "Q7500750"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
         "trace": {
-          "step_count": 2,
+          "step_count": 4,
           "retrieval_methods": [
+            "find_events",
             "previous_edition"
           ],
           "agents_invoked": [
@@ -7159,6 +7198,7 @@
             "EvidenceEvaluationAgent"
           ],
           "specialized_tools_used": [
+            "find_events",
             "previous_edition"
           ],
           "llm_calls": [
@@ -7169,62 +7209,83 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 656,
-              "completion_tokens": 64,
-              "latency_ms": 1341.0718760060263,
-              "provider_latency_ms": 1340.860028998577
+              "completion_tokens": 63,
+              "latency_ms": 1305.543258000398,
+              "provider_latency_ms": 1305.415223003365
+            },
+            {
+              "step": 2,
+              "operation": "orchestrator",
+              "model_name": "command-a-03-2025",
+              "provider": "cohere",
+              "token_source": "billed",
+              "prompt_tokens": 890,
+              "completion_tokens": 91,
+              "latency_ms": 1658.3601780002937,
+              "provider_latency_ms": 1658.273917993938
             }
           ],
           "tools_called": [
             {
               "step": 1,
-              "tool_name": "previous_edition",
+              "tool_name": "find_events",
               "input_args": {
                 "event": "mixed trap shooting",
                 "year": 1992,
+                "season": "Summer"
+              },
+              "output_summary": "{\"events\": [\"Shooting at the 1992 Summer Olympics – Mixed trap\", \"Shooting at the 1992 Summer Olympics – Mixed skeet\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Shooting at the 1992 Summer Olympics – Mixed trap\", \"event_id\": \"Q7500772\", \"score\": 1.0}, {\"event\": \"Shooting at the 1992 Summer Olympics – Mixed skeet\", \"event_id\": \"Q7500771\", \"score\": 0.5}]}, \"candidates\": [\"Shooting at the 1992 Summer Olympics – Mixed trap\", \"Shooting at the 1992 Summer Olympics – Mixed skeet\"]}",
+              "llm_tokens": 0,
+              "latency_ms": 0.9623090008972213
+            },
+            {
+              "step": 2,
+              "tool_name": "previous_edition",
+              "input_args": {
+                "event": "Shooting at the 1992 Summer Olympics – Mixed trap",
+                "year": 1992,
                 "attribute": "gold_athlete"
               },
-              "output_summary": "{\"event\": \"Shooting at the 1988 Summer Olympics – Mixed trap\", \"attribute\": \"gold_athlete\", \"value\": \"Dmitry Monakov\", \"from_event\": \"Shooting at the 1992 Summer Olympics – Mixed trap\", \"traversal\": \"PRECEDES\", \"previous_games_year\": 1988, \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Shooting at the 1992 Summer Olympics – Mixed trap\", \"event_id\": \"Q7500772\", \"score\": 1.0}, {\"event\": \"Shooting at the 1992 Summer Olympics – Mixed skeet\", \"event_id\": \"Q7500771\", \"score\": 0.5}]}, \"source_check\": [{\"doc_id\": \"Q7500750\", \"line\": \"gold: Dmitry Monakov\"}]}",
+              "output_summary": "{\"event\": \"Shooting at the 1988 Summer Olympics – Mixed trap\", \"attribute\": \"gold_athlete\", \"value\": \"Dmitry Monakov\", \"from_event\": \"Shooting at the 1992 Summer Olympics – Mixed trap\", \"traversal\": \"PRECEDES\", \"previous_games_year\": 1988, \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Shooting at the 1992 Summer Olympics – Mixed trap\", \"event_id\": \"Q7500772\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q7500750\", \"line\": \"gold: Dmitry Monakov\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 73.79461800155696
+              "latency_ms": 78.30504400044447
             }
           ],
           "chunks_retrieved": 1,
           "citations": [
             "Q7500750"
           ],
-          "strategy_changed": false,
-          "strategy_change_rationale": null,
+          "strategy_changed": true,
+          "strategy_change_rationale": "find_events was ambiguous; switched to previous_edition for the missing evidence",
           "stopping_reason": "previous_edition returned one verified graph value stated in the cited source article",
           "final_answer": "Dmitry Monakov",
           "confidence_score": 0.98,
-          "total_tokens": 720,
-          "total_latency_ms": 1415.2400540042436,
+          "total_tokens": 1700,
+          "total_latency_ms": 3043.54299800616,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I need to find the mixed trap shooting event at the Summer Olympics immediately before 1992.",
-              "action": "previous_edition",
+              "thought": "I need to find the mixed trap shooting event at the Summer Olympics held immediately before 1992.",
+              "action": "find_events",
               "action_input": {
                 "event": "mixed trap shooting",
                 "year": 1992,
-                "attribute": "gold_athlete"
+                "season": "Summer"
               },
               "final_answer": null
             },
             {
               "event": "observation",
               "step": 1,
-              "tool": "previous_edition",
-              "latency_ms": 73.79461800155696,
+              "tool": "find_events",
+              "latency_ms": 0.9623090008972213,
               "observation": {
-                "event": "Shooting at the 1988 Summer Olympics – Mixed trap",
-                "attribute": "gold_athlete",
-                "value": "Dmitry Monakov",
-                "from_event": "Shooting at the 1992 Summer Olympics – Mixed trap",
-                "traversal": "PRECEDES",
-                "previous_games_year": 1988,
+                "events": [
+                  "Shooting at the 1992 Summer Olympics – Mixed trap",
+                  "Shooting at the 1992 Summer Olympics – Mixed skeet"
+                ],
                 "linking": {
                   "method": "label_token_f1",
                   "matches": [
@@ -7237,6 +7298,45 @@
                       "event": "Shooting at the 1992 Summer Olympics – Mixed skeet",
                       "event_id": "Q7500771",
                       "score": 0.5
+                    }
+                  ]
+                },
+                "candidates": [
+                  "Shooting at the 1992 Summer Olympics – Mixed trap",
+                  "Shooting at the 1992 Summer Olympics – Mixed skeet"
+                ]
+              }
+            },
+            {
+              "event": "plan",
+              "thought": "The event \"Shooting at the 1992 Summer Olympics – Mixed trap\" is the most relevant to the question. Now, I need to find the previous edition of this event.",
+              "action": "previous_edition",
+              "action_input": {
+                "event": "Shooting at the 1992 Summer Olympics – Mixed trap",
+                "year": 1992,
+                "attribute": "gold_athlete"
+              },
+              "final_answer": null
+            },
+            {
+              "event": "observation",
+              "step": 2,
+              "tool": "previous_edition",
+              "latency_ms": 78.30504400044447,
+              "observation": {
+                "event": "Shooting at the 1988 Summer Olympics – Mixed trap",
+                "attribute": "gold_athlete",
+                "value": "Dmitry Monakov",
+                "from_event": "Shooting at the 1992 Summer Olympics – Mixed trap",
+                "traversal": "PRECEDES",
+                "previous_games_year": 1988,
+                "linking": {
+                  "method": "exact_title",
+                  "matches": [
+                    {
+                      "event": "Shooting at the 1992 Summer Olympics – Mixed trap",
+                      "event_id": "Q7500772",
+                      "score": 1.0
                     }
                   ]
                 },
@@ -7306,7 +7406,7 @@
           "output": 86,
           "total": 743
         },
-        "latency_s": 1.536,
+        "latency_s": 2.699,
         "citations": [
           "Q25384917"
         ],
@@ -7335,8 +7435,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 86,
-              "latency_ms": 1496.5449390001595,
-              "provider_latency_ms": 1496.4701599965338
+              "latency_ms": 2657.5924339995254,
+              "provider_latency_ms": 2657.4831410034676
             }
           ],
           "tools_called": [
@@ -7351,7 +7451,7 @@
               },
               "output_summary": "{\"event\": \"Fencing at the 2016 Summer Olympics – Women's team épée\", \"attribute\": \"gold_athlete\", \"value\": \"Loredana Dinu, Simona Gherman, Simona Pop, Ana Maria Popescu\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Fencing at the 2016 Summer Olympics – Women's team épée\", \"event_id\": \"Q25384917\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q25384917\", \"line\": \"Gold: Loredana Dinu, Simona Gherman, Simona Pop, Ana Maria Popescu\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 38.844253998831846
+              "latency_ms": 40.960409001854714
             }
           ],
           "chunks_retrieved": 1,
@@ -7364,7 +7464,7 @@
           "final_answer": "Loredana Dinu, Simona Gherman, Simona Pop, Ana Maria Popescu",
           "confidence_score": 0.98,
           "total_tokens": 743,
-          "total_latency_ms": 1535.639670000819,
+          "total_latency_ms": 2698.78159500513,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -7384,7 +7484,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 38.844253998831846,
+              "latency_ms": 40.960409001854714,
               "observation": {
                 "event": "Fencing at the 2016 Summer Olympics – Women's team épée",
                 "attribute": "gold_athlete",
@@ -7463,11 +7563,11 @@
       "agentic": {
         "answer": "Lydia Valentín",
         "llm_tokens": {
-          "input": 1602,
-          "output": 172,
-          "total": 1774
+          "input": 1603,
+          "output": 173,
+          "total": 1776
         },
-        "latency_s": 3.144,
+        "latency_s": 2.794,
         "citations": [
           "Q1997032"
         ],
@@ -7497,9 +7597,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 660,
-              "completion_tokens": 82,
-              "latency_ms": 1564.888761997281,
-              "provider_latency_ms": 1564.7838320001028
+              "completion_tokens": 83,
+              "latency_ms": 1399.2655600013677,
+              "provider_latency_ms": 1399.1796289992635
             },
             {
               "step": 2,
@@ -7507,10 +7607,10 @@
               "model_name": "command-a-03-2025",
               "provider": "cohere",
               "token_source": "billed",
-              "prompt_tokens": 942,
+              "prompt_tokens": 943,
               "completion_tokens": 90,
-              "latency_ms": 1534.0767150046304,
-              "provider_latency_ms": 1533.9216270003817
+              "latency_ms": 1353.2847680035047,
+              "provider_latency_ms": 1353.1376589962747
             }
           ],
           "tools_called": [
@@ -7521,12 +7621,12 @@
                 "sport": "weightlifting",
                 "year": 2012,
                 "season": "Summer",
-                "gender": "women",
+                "gender": "women's",
                 "event": "75 kg"
               },
               "output_summary": "{\"events\": [\"Weightlifting at the 2012 Summer Olympics – Women's 75 kg\", \"Weightlifting at the 2012 Summer Olympics – Women's +75 kg\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Weightlifting at the 2012 Summer Olympics – Women's 75 kg\", \"event_id\": \"Q1997032\", \"score\": 1.0}, {\"event\": \"Weightlifting at the 2012 Summer Olympics – Women's +75 kg\", \"event_id\": \"Q1371783\", \"score\": 0.857}]}, \"candidates\": [\"Weightlifting at the 2012 Summer Olympics – Women's 75 kg\", \"Weightlifting at the 2012 Summer Olympics – Women's +75 kg\"]}",
               "llm_tokens": 0,
-              "latency_ms": 1.3266850000945851
+              "latency_ms": 1.2350539982435293
             },
             {
               "step": 2,
@@ -7537,7 +7637,7 @@
               },
               "output_summary": "{\"event\": \"Weightlifting at the 2012 Summer Olympics – Women's 75 kg\", \"attribute\": \"gold_athlete\", \"value\": \"Lydia Valentín\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Weightlifting at the 2012 Summer Olympics – Women's 75 kg\", \"event_id\": \"Q1997032\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q1997032\", \"line\": \"gold: Lydia Valentín\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 38.10829400026705
+              "latency_ms": 39.958843000931665
             }
           ],
           "chunks_retrieved": 1,
@@ -7549,8 +7649,8 @@
           "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
           "final_answer": "Lydia Valentín",
           "confidence_score": 0.98,
-          "total_tokens": 1774,
-          "total_latency_ms": 3144.315616998938,
+          "total_tokens": 1776,
+          "total_latency_ms": 2794.1562270061695,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -7562,7 +7662,7 @@
                 "sport": "weightlifting",
                 "year": 2012,
                 "season": "Summer",
-                "gender": "women",
+                "gender": "women's",
                 "event": "75 kg"
               },
               "final_answer": null
@@ -7571,7 +7671,7 @@
               "event": "observation",
               "step": 1,
               "tool": "find_events",
-              "latency_ms": 1.3266850000945851,
+              "latency_ms": 1.2350539982435293,
               "observation": {
                 "events": [
                   "Weightlifting at the 2012 Summer Olympics – Women's 75 kg",
@@ -7612,7 +7712,7 @@
               "event": "observation",
               "step": 2,
               "tool": "event_attribute",
-              "latency_ms": 38.10829400026705,
+              "latency_ms": 39.958843000931665,
               "observation": {
                 "event": "Weightlifting at the 2012 Summer Olympics – Women's 75 kg",
                 "attribute": "gold_athlete",
@@ -7696,7 +7796,7 @@
           "output": 81,
           "total": 740
         },
-        "latency_s": 1.442,
+        "latency_s": 1.492,
         "citations": [
           "Q905561"
         ],
@@ -7725,8 +7825,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 81,
-              "latency_ms": 1365.6835809961194,
-              "provider_latency_ms": 1365.5863349995343
+              "latency_ms": 1413.3679820006364,
+              "provider_latency_ms": 1413.2863730046665
             }
           ],
           "tools_called": [
@@ -7734,13 +7834,13 @@
               "step": 1,
               "tool_name": "previous_edition",
               "input_args": {
-                "event": "Freestyle skiing at the 2014 Winter Olympics - Women's moguls",
+                "event": "Freestyle skiing at the 2014 Winter Olympics – Women's moguls",
                 "year": 2014,
                 "attribute": "gold_athlete"
               },
               "output_summary": "{\"event\": \"Freestyle skiing at the 2010 Winter Olympics – Women's moguls\", \"attribute\": \"gold_athlete\", \"value\": \"Hannah Kearney\", \"from_event\": \"Freestyle skiing at the 2014 Winter Olympics – Women's moguls\", \"traversal\": \"PRECEDES\", \"previous_games_year\": 2010, \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Freestyle skiing at the 2014 Winter Olympics – Women's moguls\", \"event_id\": \"Q15056095\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q905561\", \"line\": \"gold: Hannah Kearney\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 76.0728149980423
+              "latency_ms": 78.02880600502249
             }
           ],
           "chunks_retrieved": 1,
@@ -7753,7 +7853,7 @@
           "final_answer": "Hannah Kearney",
           "confidence_score": 0.98,
           "total_tokens": 740,
-          "total_latency_ms": 1442.06014899828,
+          "total_latency_ms": 1491.6457619983703,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -7762,7 +7862,7 @@
               "thought": "I need to find the women's moguls freestyle skiing event at the Winter Olympics immediately before 2014.",
               "action": "previous_edition",
               "action_input": {
-                "event": "Freestyle skiing at the 2014 Winter Olympics - Women's moguls",
+                "event": "Freestyle skiing at the 2014 Winter Olympics – Women's moguls",
                 "year": 2014,
                 "attribute": "gold_athlete"
               },
@@ -7772,7 +7872,7 @@
               "event": "observation",
               "step": 1,
               "tool": "previous_edition",
-              "latency_ms": 76.0728149980423,
+              "latency_ms": 78.02880600502249,
               "observation": {
                 "event": "Freestyle skiing at the 2010 Winter Olympics – Women's moguls",
                 "attribute": "gold_athlete",
@@ -7853,11 +7953,11 @@
       "agentic": {
         "answer": "Brahim Asloum",
         "llm_tokens": {
-          "input": 1769,
-          "output": 139,
-          "total": 1908
+          "input": 1701,
+          "output": 166,
+          "total": 1867
         },
-        "latency_s": 3.154,
+        "latency_s": 3.142,
         "citations": [
           "Q4951841"
         ],
@@ -7867,7 +7967,7 @@
           "step_count": 4,
           "retrieval_methods": [
             "find_events",
-            "event_attribute"
+            "previous_edition"
           ],
           "agents_invoked": [
             "OrchestratorAgent",
@@ -7877,7 +7977,7 @@
           ],
           "specialized_tools_used": [
             "find_events",
-            "event_attribute"
+            "previous_edition"
           ],
           "llm_calls": [
             {
@@ -7887,9 +7987,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 656,
-              "completion_tokens": 62,
-              "latency_ms": 1518.6502849974204,
-              "provider_latency_ms": 1518.548940999608
+              "completion_tokens": 68,
+              "latency_ms": 1453.0864499974996,
+              "provider_latency_ms": 1452.9414559947327
             },
             {
               "step": 2,
@@ -7897,10 +7997,10 @@
               "model_name": "command-a-03-2025",
               "provider": "cohere",
               "token_source": "billed",
-              "prompt_tokens": 1113,
-              "completion_tokens": 77,
-              "latency_ms": 1594.0547619975405,
-              "provider_latency_ms": 1593.9507720031543
+              "prompt_tokens": 1045,
+              "completion_tokens": 98,
+              "latency_ms": 1605.7770429979428,
+              "provider_latency_ms": 1605.6987040064996
             }
           ],
           "tools_called": [
@@ -7908,24 +8008,26 @@
               "step": 1,
               "tool_name": "find_events",
               "input_args": {
-                "event": "light flyweight boxing",
-                "year": 2000,
-                "season": "Summer"
+                "sport": "boxing",
+                "year": 2004,
+                "season": "Summer",
+                "event": "light flyweight"
               },
-              "output_summary": "{\"events\": [\"Boxing at the 2000 Summer Olympics – Light flyweight\", \"Boxing at the 2000 Summer Olympics – Flyweight\", \"Boxing at the 2000 Summer Olympics – Light heavyweight\", \"Boxing at the 2000 Summer Olympics – Light middleweight\", \"Boxing at the 2000 Summer Olympics – Light welterweight\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Boxing at the 2000 Summer Olympics – Light flyweight\", \"event_id\": \"Q4951841\", \"score\": 1.0}, {\"event\": \"Boxing at the 2000 Summer Olympics – Flyweight\", \"event_id\": \"Q4951839\", \"score\": 0.667}, {\"event\": \"Boxing at the 2000 Summer Olympics – Light heavyweight\", \"event_id\": \"Q4951842\", \"score\": 0.5}, {\"event\": \"Boxing at the 2000 Summer Olympics – Light middleweight\", \"event_id\": \"Q4951843\", \"score\": 0.5}, {\"event\": \"Boxing at the 2000 Summer Olympics – Light welterweight\", \"event_id\": \"Q4951844\", \"score\": 0.5}]}, \"candidates\": [\"Boxing at the 2000 Summer Olympics – Light flyweight\", \"Boxing at the 2000 Summer Olympics – Flyweight\", \"Boxing at the 2000 Summer Olympics – Light heavyweight\", \"Boxing at the 2000 Summer Olympics – Light middleweight\", \"Boxing at the 2000 Summer Olympics – Light welterweight\"]}",
+              "output_summary": "{\"events\": [\"Boxing at the 2004 Summer Olympics – Light flyweight\", \"Boxing at the 2004 Summer Olympics – Flyweight\", \"Boxing at the 2004 Summer Olympics – Light heavyweight\", \"Boxing at the 2004 Summer Olympics – Light welterweight\"], \"linking\": {\"method\": \"label_token_f1\", \"matches\": [{\"event\": \"Boxing at the 2004 Summer Olympics – Light flyweight\", \"event_id\": \"Q3925468\", \"score\": 1.0}, {\"event\": \"Boxing at the 2004 Summer Olympics – Flyweight\", \"event_id\": \"Q3925466\", \"score\": 0.667}, {\"event\": \"Boxing at the 2004 Summer Olympics – Light heavyweight\", \"event_id\": \"Q3925465\", \"score\": 0.5}, {\"event\": \"Boxing at the 2004 Summer Olympics – Light welterweight\", \"event_id\": \"Q3925471\", \"score\": 0.5}]}, \"candidates\": [\"Boxing at the 2004 Summer Olympics – Light flyweight\", \"Boxing at the 2004 Summer Olympics – Flyweight\", \"Boxing at the 2004 Summer Olympics – Light heavyweight\", \"Boxing at the 2004 Summer Olympics – Light welterweight\"]}",
               "llm_tokens": 0,
-              "latency_ms": 2.371454997046385
+              "latency_ms": 1.2758220036630519
             },
             {
               "step": 2,
-              "tool_name": "event_attribute",
+              "tool_name": "previous_edition",
               "input_args": {
-                "event": "Boxing at the 2000 Summer Olympics – Light flyweight",
+                "event": "Boxing at the 2004 Summer Olympics – Light flyweight",
+                "year": 2004,
                 "attribute": "gold_athlete"
               },
-              "output_summary": "{\"event\": \"Boxing at the 2000 Summer Olympics – Light flyweight\", \"attribute\": \"gold_athlete\", \"value\": \"Brahim Asloum\", \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Boxing at the 2000 Summer Olympics – Light flyweight\", \"event_id\": \"Q4951841\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q4951841\", \"line\": \"gold: Brahim Asloum\"}]}",
+              "output_summary": "{\"event\": \"Boxing at the 2000 Summer Olympics – Light flyweight\", \"attribute\": \"gold_athlete\", \"value\": \"Brahim Asloum\", \"from_event\": \"Boxing at the 2004 Summer Olympics – Light flyweight\", \"traversal\": \"PRECEDES\", \"previous_games_year\": 2000, \"linking\": {\"method\": \"exact_title\", \"matches\": [{\"event\": \"Boxing at the 2004 Summer Olympics – Light flyweight\", \"event_id\": \"Q3925468\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q4951841\", \"line\": \"gold: Brahim Asloum\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 38.296169994282536
+              "latency_ms": 81.59683300618781
             }
           ],
           "chunks_retrieved": 1,
@@ -7933,12 +8035,12 @@
             "Q4951841"
           ],
           "strategy_changed": true,
-          "strategy_change_rationale": "find_events was ambiguous; switched to event_attribute for the missing evidence",
-          "stopping_reason": "event_attribute returned one verified graph value stated in the cited source article",
+          "strategy_change_rationale": "find_events was ambiguous; switched to previous_edition for the missing evidence",
+          "stopping_reason": "previous_edition returned one verified graph value stated in the cited source article",
           "final_answer": "Brahim Asloum",
           "confidence_score": 0.98,
-          "total_tokens": 1908,
-          "total_latency_ms": 3154.132891999325,
+          "total_tokens": 1867,
+          "total_latency_ms": 3142.346193002595,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -7947,9 +8049,10 @@
               "thought": "I need to find the light flyweight boxing event at the Summer Olympics immediately before 2004.",
               "action": "find_events",
               "action_input": {
-                "event": "light flyweight boxing",
-                "year": 2000,
-                "season": "Summer"
+                "sport": "boxing",
+                "year": 2004,
+                "season": "Summer",
+                "event": "light flyweight"
               },
               "final_answer": null
             },
@@ -7957,60 +8060,54 @@
               "event": "observation",
               "step": 1,
               "tool": "find_events",
-              "latency_ms": 2.371454997046385,
+              "latency_ms": 1.2758220036630519,
               "observation": {
                 "events": [
-                  "Boxing at the 2000 Summer Olympics – Light flyweight",
-                  "Boxing at the 2000 Summer Olympics – Flyweight",
-                  "Boxing at the 2000 Summer Olympics – Light heavyweight",
-                  "Boxing at the 2000 Summer Olympics – Light middleweight",
-                  "Boxing at the 2000 Summer Olympics – Light welterweight"
+                  "Boxing at the 2004 Summer Olympics – Light flyweight",
+                  "Boxing at the 2004 Summer Olympics – Flyweight",
+                  "Boxing at the 2004 Summer Olympics – Light heavyweight",
+                  "Boxing at the 2004 Summer Olympics – Light welterweight"
                 ],
                 "linking": {
                   "method": "label_token_f1",
                   "matches": [
                     {
-                      "event": "Boxing at the 2000 Summer Olympics – Light flyweight",
-                      "event_id": "Q4951841",
+                      "event": "Boxing at the 2004 Summer Olympics – Light flyweight",
+                      "event_id": "Q3925468",
                       "score": 1.0
                     },
                     {
-                      "event": "Boxing at the 2000 Summer Olympics – Flyweight",
-                      "event_id": "Q4951839",
+                      "event": "Boxing at the 2004 Summer Olympics – Flyweight",
+                      "event_id": "Q3925466",
                       "score": 0.667
                     },
                     {
-                      "event": "Boxing at the 2000 Summer Olympics – Light heavyweight",
-                      "event_id": "Q4951842",
+                      "event": "Boxing at the 2004 Summer Olympics – Light heavyweight",
+                      "event_id": "Q3925465",
                       "score": 0.5
                     },
                     {
-                      "event": "Boxing at the 2000 Summer Olympics – Light middleweight",
-                      "event_id": "Q4951843",
-                      "score": 0.5
-                    },
-                    {
-                      "event": "Boxing at the 2000 Summer Olympics – Light welterweight",
-                      "event_id": "Q4951844",
+                      "event": "Boxing at the 2004 Summer Olympics – Light welterweight",
+                      "event_id": "Q3925471",
                       "score": 0.5
                     }
                   ]
                 },
                 "candidates": [
-                  "Boxing at the 2000 Summer Olympics – Light flyweight",
-                  "Boxing at the 2000 Summer Olympics – Flyweight",
-                  "Boxing at the 2000 Summer Olympics – Light heavyweight",
-                  "Boxing at the 2000 Summer Olympics – Light middleweight",
-                  "Boxing at the 2000 Summer Olympics – Light welterweight"
+                  "Boxing at the 2004 Summer Olympics – Light flyweight",
+                  "Boxing at the 2004 Summer Olympics – Flyweight",
+                  "Boxing at the 2004 Summer Olympics – Light heavyweight",
+                  "Boxing at the 2004 Summer Olympics – Light welterweight"
                 ]
               }
             },
             {
               "event": "plan",
-              "thought": "The event I need is \"Boxing at the 2000 Summer Olympics – Light flyweight\". Now I need to find the gold medalist for this event.",
-              "action": "event_attribute",
+              "thought": "The light flyweight boxing event at the 2004 Summer Olympics is \"Boxing at the 2004 Summer Olympics – Light flyweight\". Now, I need to find the previous edition of this event.",
+              "action": "previous_edition",
               "action_input": {
-                "event": "Boxing at the 2000 Summer Olympics – Light flyweight",
+                "event": "Boxing at the 2004 Summer Olympics – Light flyweight",
+                "year": 2004,
                 "attribute": "gold_athlete"
               },
               "final_answer": null
@@ -8018,18 +8115,21 @@
             {
               "event": "observation",
               "step": 2,
-              "tool": "event_attribute",
-              "latency_ms": 38.296169994282536,
+              "tool": "previous_edition",
+              "latency_ms": 81.59683300618781,
               "observation": {
                 "event": "Boxing at the 2000 Summer Olympics – Light flyweight",
                 "attribute": "gold_athlete",
                 "value": "Brahim Asloum",
+                "from_event": "Boxing at the 2004 Summer Olympics – Light flyweight",
+                "traversal": "PRECEDES",
+                "previous_games_year": 2000,
                 "linking": {
                   "method": "exact_title",
                   "matches": [
                     {
-                      "event": "Boxing at the 2000 Summer Olympics – Light flyweight",
-                      "event_id": "Q4951841",
+                      "event": "Boxing at the 2004 Summer Olympics – Light flyweight",
+                      "event_id": "Q3925468",
                       "score": 1.0
                     }
                   ]
@@ -8098,10 +8198,10 @@
         "answer": "Cycling at the 2004 Summer Olympics – Men's individual road race",
         "llm_tokens": {
           "input": 657,
-          "output": 69,
-          "total": 726
+          "output": 75,
+          "total": 732
         },
-        "latency_s": 1.564,
+        "latency_s": 1.776,
         "citations": [
           "Q2445057"
         ],
@@ -8127,9 +8227,9 @@
               "provider": "cohere",
               "token_source": "billed",
               "prompt_tokens": 657,
-              "completion_tokens": 69,
-              "latency_ms": 1215.2309529992635,
-              "provider_latency_ms": 1215.1122520008357
+              "completion_tokens": 75,
+              "latency_ms": 1458.9647829998285,
+              "provider_latency_ms": 1458.9016850004555
             }
           ],
           "tools_called": [
@@ -8144,7 +8244,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Cycling at the 2004 Summer Olympics – Men's individual road race\", \"competitor_count\": 144}, {\"event\": \"Cycling at the 2004 Summer Olympics – Women's individual road race\", \"competitor_count\": 67}, {\"event\": \"Cycling at the 2004 Summer Olympics – Men's cross-country\", \"competitor_count\": 49}, {\"event\": \"Cycling at the 2004 Summer Olympics – Women's cross-country\", \"competitor_count\": 30}, {\"event\": \"Cycling at the 2004 Summer Olympics – Men's points race\", \"competitor_count\": 23}], \"events_ranked\": 8}",
               "llm_tokens": 0,
-              "latency_ms": 348.9381589970435
+              "latency_ms": 316.6252040027757
             }
           ],
           "chunks_retrieved": 0,
@@ -8156,14 +8256,14 @@
           "stopping_reason": "rank_events returned one verified graph value",
           "final_answer": "Cycling at the 2004 Summer Olympics – Men's individual road race",
           "confidence_score": 0.9,
-          "total_tokens": 726,
-          "total_latency_ms": 1564.484551003261,
+          "total_tokens": 732,
+          "total_latency_ms": 1775.8922539942432,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
             {
               "event": "plan",
-              "thought": "I need to find the cycling event at the 2004 Summer Olympics with the highest number of competitors.",
+              "thought": "I will use the rank_events tool to find the cycling event at the 2004 Summer Olympics with the highest number of competitors.",
               "action": "rank_events",
               "action_input": {
                 "sport": "cycling",
@@ -8177,7 +8277,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 348.9381589970435,
+              "latency_ms": 316.6252040027757,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -8272,13 +8372,13 @@
           "output": 88,
           "total": 747
         },
-        "latency_s": 3.485,
+        "latency_s": 1.331,
         "citations": [
           "Q2036655",
-          "Q2297633",
+          "Q843287",
           "Q916174",
           "Q1005298",
-          "Q843287",
+          "Q2297633",
           "Q754412",
           "Q2297621"
         ],
@@ -8305,8 +8405,8 @@
               "token_source": "billed",
               "prompt_tokens": 659,
               "completion_tokens": 88,
-              "latency_ms": 3445.2079229959054,
-              "provider_latency_ms": 3445.1034410012653
+              "latency_ms": 1289.3149680021452,
+              "provider_latency_ms": 1289.2349359972286
             }
           ],
           "tools_called": [
@@ -8320,18 +8420,18 @@
                 "comparison": "more_than",
                 "threshold": 30
               },
-              "output_summary": "{\"count\": 7, \"filters\": {\"sport\": \"Cycling\", \"year\": 2012, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 31, \"competitors_max\": null}, \"matching_events\": [\"Cycling at the 2012 Summer Olympics – Men's cross-country\", \"Cycling at the 2012 Summer Olympics – Women's individual road race\", \"Cycling at the 2012 Summer Olympics – Women's team pursuit\", \"Cycling at the 2012 Summer Olympics – Men's road time trial\", \"Cycling at the 2012 Summer Olympics – Men's BMX\", \"Cycling at the 2012 Summer Olympics – Men's individual road race\", \"Cycling at the 2012 Summer Olympics – Men's team pursuit\"]}",
+              "output_summary": "{\"count\": 7, \"filters\": {\"sport\": \"Cycling\", \"year\": 2012, \"season\": \"Summer\", \"gender\": null, \"competitors_min\": 31, \"competitors_max\": null}, \"matching_events\": [\"Cycling at the 2012 Summer Olympics – Women's individual road race\", \"Cycling at the 2012 Summer Olympics – Women's team pursuit\", \"Cycling at the 2012 Summer Olympics – Men's cross-country\", \"Cycling at the 2012 Summer Olympics – Men's road time trial\", \"Cycling at the 2012 Summer Olympics – Men's BMX\", \"Cycling at the 2012 Summer Olympics – Men's individual road race\", \"Cycling at the 2012 Summer Olympics – Men's team pursuit\"]}",
               "llm_tokens": 0,
-              "latency_ms": 39.01811200194061
+              "latency_ms": 41.60756999772275
             }
           ],
           "chunks_retrieved": 0,
           "citations": [
             "Q2036655",
-            "Q2297633",
+            "Q843287",
             "Q916174",
             "Q1005298",
-            "Q843287",
+            "Q2297633",
             "Q754412",
             "Q2297621"
           ],
@@ -8341,7 +8441,7 @@
           "final_answer": "7",
           "confidence_score": 0.9,
           "total_tokens": 747,
-          "total_latency_ms": 3484.5767940059886,
+          "total_latency_ms": 1331.285870001011,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -8362,7 +8462,7 @@
               "event": "observation",
               "step": 1,
               "tool": "count_events",
-              "latency_ms": 39.01811200194061,
+              "latency_ms": 41.60756999772275,
               "observation": {
                 "count": 7,
                 "filters": {
@@ -8374,9 +8474,9 @@
                   "competitors_max": null
                 },
                 "matching_events": [
-                  "Cycling at the 2012 Summer Olympics – Men's cross-country",
                   "Cycling at the 2012 Summer Olympics – Women's individual road race",
                   "Cycling at the 2012 Summer Olympics – Women's team pursuit",
+                  "Cycling at the 2012 Summer Olympics – Men's cross-country",
                   "Cycling at the 2012 Summer Olympics – Men's road time trial",
                   "Cycling at the 2012 Summer Olympics – Men's BMX",
                   "Cycling at the 2012 Summer Olympics – Men's individual road race",
@@ -8443,7 +8543,7 @@
           "output": 75,
           "total": 732
         },
-        "latency_s": 1.727,
+        "latency_s": 1.892,
         "citations": [
           "Q7500747"
         ],
@@ -8470,8 +8570,8 @@
               "token_source": "billed",
               "prompt_tokens": 657,
               "completion_tokens": 75,
-              "latency_ms": 1236.5685199984,
-              "provider_latency_ms": 1236.3901040007477
+              "latency_ms": 1373.1135380003252,
+              "provider_latency_ms": 1373.0012699961662
             }
           ],
           "tools_called": [
@@ -8486,7 +8586,7 @@
               },
               "output_summary": "{\"order\": \"desc\", \"top\": [{\"event\": \"Shooting at the 1988 Summer Olympics – Men's 50 metre rifle prone\", \"competitor_count\": 55}, {\"event\": \"Shooting at the 1988 Summer Olympics – Mixed skeet\", \"competitor_count\": 52}, {\"event\": \"Shooting at the 1988 Summer Olympics – Mixed trap\", \"competitor_count\": 49}, {\"event\": \"Shooting at the 1988 Summer Olympics – Men's 50 metre rifle three positions\", \"competitor_count\": 47}, {\"event\": \"Shooting at the 1988 Summer Olympics – Men's 10 metre air rifle\", \"competitor_count\": 46}], \"events_ranked\": 13}",
               "llm_tokens": 0,
-              "latency_ms": 490.06215799454367
+              "latency_ms": 518.3708059994387
             }
           ],
           "chunks_retrieved": 0,
@@ -8499,7 +8599,7 @@
           "final_answer": "Shooting at the 1988 Summer Olympics – Men's 50 metre rifle prone",
           "confidence_score": 0.9,
           "total_tokens": 732,
-          "total_latency_ms": 1727.0328750018962,
+          "total_latency_ms": 1891.8093719985336,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -8519,7 +8619,7 @@
               "event": "observation",
               "step": 1,
               "tool": "rank_events",
-              "latency_ms": 490.06215799454367,
+              "latency_ms": 518.3708059994387,
               "observation": {
                 "order": "desc",
                 "top": [
@@ -8607,7 +8707,7 @@
           "output": 82,
           "total": 742
         },
-        "latency_s": 1.376,
+        "latency_s": 1.491,
         "citations": [
           "Q1049551"
         ],
@@ -8636,8 +8736,8 @@
               "token_source": "billed",
               "prompt_tokens": 660,
               "completion_tokens": 82,
-              "latency_ms": 1334.0163550019497,
-              "provider_latency_ms": 1333.8917090004543
+              "latency_ms": 1450.6402170009096,
+              "provider_latency_ms": 1450.5518439982552
             }
           ],
           "tools_called": [
@@ -8652,7 +8752,7 @@
               },
               "output_summary": "{\"event\": \"Athletics at the 2012 Summer Olympics – Men's 800 metres\", \"attribute\": \"gold_athlete\", \"value\": \"David Rudisha\", \"linking\": {\"method\": \"exact_venue_date\", \"matches\": [{\"event\": \"Athletics at the 2012 Summer Olympics – Men's 800 metres\", \"event_id\": \"Q1049551\", \"score\": 1.0}]}, \"source_check\": [{\"doc_id\": \"Q1049551\", \"line\": \"gold: David Rudisha\"}]}",
               "llm_tokens": 0,
-              "latency_ms": 41.89434400177561
+              "latency_ms": 39.97227599757025
             }
           ],
           "chunks_retrieved": 1,
@@ -8665,7 +8765,7 @@
           "final_answer": "David Rudisha",
           "confidence_score": 0.98,
           "total_tokens": 742,
-          "total_latency_ms": 1376.2606590025825,
+          "total_latency_ms": 1490.8979169995291,
           "invalid_response_count": 0,
           "retrieval_stages": [],
           "conversation_trace": [
@@ -8685,7 +8785,7 @@
               "event": "observation",
               "step": 1,
               "tool": "event_at_venue_date",
-              "latency_ms": 41.89434400177561,
+              "latency_ms": 39.97227599757025,
               "observation": {
                 "event": "Athletics at the 2012 Summer Olympics – Men's 800 metres",
                 "attribute": "gold_athlete",

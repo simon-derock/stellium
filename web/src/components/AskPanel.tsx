@@ -5,7 +5,7 @@ import type { CompareResult, Preset } from "../api";
 import { PIPELINES, isNotFound, seconds, tokens } from "../format";
 
 // The agent's answer leads; the two baselines follow for comparison.
-const LANES = [...PIPELINES].reverse();
+const LANES = PIPELINES;
 
 interface Props {
   initialQuestion: string;
