@@ -195,6 +195,38 @@ async def test_an_event_found_on_the_way_is_a_hop_when_the_question_asks_who() -
 
 
 @pytest.mark.asyncio
+async def test_a_tie_on_the_way_is_answered_for_every_tied_event() -> None:
+    # 2008 men's and women's single sculls both had 33 competitors.
+    pipeline, chat = _pipeline(
+        _action("rank_events", {"sport": "rowing", "year": 2008, "order": "desc"}),
+        _action(
+            "event_attribute",
+            {
+                "event": "Rowing at the 2008 Summer Olympics – Men's single sculls",
+                "attribute": "gold_athlete",
+            },
+        ),
+        _action(
+            "event_attribute",
+            {
+                "event": "Rowing at the 2008 Summer Olympics – Women's single sculls",
+                "attribute": "gold_athlete",
+            },
+        ),
+    )
+
+    result = await pipeline.run(
+        "q13", "Who won gold in the rowing event with the most competitors at the 2008 Games?"
+    )
+
+    trace = _trace(result)
+    assert result.answer == "Cal Reed; Dee Lake"
+    assert chat.await_count == 3
+    assert "Women's single sculls" in chat.await_args_list[2].args[0][-1]["content"]
+    assert trace["stopping_reason"] == "every tied event returned a verified graph value"
+
+
+@pytest.mark.asyncio
 async def test_ranking_question_still_stops_on_the_event() -> None:
     pipeline, chat = _pipeline(
         _action("rank_events", {"sport": "rowing", "year": 2004, "order": "desc"})

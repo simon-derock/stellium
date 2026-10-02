@@ -498,6 +498,8 @@ class AgenticPipeline:
         ]
         verified: set[str] = set()
         asked = asked_kind(question)
+        # Events tied in a ranking the question passes through, each with its value once read.
+        tied: dict[str, str | None] = {}
         pending_candidates: list[str] = []
         observations: list[str] = []
         cache: dict[str, dict[str, Any]] = {}
@@ -600,6 +602,21 @@ class AgenticPipeline:
                     **observation,
                     "note": f"This {value_kind} is an intermediate result; the question asks for a {asked}.",
                 }
+            if outcome is not None and outcome.ambiguous and "tie" in outcome.observation:
+                tied = dict.fromkeys(outcome.candidates)
+            # A value for one tied event is part of the answer; the rest still need theirs.
+            tie_open = False
+            if tied and outcome is not None and outcome.answer is not None and not intermediate:
+                event_name = str(outcome.observation.get("event", ""))
+                if event_name in tied:
+                    tied[event_name] = outcome.answer
+                    missing = [name for name, value in tied.items() if value is None]
+                    tie_open = bool(missing)
+                    if tie_open:
+                        observation = {
+                            **observation,
+                            "note": "Tied events still without this value: " + "; ".join(missing),
+                        }
             state.strategy_history.append(tool)
             state.tool_history.append(
                 ToolAuditCall(
@@ -648,14 +665,23 @@ class AgenticPipeline:
                 )
             previous = (tool, str(status))
 
-            if outcome is not None and outcome.answer is not None and not intermediate:
-                # Evidence-sufficiency stop: a single verified value of the asked kind.
-                state.final_answer = outcome.answer
+            if (
+                outcome is not None
+                and outcome.answer is not None
+                and not intermediate
+                and not tie_open
+            ):
+                # Evidence-sufficiency stop: a verified value of the asked kind, or one per tied event.
                 checked = any(item.text for item in outcome.evidence)
                 state.confidence_score = 0.98 if checked else 0.9
-                state.stopping_reason = f"{tool} returned one verified graph value" + (
-                    " stated in the cited source article" if checked else ""
-                )
+                if tied and all(tied.values()):
+                    state.final_answer = "; ".join(dict.fromkeys(str(v) for v in tied.values()))
+                    state.stopping_reason = "every tied event returned a verified graph value"
+                else:
+                    state.final_answer = outcome.answer
+                    state.stopping_reason = f"{tool} returned one verified graph value" + (
+                        " stated in the cited source article" if checked else ""
+                    )
                 break
             if outcome is not None and outcome.ambiguous:
                 pending_candidates = list(outcome.candidates)
@@ -664,6 +690,11 @@ class AgenticPipeline:
             observations.append(observation_text)
             messages.append({"role": "user", "content": f"Observation: {observation_text}"})
 
+        answered_ties = [str(value) for value in tied.values() if value]
+        if not state.final_answer and answered_ties:
+            state.final_answer = "; ".join(dict.fromkeys(answered_ties))
+            state.confidence_score = 0.5
+            state.stopping_reason = "Iteration budget used before every tied event was answered"
         if not state.final_answer and pending_candidates:
             state.final_answer = "; ".join(pending_candidates)
             state.confidence_score = 0.3
