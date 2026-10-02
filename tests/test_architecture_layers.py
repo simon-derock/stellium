@@ -5,6 +5,8 @@ import ast
 import sys
 from pathlib import Path
 
+import pytest
+
 SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 
 
@@ -72,8 +74,10 @@ def test_graph_layer_isolation() -> None:
             assert not imp.startswith("src.api"), f"{py_file.name} illegally imports {imp}"
 
 
-def test_no_circular_package_imports() -> None:
+def test_no_circular_package_imports(monkeypatch: pytest.MonkeyPatch) -> None:
     # Tests that all core packages can be imported in any sequence without circular dependency errors.
+    # monkeypatch restores the original module objects afterwards, so later tests never see two
+    # copies of a module (one patched, one still referenced by classes imported earlier).
     modules_to_test = [
         "src.models",
         "src.embeddings",
@@ -87,8 +91,11 @@ def test_no_circular_package_imports() -> None:
         "src.api.main",
     ]
     for mod in modules_to_test:
-        if mod in sys.modules:
-            del sys.modules[mod]
+        parent, _, child = mod.rpartition(".")
+        if parent in sys.modules and hasattr(sys.modules[parent], child):
+            # Re-importing also rebinds the parent package attribute; restore it afterwards too.
+            monkeypatch.setattr(sys.modules[parent], child, getattr(sys.modules[parent], child))
+        monkeypatch.delitem(sys.modules, mod, raising=False)
         imported = __import__(mod, fromlist=["*"])
         assert imported is not None
 
