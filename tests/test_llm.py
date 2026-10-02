@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -371,6 +372,39 @@ async def test_cohere_chat_round_robins_distinct_configured_keys(
         "Bearer cohere-backup-test-key",
         "Bearer cohere-third-test-key",
     ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("usage", "expected"),
+    [
+        (
+            {
+                "billed_units": {"input_tokens": 700, "output_tokens": 60},
+                "tokens": {"input_tokens": 760, "output_tokens": 60},
+            },
+            (700, 60, "billed"),
+        ),
+        ({"tokens": {"input_tokens": 760, "output_tokens": 60}}, (760, 60, "processed")),
+        ({}, (2, 1, "estimated")),
+    ],
+)
+async def test_cohere_token_counts_say_where_they_came_from(
+    monkeypatch: pytest.MonkeyPatch, usage: dict[str, Any], expected: tuple[int, int, str]
+) -> None:
+    monkeypatch.setenv("COHERE", "cohere-test-key")
+    monkeypatch.setattr(llm_module, "COHERE_CHAT_REQUEST_INTERVAL_S", 0.0)
+    response = MagicMock()
+    response.raise_for_status.return_value = None
+    response.json.return_value = {
+        "message": {"content": [{"type": "text", "text": "ok"}]},
+        "usage": usage,
+    }
+
+    with patch("httpx.AsyncClient.post", return_value=response):
+        result = await make_session("cohere").chat([{"role": "user", "content": "question"}])
+
+    assert (result.input_tokens, result.output_tokens, result.token_source) == expected
 
 
 @pytest.mark.asyncio

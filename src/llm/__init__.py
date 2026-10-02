@@ -157,6 +157,7 @@ class LLMCallResult:
         "provider",
         "latency_ms",
         "credential_alias",
+        "token_source",
     )
 
     def __init__(
@@ -168,7 +169,9 @@ class LLMCallResult:
         provider: str,
         latency_ms: float,
         credential_alias: str = "",
+        token_source: str = "reported",
     ) -> None:
+        # token_source: "billed" or "processed" when the provider counted, "estimated" otherwise.
         self.content = content
         self.input_tokens = input_tokens
         self.output_tokens = output_tokens
@@ -176,6 +179,7 @@ class LLMCallResult:
         self.provider = provider
         self.latency_ms = latency_ms
         self.credential_alias = credential_alias
+        self.token_source = token_source
 
 
 class PersistentLLMResponseCache:
@@ -213,6 +217,7 @@ class PersistentLLMResponseCache:
                 provider=str(record["provider"]),
                 latency_ms=float(record["latency_ms"]),
                 credential_alias=str(record.get("credential_alias", "")),
+                token_source=str(record.get("token_source", "reported")),
             )
 
     def put(self, cache_key: str, result: LLMCallResult) -> None:
@@ -225,6 +230,7 @@ class PersistentLLMResponseCache:
             "provider": result.provider,
             "latency_ms": result.latency_ms,
             "credential_alias": result.credential_alias,
+            "token_source": result.token_source,
         }
         serialized = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
         with self._lock, self.path.open("a", encoding="utf-8") as cache_file:
@@ -509,6 +515,14 @@ async def _call_cohere(
         usage = data.get("usage", {})
         billed = usage.get("billed_units", {})
         tokens = usage.get("tokens", {})
+        # Billed units are what Cohere charges for; "tokens" adds its chat template on top.
+        token_source = (
+            "billed"
+            if billed.get("input_tokens")
+            else "processed"
+            if tokens.get("input_tokens")
+            else "estimated"
+        )
         input_tokens = int(
             billed.get("input_tokens")
             or tokens.get("input_tokens")
@@ -531,6 +545,7 @@ async def _call_cohere(
         provider="cohere",
         latency_ms=(time.perf_counter() - t0) * 1000,
         credential_alias=credential_alias,
+        token_source=token_source,
     )
 
 

@@ -92,6 +92,7 @@ class RAGPipeline:
                 "reranker": retrieval.reranker_model,
                 "reranker_executed": retrieval.reranker_executed,
                 "reranker_latency_ms": retrieval.reranker_latency_ms,
+                "token_sources": [llm_result.token_source],
             },
             model_name=llm_result.model_name,
             provider=llm_result.provider,

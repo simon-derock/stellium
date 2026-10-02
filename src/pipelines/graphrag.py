@@ -178,6 +178,7 @@ class GraphRAGPipeline:
                     else "unresolved"
                 ),
                 "answer_source": answer_source,
+                "token_sources": sorted({extraction.token_source, synthesis.token_source}),
                 **retrieval,
             },
             model_name=synthesis.model_name,
