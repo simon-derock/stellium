@@ -65,15 +65,15 @@
       "overall": {
         "questions": 100,
         "scored": 100,
-        "exact_match": 98.0,
-        "exact_match_strict": 97.0,
-        "token_f1": 0.9825,
-        "tokens_mean": 1093.64,
-        "latency_mean_s": 6.211597199290045,
-        "latency_p50_s": 6.128422155001317,
-        "latency_p95_s": 7.541040274998522,
-        "cost_per_100_usd": 0.3489875,
-        "citations_mean": 2.15
+        "exact_match": 99.0,
+        "exact_match_strict": 98.0,
+        "token_f1": 0.9866666666666667,
+        "tokens_mean": 1091.53,
+        "latency_mean_s": 6.3030136277399285,
+        "latency_p50_s": 6.152382791995478,
+        "latency_p95_s": 7.629074903000401,
+        "cost_per_100_usd": 0.3483475,
+        "citations_mean": 2.14
       },
       "by_type": {
         "aggregation": {
@@ -93,8 +93,8 @@
         },
         "superlative": {
           "questions": 10,
-          "exact_match": 9.0,
-          "tokens_mean": 1031
+          "exact_match": 10.0,
+          "tokens_mean": 1009.9
         },
         "temporal": {
           "questions": 22,
@@ -112,10 +112,10 @@
         "hit_at_1": 0.99,
         "hit_at_5": 1.0,
         "mrr": 0.995,
-        "ndcg_at_5": 0.8296063721490032,
-        "recall_at_5": 0.6613064661856332,
+        "ndcg_at_5": 0.827466509501658,
+        "recall_at_5": 0.6603064661856332,
         "precision_at_5": 0.995,
-        "context_precision_at_5": 0.781,
+        "context_precision_at_5": 0.779,
         "context_recall": 1.0,
         "context_recall_questions": 60
       }
@@ -125,15 +125,15 @@
       "overall": {
         "questions": 100,
         "scored": 100,
-        "exact_match": 98.0,
-        "exact_match_strict": 97.0,
-        "token_f1": 0.9825,
-        "tokens_mean": 989.95,
-        "latency_mean_s": 3.880174049709967,
-        "latency_p50_s": 3.369789379001304,
-        "latency_p95_s": 7.348835347998829,
-        "cost_per_100_usd": 0.32071,
-        "citations_mean": 2.15
+        "exact_match": 99.0,
+        "exact_match_strict": 98.0,
+        "token_f1": 0.9866666666666667,
+        "tokens_mean": 978.66,
+        "latency_mean_s": 3.77666601252,
+        "latency_p50_s": 3.295657316004508,
+        "latency_p95_s": 7.330352060998848,
+        "cost_per_100_usd": 0.3173475,
+        "citations_mean": 2.14
       },
       "by_type": {
         "aggregation": {
@@ -153,8 +153,8 @@
         },
         "superlative": {
           "questions": 10,
-          "exact_match": 9.0,
-          "tokens_mean": 911.3
+          "exact_match": 10.0,
+          "tokens_mean": 798.4
         },
         "temporal": {
           "questions": 22,
@@ -172,10 +172,10 @@
         "hit_at_1": 0.99,
         "hit_at_5": 1.0,
         "mrr": 0.995,
-        "ndcg_at_5": 0.8296063721490032,
-        "recall_at_5": 0.6613064661856332,
+        "ndcg_at_5": 0.827466509501658,
+        "recall_at_5": 0.6603064661856332,
         "precision_at_5": 0.995,
-        "context_precision_at_5": 0.781,
+        "context_precision_at_5": 0.779,
         "context_recall": 1.0,
         "context_recall_questions": 60
       }
@@ -183,11 +183,11 @@
   },
   "agent": {
     "questions": 100,
-    "steps_mean": 2.3,
+    "steps_mean": 2.29,
     "steps_median": 2.0,
     "steps_max": 6,
-    "llm_calls_mean": 1.16,
-    "single_call_answers": 86,
+    "llm_calls_mean": 1.15,
+    "single_call_answers": 87,
     "strategy_changes": 10,
     "tools": {
       "event_at_venue_date": 28,
@@ -209,23 +209,11 @@
       "event_attribute returned one verified graph value": 24,
       "count_events returned one verified graph value": 21,
       "previous_edition returned one verified graph value": 17,
-      "rank_events returned one verified graph value": 9,
-      "Orchestrator finished with an answer grounded in tool observations": 2
+      "rank_events returned one verified graph value": 10,
+      "Orchestrator finished with an answer grounded in tool observations": 1
     }
   },
   "graph_pipeline_misses": [
-    {
-      "qid": "pub-044",
-      "qtype": "superlative",
-      "pipeline": "graphrag",
-      "answer": "Fencing at the 2008 Summer Olympics \u2013 Men's \u00e9p\u00e9e; Fencing at the 2008 Summer Olympics \u2013 Women's foil"
-    },
-    {
-      "qid": "pub-044",
-      "qtype": "superlative",
-      "pipeline": "agentic",
-      "answer": "Fencing at the 2008 Summer Olympics \u2013 Men's \u00e9p\u00e9e; Fencing at the 2008 Summer Olympics \u2013 Women's foil"
-    },
     {
       "qid": "pub-099",
       "qtype": "multi_hop",
@@ -249,14 +237,32 @@
       "commit": "4923d3a",
       "model": "command-a-03-2025",
       "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
-      "finished_at": "2026-10-02T01:13:04+0530"
+      "finished_at": "2026-10-02T01:13:04+0530",
+      "rows": 100
     },
     {
       "pipelines": "agentic",
       "commit": "cc74fd5",
       "model": "command-a-03-2025",
       "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
-      "finished_at": "2026-10-02T01:19:54+0530"
+      "finished_at": "2026-10-02T01:19:54+0530",
+      "rows": 100
+    },
+    {
+      "pipelines": "graphrag",
+      "commit": "7ab5fa2",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "052b0ba905bcca9706f32b55e2bbf24c2a66ae1dfb5303f4a4fbabb2712526fc",
+      "finished_at": "2026-10-02T14:35:50+0530",
+      "rows": 10
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "7ab5fa2",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "052b0ba905bcca9706f32b55e2bbf24c2a66ae1dfb5303f4a4fbabb2712526fc",
+      "finished_at": "2026-10-02T14:36:28+0530",
+      "rows": 10
     }
   ]
 }
