@@ -1,12 +1,27 @@
 // Canvas renderer ported from Lunarbit; the drawing code is kept as it was.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D from "react-force-graph-2d";
+import { forceSettings, formForce, gravityForces, type ForceSettings } from "./forces";
 import { formationTargets } from "./graph";
 import type { GraphEdge, GraphNode, Palette, VizProfile } from "./graph";
+import { settle, type LayoutRequest, type LayoutResult } from "./layout";
 
 type Pt = { x: number; y: number };
 type LinkDatum = GraphEdge & { source: GraphNode & Pt; target: GraphNode & Pt };
 type LabelSide = "left" | "right" | "top" | "bottom";
+type SimNode = GraphNode & Pt & { vx: number; vy: number; fx?: number; fy?: number };
+interface Layout {
+  nodes: GraphNode[];
+  links: GraphEdge[];
+  settings: ForceSettings;
+  targets: Map<string, Pt>;
+  positions: Map<string, Pt>;
+}
+
+const INTRO_MS = 1500;
+// share of the intro by which the rim starts later than the core
+const STAGGER = 0.3;
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 /**
  * Prefer the side away from the local chain direction.  For a left-to-right
@@ -81,45 +96,73 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
   const labelNeighborsRef = useRef<Map<string, Pt[]>>(new Map());
   const nodeLookupRef = useRef<Map<string, GraphNode>>(new Map());
 
-  const data = useMemo(() => {
+  /* ---------- layout: settled in a worker, so the first frame is the finished shape ---------- */
+  const settings = useMemo(() => forceSettings(viz), [viz]);
+  const layoutKey = useMemo(
+    () =>
+      JSON.stringify([
+        settings,
+        viz.formation,
+        nodes.map((n) => n.id),
+        edges.map((e) => [e.source, e.target]),
+      ]),
+    [settings, viz.formation, nodes, edges],
+  );
+  const [layout, setLayout] = useState<Layout | null>(null);
+  useEffect(() => {
     const ids = new Set(nodes.map((n) => n.id));
-    // Start every node where it will settle (its formation target, or a calm golden-angle
-    // spiral for free layouts) so the intro unfolds instead of exploding from random points.
-    const seeds = formationTargets(viz.formation, nodes);
+    const links = edges.filter((e) => ids.has(e.source) && ids.has(e.target));
+    const targets = formationTargets(viz.formation, nodes);
     const golden = Math.PI * (3 - Math.sqrt(5));
-    return {
+    const request: LayoutRequest = {
+      key: layoutKey,
+      // start from the formation, or a calm golden-angle spiral for free layouts
       nodes: nodes.map((n, i) => {
-        const seed = seeds.get(n.id);
+        const seed = targets.get(n.id);
         const radius = 14 * Math.sqrt(i + 0.5);
-        return {
-          ...n,
-          x: seed?.x ?? Math.cos(i * golden) * radius,
-          y: seed?.y ?? Math.sin(i * golden) * radius,
-        };
+        return { id: n.id, x: seed?.x ?? Math.cos(i * golden) * radius, y: seed?.y ?? Math.sin(i * golden) * radius };
       }),
-      links: edges
-        .filter((e) => ids.has(e.source) && ids.has(e.target))
-        .map((e) => ({ ...e })) as unknown as LinkDatum[],
+      links: links.map((e) => ({ source: e.source, target: e.target })),
+      targets: [...targets],
+      settings,
     };
-  }, [nodes, edges, viz.formation]);
+    let live = true;
+    // Until the new layout lands the current graph stays on screen, so a style change swaps
+    // finished shape for finished shape.
+    const accept = (result: LayoutResult) => {
+      if (live) setLayout({ nodes, links, settings, targets, positions: new Map(result.positions) });
+    };
+    if (typeof Worker === "undefined") {
+      accept(settle(request));
+      return () => {
+        live = false;
+      };
+    }
+    const worker = new Worker(new URL("./layout.worker.ts", import.meta.url), { type: "module" });
+    worker.onmessage = (event: MessageEvent<LayoutResult>) => accept(event.data);
+    worker.onerror = () => accept(settle(request));
+    worker.postMessage(request);
+    return () => {
+      live = false;
+      worker.terminate();
+    };
+    // the key covers nodes, edges, formation and forces
+  }, [layoutKey]);
+
+  const data = useMemo(() => {
+    if (!layout) return { nodes: [] as SimNode[], links: [] as LinkDatum[] };
+    return {
+      nodes: layout.nodes.map((n) => {
+        const at = layout.positions.get(n.id) ?? { x: 0, y: 0 };
+        return { ...n, x: at.x, y: at.y, vx: 0, vy: 0, fx: at.x, fy: at.y } as SimNode;
+      }),
+      links: layout.links.map((e) => ({ ...e })) as unknown as LinkDatum[],
+    };
+  }, [layout]);
 
   useEffect(() => {
     nodeLookupRef.current = new Map(data.nodes.map((node) => [node.id, node]));
   }, [data]);
-
-  /* ---------- fluid intro: reveal envelope eased over ~1.1s ---------- */
-  useEffect(() => {
-    introRef.current = 0;
-    let raf = 0;
-    const start = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / 1200);
-      introRef.current = 1 - Math.pow(1 - p, 3);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [data, viz]);
 
   const focus = hovered ?? selectedId;
   const near = useMemo(() => {
@@ -132,124 +175,134 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
     return set;
   }, [focus, edges]);
 
-  /* ---------- formation: pull nodes onto a silhouette ---------- */
-  const targets = useMemo(() => {
-    // Keep formation coordinates device-independent. The camera fit below is
-    // measured from the actual canvas, so the same topology can adapt to a
-    // narrow phone, tablet split view, or resizable laptop without a second
-    // hard-coded geometry scale fighting the force simulation.
-    return formationTargets(viz.formation, nodes);
-  }, [viz.formation, nodes, size.w]);
-  const targetsRef = useRef(targets);
-  targetsRef.current = targets;
-  const strengthRef = useRef(viz.formStrength);
-  strengthRef.current = viz.formStrength;
-  const simNodes = useRef<(GraphNode & Pt & { vx: number; vy: number; fx?: number; fy?: number })[]>([]);
-
+  /* ---------- live physics: the same forces the worker settled with ---------- */
   useEffect(() => {
     const fg = fgRef.current;
-    // the graph is lazy-loaded: retry until the instance exists
+    // the canvas mounts once the stage has a size: wait a frame for it
     if (!fg) {
-      const id = setTimeout(() => setReady((v) => v + 1), 120);
-      return () => clearTimeout(id);
+      const id = requestAnimationFrame(() => setReady((v) => v + 1));
+      return () => cancelAnimationFrame(id);
     }
-    const formed = viz.formStrength > 0;
-    fg.d3Force("charge")?.strength(formed ? viz.charge * 0.06 : viz.charge);
-    fg.d3Force("link")?.distance(viz.linkDistance);
-    fg.d3Force("link")?.strength(formed ? 0.01 : 1);
-    fg.d3Force("center")?.strength?.(formed ? 0 : 1);
-    // spring toward the silhouette, independent of the cooling alpha so the
-    // formation still reads once the simulation has relaxed
-    const form = (() => {
-      const st = strengthRef.current;
-      if (!st) return;
-      for (const nd of simNodes.current) {
-        // Let the pointer own a node while it is being dragged. Without this
-        // guard the formation spring immediately pulled it back under the
-        // cursor, which made organic marks feel impossible to move.
-        if (nd.fx != null || nd.fy != null) continue;
-        const t = targetsRef.current.get(nd.id);
-        if (!t) continue;
-        nd.vx += (t.x - nd.x) * st;
-        nd.vy += (t.y - nd.y) * st;
-      }
-    }) as (() => void) & { initialize?: (ns: unknown[]) => void };
-    form.initialize = (ns: unknown[]) => {
-      simNodes.current = ns as (GraphNode & Pt & { vx: number; vy: number; fx?: number; fy?: number })[];
-    };
-    fg.d3Force("form", form);
-    fg.d3ReheatSimulation?.();
+    if (!layout) return;
+    const { settings: s, targets } = layout;
+    fg.d3Force("charge")?.strength(s.charge);
+    fg.d3Force("link")?.distance(s.linkDistance).strength(s.linkStrength);
+    fg.d3Force("center")?.strength?.(s.center);
+    const [gx, gy] = gravityForces(s.gravity);
+    fg.d3Force("x", gx);
+    fg.d3Force("y", gy);
+    fg.d3Force("form", formForce(targets, s.form));
     return undefined;
-  }, [viz, data, ready]);
+  }, [layout, data, ready]);
 
-  /* ---------- framing: one instant fit, never fighting the user ---------- */
-  const tickCount = useRef(0);
+  /* ---------- framing: one still camera on the finished shape ---------- */
   const userRef = useRef(false);
-  const fittingRef = useRef(false);
   const programmaticUntilRef = useRef(0);
-  const initialFitUntilRef = useRef(0);
-  const prog = useRef(0);
-  const fittedOnce = useRef(false);
-  // fit instantly (the opacity envelope carries the motion) and clear the
-  // right-hand findings plate in the same frame — no second animation
-  const fit = useCallback(() => {
+  const finalRef = useRef(new Map<string, Pt>());
+  const draggedRef = useRef(new Set<string>());
+  const [animating, setAnimating] = useState(false);
+  const frame = useCallback(() => {
     const fg = fgRef.current;
-    if (!fg) return;
-    if (userRef.current && performance.now() >= initialFitUntilRef.current) return;
-    if (performance.now() < initialFitUntilRef.current) userRef.current = false;
-    fittingRef.current = true;
-    programmaticUntilRef.current = performance.now() + 700;
-    prog.current += 2;
-    // Keep a generous visual margin so style changes never crop or over-zoom
-    // the complete graph beneath the surrounding inspector plates.
-    // Keep the projection large enough to read while leaving room for the
-    // surrounding controls. The previous 220px padding made every formation
-    // look like a tiny thumbnail on wide screens.
-    const compact = size.w > 0 && size.w < 600;
-    // Keep the complete formation comfortably inside the viewport. The live
-    // projection is dense enough that tight framing reads as over-zoomed,
-    // especially on narrow phone screens.
-    // One glide to the frame. The first fit lands instantly behind the fade-in; later refits
-    // ease over 700 ms so the camera never jumps while the layout breathes.
-    const padding = compact ? 28 : 72;
-    const first = !fittedOnce.current;
-    fittedOnce.current = true;
-    fg.zoomToFit(first ? 0 : 700, padding);
-    window.setTimeout(() => {
-      fittingRef.current = false;
-    }, first ? 0 : 720);
+    const final = finalRef.current;
+    if (!fg || !size.w || !size.h || !final.size) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const p of final.values()) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    // Marks and labels reach well past their node centres, so the shape gets real air around it.
+    const pad = size.w < 600 ? 52 : 112;
+    const fill = 0.86;
+    const k =
+      Math.min(
+        (size.w - pad * 2) / Math.max(1, maxX - minX),
+        (size.h - pad * 2) / Math.max(1, maxY - minY),
+        2.2,
+      ) * fill;
+    programmaticUntilRef.current = performance.now() + 200;
+    fg.centerAt((minX + maxX) / 2, (minY + maxY) / 2, 0);
+    fg.zoom(Math.max(0.04, k), 0);
   }, [size.h, size.w]);
-  // Formation forces can continue moving nodes after the first engine stop.
-  // Refit a few times during the initial reveal, but never after the user has
-  // taken ownership of the camera or a node.
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
+  // A resize reframes at once, unless the reader has taken the camera.
   useEffect(() => {
-    if (!size.w || !size.h) return;
-    const timers = [350, 1600, 3600].map((delay) => window.setTimeout(fit, delay));
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, [data, fit, size.h, size.w, viz]);
-  useEffect(() => {
-    tickCount.current = 0;
+    if (!userRef.current) frame();
+  }, [frame]);
+
+  /* ---------- intro: the shape blooms out from its centre, once, then rests ---------- */
+  useLayoutEffect(() => {
+    if (!data.nodes.length) return;
+    const final = new Map(data.nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+    finalRef.current = final;
     userRef.current = false;
-    initialFitUntilRef.current = performance.now() + 3200;
-    fittedOnce.current = false;
-    prog.current = 0;
-  }, [data, viz]);
-  const onTick = useCallback(() => {
-    if (userRef.current) return;
-    tickCount.current += 1;
-  }, [fit]);
+    draggedRef.current = new Set();
+    frameRef.current();
+    let cx = 0;
+    let cy = 0;
+    for (const p of final.values()) {
+      cx += p.x / final.size;
+      cy += p.y / final.size;
+    }
+    let reach = 0;
+    for (const p of final.values()) reach = Math.max(reach, Math.hypot(p.x - cx, p.y - cy));
+    const place = (t: number) => {
+      for (const n of data.nodes) {
+        if (draggedRef.current.has(n.id)) continue;
+        const end = final.get(n.id)!;
+        const dx = end.x - cx;
+        const dy = end.y - cy;
+        // the core leads and the rim follows, so the shape unfolds rather than pops
+        const lead = reach ? Math.hypot(dx, dy) / reach : 0;
+        const e = easeOutCubic(Math.min(1, Math.max(0, (t - lead * STAGGER) / (1 - STAGGER))));
+        const s = 0.74 + 0.26 * e;
+        const a = (1 - e) * -0.16;
+        const x = cx + (dx * Math.cos(a) - dy * Math.sin(a)) * s;
+        const y = cy + (dx * Math.sin(a) + dy * Math.cos(a)) * s;
+        n.x = n.fx = x;
+        n.y = n.fy = y;
+        n.vx = n.vy = 0;
+      }
+    };
+    const release = () => {
+      for (const n of data.nodes) {
+        if (draggedRef.current.has(n.id)) continue;
+        const end = final.get(n.id)!;
+        n.x = end.x;
+        n.y = end.y;
+        n.fx = undefined;
+        n.fy = undefined;
+      }
+      introRef.current = 1;
+      setAnimating(false);
+    };
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      release();
+      return;
+    }
+    introRef.current = 0;
+    place(0);
+    setAnimating(true);
+    const start = performance.now();
+    let raf = requestAnimationFrame(function step(now) {
+      const t = Math.min(1, (now - start) / INTRO_MS);
+      introRef.current = easeOutCubic(Math.min(1, t / 0.7));
+      place(t);
+      if (t < 1) raf = requestAnimationFrame(step);
+      else release();
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [data]);
+
   const markUser = useCallback(() => {
-    if (
-      fittingRef.current ||
-      performance.now() < programmaticUntilRef.current ||
-      performance.now() < initialFitUntilRef.current
-    ) return;
-    if (prog.current > 0) prog.current -= 1;
-    else userRef.current = true;
+    if (performance.now() < programmaticUntilRef.current) return;
+    userRef.current = true;
   }, []);
-
-
-
   const hueOf = (n: GraphNode) => {
     if (viz.colorMode === "layer") return palette.layers[n.layer];
     const ramp = palette.chroma;
@@ -943,11 +996,11 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
                 ? "rgba(0,0,0,0)"
                 : palette.paper
             }
-            // Settle off-screen first, so the first frame is already the shape it will keep.
-            warmupTicks={60}
-            // A short bounded settle keeps style changes responsive; the
-            // formation spring continues to hold structured layouts after it.
-            cooldownTicks={size.w > 0 && size.w < 600 ? 12 : viz.formStrength > 0 ? 42 : 36}
+            // The worker already settled the layout; the live engine only answers drags.
+            warmupTicks={0}
+            cooldownTicks={60}
+            // keep painting through the intro even while the engine rests
+            autoPauseRedraw={!animating}
             d3AlphaDecay={0.11}
             d3VelocityDecay={0.62}
             enableNodeDrag
@@ -996,6 +1049,7 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
             onNodeDrag={((raw: unknown) => {
               userRef.current = true;
               const n = raw as GraphNode & Pt & { fx?: number; fy?: number };
+              draggedRef.current.add(n.id);
               n.fx = n.x;
               n.fy = n.y;
             }) as never}
@@ -1011,8 +1065,6 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
               onSelect(null);
               onLinkSelect(null);
             }}
-            onEngineTick={onTick}
-            onEngineStop={() => fit()}
             onRenderFramePre={() => {
               labelGridRef.current.clear();
               const neighbors = new Map<string, Pt[]>();
