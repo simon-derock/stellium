@@ -4,6 +4,7 @@
 # conclusive, which specialist handled it, and which source passage supports the value.
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -33,6 +34,8 @@ EVENT_ATTRIBUTES = (
     "dates",
 )
 _MAX_LISTED_EVENTS = 25
+# Infobox fields read "  competitors: 41"; prose never starts with a short key and a colon.
+_INFOBOX_LINE = re.compile(r"^\s*(?:\[infobox|[a-z_ ]{2,30}\s*[:=])", re.IGNORECASE)
 
 
 _catalogs: dict[int, EventCatalog] = {}
@@ -179,6 +182,26 @@ class GraphToolkit:
             return {}
         rows = self.graph.conn.getVerticesById("Event", [record.event_id for record in records])
         return {str(row["v_id"]): dict(row.get("attributes", {})) for row in rows}
+
+    def _prose_confirming_count(self, doc_id: str, count: int) -> str | None:
+        # Return the article sentence that restates a competitor count, ignoring infobox lines.
+        if self.coprocessor is None:
+            return None
+        restated = re.compile(
+            rf"\b{count}\s+(?:[a-z-]+\s+){{0,2}}(?:from|representing)\s+\d+\s+(?:nations|countries)"
+            rf"|\b{count}\s+(?:competitors|athletes|entrants|participants)\b",
+            re.IGNORECASE,
+        )
+        index = 0
+        while (chunk := self.coprocessor.get_chunk(f"{doc_id}#{index}")) is not None:
+            for line in chunk.raw_text.splitlines():
+                if _INFOBOX_LINE.match(line):
+                    continue
+                for sentence in re.split(r"(?<=[.!?])\s+", line):
+                    if restated.search(sentence):
+                        return sentence.strip()
+            index += 1
+        return None
 
     def _attribute_value(self, record: EventRecord, attributes: dict[str, Any], name: str) -> str:
         if name == "dates":
@@ -387,6 +410,18 @@ class GraphToolkit:
         }
         if len(leaders) > 1:
             observation["tie"] = {"competitor_count": best, "events": leaders}
+            # Corroboration breaks a tie only when exactly one article states the count again in
+            # its own prose; the infobox figure alone is a single source for every tied event.
+            confirmations = {
+                name: sentence
+                for name in leaders
+                if (sentence := self._prose_confirming_count(doc_by_name[name], best))
+            }
+            if len(confirmations) == 1:
+                ((winner, sentence),) = confirmations.items()
+                observation["tie"]["resolved_by"] = "count restated in the article's prose"
+                observation["tie"]["evidence"] = {"event": winner, "sentence": sentence}
+                leaders = [winner]
         outcome = ToolOutcome(
             tool=tool,
             observation=observation,

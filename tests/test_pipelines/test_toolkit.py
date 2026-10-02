@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import pytest
 
-from src.pipelines.toolkit import AGGREGATOR, ENTITY_LINKER, EVALUATOR
-from tests.graph_fixtures import EVENTS, seeded_toolkit
+from src.coprocessor import Coprocessor
+from src.models import Chunk
+from src.pipelines.toolkit import AGGREGATOR, ENTITY_LINKER, EVALUATOR, GraphToolkit
+from tests.graph_fixtures import EVENTS, seeded_graph, seeded_toolkit
 
 
 @pytest.mark.parametrize(
@@ -99,3 +101,53 @@ def test_invoke_normalises_model_arguments() -> None:
         {"event_name": "men's single sculls", "target_year": "2008", "sport": "", "note": "x"},
     )
     assert outcome.answer == "Cal Reed"
+
+
+def _toolkit_with_article_text(texts: dict[str, str]) -> GraphToolkit:
+    # Replace the opening chunk of selected articles to control what their prose says.
+    graph, catalog, _ = seeded_graph()
+    chunks = []
+    for event in EVENTS:
+        raw = texts.get(
+            event["id"], f"Gold: {event['gold']}\nThere were {event['competitors']} competitors."
+        )
+        chunks.append(
+            Chunk(
+                chunk_id=f"{event['id']}#0",
+                doc_id=event["id"],
+                chunk_index=0,
+                section_title=event["name"],
+                text=raw,
+                raw_text=raw,
+            )
+        )
+    rebuilt = Coprocessor()
+    rebuilt.build(chunks)
+    return GraphToolkit(graph, catalog, rebuilt)
+
+
+def test_rank_events_breaks_a_tie_when_only_one_article_restates_the_count() -> None:
+    # Both 2008 single sculls events list 33 competitors; only the men's article says so in prose.
+    toolkit = _toolkit_with_article_text(
+        {"R08W": "  competitors: 33\nThe event was held over five days."}
+    )
+    outcome = toolkit.rank_events("rowing", 2008)
+
+    assert outcome.answer == EVENTS[2]["name"]
+    tie = outcome.observation["tie"]
+    assert tie["resolved_by"] == "count restated in the article's prose"
+    assert tie["evidence"]["sentence"] == "There were 33 competitors."
+    assert set(tie["events"]) == {EVENTS[2]["name"], EVENTS[3]["name"]}
+
+
+def test_rank_events_keeps_the_tie_when_every_article_restates_the_count() -> None:
+    outcome = _toolkit_with_article_text({}).rank_events("rowing", 2008)
+    assert outcome.answer is None
+    assert "resolved_by" not in outcome.observation["tie"]
+
+
+def test_infobox_lines_are_not_prose_confirmation() -> None:
+    toolkit = _toolkit_with_article_text(
+        {"R08M": "  competitors: 33", "R08W": "  competitors: 33\nNations: 16"}
+    )
+    assert toolkit.rank_events("rowing", 2008).ambiguous
