@@ -14,6 +14,16 @@ const QTYPE_NAMES: Record<string, string> = {
   compositional_gold: "Gold medallist of the largest event",
   compositional_venue: "Venue of the largest event",
   compositional_nations: "Nations in the largest event",
+  paraphrase_aggregation: "Count, reworded",
+  paraphrase_superlative: "Rank, reworded",
+  paraphrase_lookup: "Lookup, reworded",
+  paraphrase_temporal: "Previous Games, reworded",
+  paraphrase_multi_hop: "Venue and date, reworded",
+  unanswerable_rank: "Rank: a sport those Games never held",
+  unanswerable_lookup: "Lookup: an edition with no article",
+  unanswerable_venue_date: "Venue and date: a day with no event",
+  offtemplate_film: "Films: director, composer, release year",
+  offtemplate_office: "Officeholders: successor",
 };
 
 const SECTIONS = [
@@ -141,6 +151,8 @@ export function BenchmarkPage({ data, themeKey, onScroll }: Props) {
                 ["Public 100 (gold answers)", metrics],
                 ["Paraphrased (12, reworded public questions)", data.paraphrase],
                 ["Two-step (24, rank then read an attribute)", data.compositional],
+                ["Unanswerable (12, the right reply is “Not found”)", data.unanswerable],
+                ["Off-template (12, films and officeholders)", data.offtemplate],
               ] as const
             ).map(([label, set]) =>
               set ? (
@@ -255,6 +267,27 @@ export function BenchmarkPage({ data, themeKey, onScroll }: Props) {
           found is a step, not the answer, and reads the attribute next.
         </p>
         {data.compositional && <TypeLedger metrics={data.compositional} />}
+        {data.unanswerable && (
+          <>
+            <h3>Questions the corpus cannot answer</h3>
+            <p>
+              The official templates pointed at facts the corpus does not hold: a sport at Games that never held it, an
+              edition with no article, a venue on a day it held nothing. An independent oracle confirms none has an answer,
+              so the only correct reply is "Not found in corpus"; anything else is a hallucination.
+            </p>
+            <TypeLedger metrics={data.unanswerable} />
+          </>
+        )}
+        {data.offtemplate && (
+          <>
+            <h3>Outside the Olympic templates</h3>
+            <p>
+              Films and officeholders from the same corpus: who directed or scored a film, when it was released, who
+              succeeded an officeholder. No graph tool models these, so the agent has to reach for passage search.
+            </p>
+            <TypeLedger metrics={data.offtemplate} />
+          </>
+        )}
       </Section>
 
       <Section id="hidden" title="Hidden 50">

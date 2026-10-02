@@ -82,7 +82,14 @@ export function App() {
   const [snapshot, setSnapshot] = useState<Snapshot>(EMPTY);
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
-  const [bench, setBench] = useState<BenchData>({ public: null, paraphrase: null, compositional: null, oracle: null });
+  const [bench, setBench] = useState<BenchData>({
+    public: null,
+    paraphrase: null,
+    compositional: null,
+    unanswerable: null,
+    offtemplate: null,
+    oracle: null,
+  });
   const [stats, setStats] = useState<GraphStats | null>(null);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -123,8 +130,9 @@ export function App() {
     fetchPresets().then(setPresets).catch(() => setPresets([]));
     // Each published document arrives on its own; a missing one only hides its numbers.
     fetchMetrics().then((d) => setBench((b) => ({ ...b, public: d }))).catch(() => undefined);
-    fetchMetricSet("paraphrase").then((d) => setBench((b) => ({ ...b, paraphrase: d }))).catch(() => undefined);
-    fetchMetricSet("compositional").then((d) => setBench((b) => ({ ...b, compositional: d }))).catch(() => undefined);
+    for (const name of ["paraphrase", "compositional", "unanswerable", "offtemplate"] as const) {
+      fetchMetricSet(name).then((d) => setBench((b) => ({ ...b, [name]: d }))).catch(() => undefined);
+    }
     fetchOracle().then((d) => setBench((b) => ({ ...b, oracle: d }))).catch(() => undefined);
     fetchStats().then(setStats).catch(() => setStats(null));
     return () => window.clearTimeout(slow);

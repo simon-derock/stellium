@@ -341,7 +341,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _METRICS_DIR = _REPO_ROOT / "docs" / "metrics"
 _METRICS_PATH = _METRICS_DIR / "public.json"
 # Published benchmark documents the docs page may read, by name.
-_METRIC_SETS = ("public", "paraphrase", "compositional", "hidden_oracle")
+_METRIC_SETS = (
+    "public",
+    "paraphrase",
+    "compositional",
+    "unanswerable",
+    "offtemplate",
+    "hidden_oracle",
+)
 _PUBLIC_QUESTIONS = _REPO_ROOT / "hackathon-resources" / "questions" / "eval_public.jsonl"
 
 

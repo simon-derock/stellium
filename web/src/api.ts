@@ -181,7 +181,8 @@ export function compare(query: string): Promise<CompareResult> {
 
 export const fetchPresets = () => request<Preset[]>("/api/v1/presets");
 export const fetchMetrics = () => request<Metrics>("/api/v1/metrics");
-export const fetchMetricSet = (name: "paraphrase" | "compositional") =>
+export type MetricSet = "paraphrase" | "compositional" | "unanswerable" | "offtemplate";
+export const fetchMetricSet = (name: MetricSet) =>
   request<Metrics>(`/api/v1/metrics/${name}`);
 export const fetchOracle = () => request<OracleSummary>("/api/v1/metrics/hidden_oracle");
 export const fetchStats = () => request<GraphStats>("/api/v1/graph/stats");

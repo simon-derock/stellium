@@ -6,6 +6,8 @@ export interface BenchData {
   public: Metrics | null;
   paraphrase: Metrics | null;
   compositional: Metrics | null;
+  unanswerable: Metrics | null;
+  offtemplate: Metrics | null;
   oracle: OracleSummary | null;
 }
 
