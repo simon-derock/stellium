@@ -11,6 +11,28 @@
     "finished_at": "2026-10-02T02:28:47+0530"
   },
   "token_accounting": "LLM input+output tokens only; graph queries and retrieval count 0",
+  "provenance": [
+    {
+      "pipelines": [
+        "rag",
+        "graphrag",
+        "agentic"
+      ],
+      "commit": "cc74fd5",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "a2742f449765bb66c7ccc87a281560de3327894fe656a3b2f415f68d990c7d0a",
+      "finished_at": "2026-10-02T02:28:47+0530",
+      "rows": 50
+    },
+    {
+      "pipelines": "graphrag",
+      "commit": "291b4fb",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "a2742f449765bb66c7ccc87a281560de3327894fe656a3b2f415f68d990c7d0a",
+      "finished_at": "2026-10-02T19:11:42+0530",
+      "rows": 50
+    }
+  ],
   "questions": [
     {
       "qid": "eval-001",
@@ -37,11 +59,11 @@
       "graphrag": {
         "answer": "Li Ting, Sun Tiantian",
         "llm_tokens": {
-          "input": 818,
-          "output": 107,
-          "total": 925
+          "input": 816,
+          "output": 63,
+          "total": 879
         },
-        "latency_s": 6.192,
+        "latency_s": 6.215,
         "citations": [
           "Q942805"
         ],
@@ -51,17 +73,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Olympic Tennis Centre",
             "date": "15 to 22 August 2004",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -203,11 +217,11 @@
       "graphrag": {
         "answer": "29",
         "llm_tokens": {
-          "input": 939,
-          "output": 94,
-          "total": 1033
+          "input": 937,
+          "output": 67,
+          "total": 1004
         },
-        "latency_s": 6.051,
+        "latency_s": 5.741,
         "citations": [
           "Q5443136"
         ],
@@ -222,12 +236,7 @@
             "season": "Summer",
             "gender": "Men",
             "event": "foil",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": "",
-            "venue": "",
-            "date": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -365,19 +374,19 @@
       "graphrag": {
         "answer": "8",
         "llm_tokens": {
-          "input": 1380,
-          "output": 94,
-          "total": 1474
+          "input": 1372,
+          "output": 58,
+          "total": 1430
         },
-        "latency_s": 6.18,
+        "latency_s": 6.649,
         "citations": [
           "Q1005322",
-          "Q628945",
-          "Q938833",
-          "Q1064728",
           "Q1063589",
+          "Q938833",
           "Q727488",
+          "Q628945",
           "Q1005614",
+          "Q1064728",
           "Q635304"
         ],
         "model": "command-a-03-2025",
@@ -389,14 +398,8 @@
             "sport": "cycling",
             "year": 2008,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 30,
-            "order": ""
+            "threshold": 30
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -552,11 +555,11 @@
       "graphrag": {
         "answer": "Mariya Grozdeva",
         "llm_tokens": {
-          "input": 841,
-          "output": 104,
-          "total": 945
+          "input": 839,
+          "output": 60,
+          "total": 899
         },
-        "latency_s": 5.921,
+        "latency_s": 6.369,
         "citations": [
           "Q7500817"
         ],
@@ -566,17 +569,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Sydney International Shooting Centre",
             "date": "22 September 2000",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -718,11 +713,11 @@
       "graphrag": {
         "answer": "Sailing at the 2016 Summer Olympics – Men's 470",
         "llm_tokens": {
-          "input": 892,
-          "output": 109,
-          "total": 1001
+          "input": 890,
+          "output": 67,
+          "total": 957
         },
-        "latency_s": 5.903,
+        "latency_s": 8.391,
         "citations": [
           "Q26263261"
         ],
@@ -734,14 +729,7 @@
             "operation": "rank_events",
             "sport": "sailing",
             "year": 2016,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
+            "season": "Summer",
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -887,16 +875,16 @@
       "graphrag": {
         "answer": "4",
         "llm_tokens": {
-          "input": 1321,
-          "output": 97,
-          "total": 1418
+          "input": 1326,
+          "output": 61,
+          "total": 1387
         },
-        "latency_s": 6.071,
+        "latency_s": 6.364,
         "citations": [
           "Q220386",
-          "Q595962",
+          "Q848689",
           "Q384953",
-          "Q848689"
+          "Q595962"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -907,14 +895,8 @@
             "sport": "cross-country skiing",
             "year": 2010,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 62,
-            "order": ""
+            "threshold": 62
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -1058,11 +1040,11 @@
       "graphrag": {
         "answer": "Oleksandr Usyk",
         "llm_tokens": {
-          "input": 1051,
-          "output": 98,
-          "total": 1149
+          "input": 1049,
+          "output": 66,
+          "total": 1115
         },
-        "latency_s": 6.11,
+        "latency_s": 9.529,
         "citations": [
           "Q326384"
         ],
@@ -1077,12 +1059,7 @@
             "season": "Summer",
             "gender": "men's",
             "event": "heavyweight",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -1286,16 +1263,16 @@
       "graphrag": {
         "answer": "4",
         "llm_tokens": {
-          "input": 1277,
-          "output": 95,
-          "total": 1372
+          "input": 1305,
+          "output": 59,
+          "total": 1364
         },
-        "latency_s": 6.072,
+        "latency_s": 6.443,
         "citations": [
           "Q7400323",
           "Q7400318",
-          "Q7400322",
-          "Q7400319"
+          "Q7400319",
+          "Q7400322"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -1306,14 +1283,8 @@
             "sport": "sailing",
             "year": 1996,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 46,
-            "order": ""
+            "threshold": 46
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -1457,11 +1428,11 @@
       "graphrag": {
         "answer": "Sailing at the 2004 Summer Olympics – Men's 470",
         "llm_tokens": {
-          "input": 891,
-          "output": 109,
-          "total": 1000
+          "input": 889,
+          "output": 67,
+          "total": 956
         },
-        "latency_s": 6.52,
+        "latency_s": 6.728,
         "citations": [
           "Q7400344"
         ],
@@ -1473,14 +1444,7 @@
             "operation": "rank_events",
             "sport": "sailing",
             "year": 2004,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
+            "season": "Summer",
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -1626,11 +1590,11 @@
       "graphrag": {
         "answer": "32",
         "llm_tokens": {
-          "input": 850,
-          "output": 93,
-          "total": 943
+          "input": 848,
+          "output": 61,
+          "total": 909
         },
-        "latency_s": 5.984,
+        "latency_s": 7.147,
         "citations": [
           "Q10497009"
         ],
@@ -1643,14 +1607,8 @@
             "sport": "Boxing",
             "year": 1996,
             "season": "Summer",
-            "gender": "",
             "event": "Flyweight",
-            "venue": "",
-            "date": "",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -1796,11 +1754,11 @@
       "graphrag": {
         "answer": "4",
         "llm_tokens": {
-          "input": 1371,
-          "output": 95,
-          "total": 1466
+          "input": 1369,
+          "output": 59,
+          "total": 1428
         },
-        "latency_s": 6.26,
+        "latency_s": 5.672,
         "citations": [
           "Q7979973",
           "Q7979977",
@@ -1816,14 +1774,8 @@
             "sport": "weightlifting",
             "year": 1992,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 24,
-            "order": ""
+            "threshold": 24
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -1967,11 +1919,11 @@
       "graphrag": {
         "answer": "32",
         "llm_tokens": {
-          "input": 984,
-          "output": 99,
-          "total": 1083
+          "input": 982,
+          "output": 72,
+          "total": 1054
         },
-        "latency_s": 6.316,
+        "latency_s": 6.43,
         "citations": [
           "Q25991452"
         ],
@@ -1986,12 +1938,7 @@
             "season": "Summer",
             "gender": "Men's",
             "event": "100 metre butterfly",
-            "venue": "",
-            "date": "",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -2129,18 +2076,18 @@
       "graphrag": {
         "answer": "6",
         "llm_tokens": {
-          "input": 1349,
-          "output": 94,
-          "total": 1443
+          "input": 1318,
+          "output": 58,
+          "total": 1376
         },
-        "latency_s": 6.251,
+        "latency_s": 6.542,
         "citations": [
           "Q24761058",
           "Q26260960",
-          "Q24760634",
-          "Q25476845",
           "Q26260943",
-          "Q25476835"
+          "Q24760634",
+          "Q25476835",
+          "Q25476845"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -2151,14 +2098,8 @@
             "sport": "cycling",
             "year": 2016,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 27,
-            "order": ""
+            "threshold": 27
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -2308,11 +2249,11 @@
       "graphrag": {
         "answer": "Michaela Dorfmeister",
         "llm_tokens": {
-          "input": 826,
-          "output": 103,
-          "total": 929
+          "input": 824,
+          "output": 59,
+          "total": 883
         },
-        "latency_s": 6.067,
+        "latency_s": 6.404,
         "citations": [
           "Q771123"
         ],
@@ -2322,17 +2263,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "San Sicario",
             "date": "February 15, 2006",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -2474,11 +2407,11 @@
       "graphrag": {
         "answer": "35",
         "llm_tokens": {
-          "input": 909,
-          "output": 98,
-          "total": 1007
+          "input": 907,
+          "output": 70,
+          "total": 977
         },
-        "latency_s": 6.175,
+        "latency_s": 6.486,
         "citations": [
           "Q26219858"
         ],
@@ -2491,14 +2424,9 @@
             "sport": "Athletics",
             "year": 2016,
             "season": "Summer",
-            "gender": "Men's",
+            "gender": "Men",
             "event": "400 metres",
-            "venue": "",
-            "date": "",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -2706,11 +2634,11 @@
       "graphrag": {
         "answer": "22",
         "llm_tokens": {
-          "input": 818,
-          "output": 96,
-          "total": 914
+          "input": 816,
+          "output": 69,
+          "total": 885
         },
-        "latency_s": 6.111,
+        "latency_s": 6.557,
         "citations": [
           "Q848278"
         ],
@@ -2725,12 +2653,7 @@
             "season": "Summer",
             "gender": "Women's",
             "event": "shot put",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": "",
-            "venue": "",
-            "date": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -2868,11 +2791,11 @@
       "graphrag": {
         "answer": "Miroslava Knapková",
         "llm_tokens": {
-          "input": 853,
-          "output": 107,
-          "total": 960
+          "input": 851,
+          "output": 63,
+          "total": 914
         },
-        "latency_s": 6.016,
+        "latency_s": 6.442,
         "citations": [
           "Q1222270"
         ],
@@ -2882,17 +2805,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Eton Dorney",
             "date": "28 July – 4 August 2012",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -3034,11 +2949,11 @@
       "graphrag": {
         "answer": "Sara Kolak",
         "llm_tokens": {
-          "input": 838,
-          "output": 102,
-          "total": 940
+          "input": 836,
+          "output": 58,
+          "total": 894
         },
-        "latency_s": 6.091,
+        "latency_s": 6.571,
         "citations": [
           "Q26234144"
         ],
@@ -3048,17 +2963,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Olympic Stadium",
             "date": "16–18 August 2016",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -3200,11 +3107,11 @@
       "graphrag": {
         "answer": "4",
         "llm_tokens": {
-          "input": 1320,
-          "output": 95,
-          "total": 1415
+          "input": 1318,
+          "output": 70,
+          "total": 1388
         },
-        "latency_s": 6.07,
+        "latency_s": 6.514,
         "citations": [
           "Q1005643",
           "Q1222533",
@@ -3220,14 +3127,9 @@
             "sport": "alpine skiing",
             "year": 1998,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
             "threshold": 45,
-            "order": ""
+            "attribute": "competitor_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -3371,11 +3273,11 @@
       "graphrag": {
         "answer": "Jin Jong-oh",
         "llm_tokens": {
-          "input": 843,
-          "output": 100,
-          "total": 943
+          "input": 841,
+          "output": 56,
+          "total": 897
         },
-        "latency_s": 5.924,
+        "latency_s": 6.419,
         "citations": [
           "Q2353475"
         ],
@@ -3385,17 +3287,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Royal Artillery Barracks",
             "date": "5 August 2012",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -3537,11 +3431,11 @@
       "graphrag": {
         "answer": "Tyler Clary",
         "llm_tokens": {
-          "input": 1101,
-          "output": 99,
-          "total": 1200
+          "input": 1099,
+          "output": 67,
+          "total": 1166
         },
-        "latency_s": 6.145,
+        "latency_s": 7.319,
         "citations": [
           "Q2071160"
         ],
@@ -3556,12 +3450,7 @@
             "season": "Summer",
             "gender": "men's",
             "event": "200 metre backstroke",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -3776,11 +3665,11 @@
       "graphrag": {
         "answer": "40",
         "llm_tokens": {
-          "input": 873,
-          "output": 97,
-          "total": 970
+          "input": 871,
+          "output": 70,
+          "total": 941
         },
-        "latency_s": 6.185,
+        "latency_s": 5.85,
         "citations": [
           "Q15055036"
         ],
@@ -3795,12 +3684,7 @@
             "season": "Winter",
             "gender": "Men",
             "event": "sprint",
-            "venue": "",
-            "date": "",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -3938,16 +3822,16 @@
       "graphrag": {
         "answer": "7",
         "llm_tokens": {
-          "input": 1355,
-          "output": 95,
-          "total": 1450
+          "input": 1346,
+          "output": 59,
+          "total": 1405
         },
-        "latency_s": 6.123,
+        "latency_s": 6.374,
         "citations": [
           "Q4443764",
-          "Q4443765",
           "Q4354069",
           "Q7500813",
+          "Q4443765",
           "Q7500812",
           "Q7500816",
           "Q4443763"
@@ -3961,14 +3845,8 @@
             "sport": "shooting",
             "year": 2000,
             "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 42,
-            "order": ""
+            "threshold": 42
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -4121,11 +3999,11 @@
       "graphrag": {
         "answer": "Cross-country skiing at the 1998 Winter Olympics – Men's 10 kilometre classical",
         "llm_tokens": {
-          "input": 934,
-          "output": 114,
-          "total": 1048
+          "input": 932,
+          "output": 72,
+          "total": 1004
         },
-        "latency_s": 6.38,
+        "latency_s": 6.662,
         "citations": [
           "Q1004937"
         ],
@@ -4138,13 +4016,6 @@
             "sport": "cross-country skiing",
             "year": 1998,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -4290,11 +4161,11 @@
       "graphrag": {
         "answer": "Rowing at the 2016 Summer Olympics – Women's eight",
         "llm_tokens": {
-          "input": 860,
-          "output": 105,
-          "total": 965
+          "input": 858,
+          "output": 63,
+          "total": 921
         },
-        "latency_s": 6.141,
+        "latency_s": 6.474,
         "citations": [
           "Q22968979"
         ],
@@ -4307,13 +4178,6 @@
             "sport": "rowing",
             "year": 2016,
             "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -4459,11 +4323,11 @@
       "graphrag": {
         "answer": "22",
         "llm_tokens": {
-          "input": 933,
-          "output": 94,
-          "total": 1027
+          "input": 931,
+          "output": 67,
+          "total": 998
         },
-        "latency_s": 5.466,
+        "latency_s": 6.359,
         "citations": [
           "Q632472"
         ],
@@ -4478,12 +4342,7 @@
             "season": "Summer",
             "gender": "Men",
             "event": "foil",
-            "attribute": "nation_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": "",
-            "venue": "",
-            "date": ""
+            "attribute": "nation_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -4621,11 +4480,11 @@
       "graphrag": {
         "answer": "Cycling at the 2012 Summer Olympics – Men's individual road race",
         "llm_tokens": {
-          "input": 877,
-          "output": 107,
-          "total": 984
+          "input": 875,
+          "output": 65,
+          "total": 940
         },
-        "latency_s": 6.167,
+        "latency_s": 6.553,
         "citations": [
           "Q754412"
         ],
@@ -4637,14 +4496,7 @@
             "operation": "rank_events",
             "sport": "cycling",
             "year": 2012,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
+            "season": "Summer",
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -4790,11 +4642,11 @@
       "graphrag": {
         "answer": "3",
         "llm_tokens": {
-          "input": 1354,
-          "output": 95,
-          "total": 1449
+          "input": 1352,
+          "output": 70,
+          "total": 1422
         },
-        "latency_s": 6.003,
+        "latency_s": 6.44,
         "citations": [
           "Q2521962",
           "Q305439",
@@ -4808,15 +4660,10 @@
             "operation": "count_events",
             "sport": "wrestling",
             "year": 2012,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
+            "season": "Summer",
             "comparison": "more_than",
             "threshold": 19,
-            "order": ""
+            "attribute": "competitor_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -4957,11 +4804,11 @@
       "graphrag": {
         "answer": "3",
         "llm_tokens": {
-          "input": 1276,
-          "output": 94,
-          "total": 1370
+          "input": 1274,
+          "output": 58,
+          "total": 1332
         },
-        "latency_s": 6.129,
+        "latency_s": 6.469,
         "citations": [
           "Q31844",
           "Q31850",
@@ -4976,14 +4823,8 @@
             "sport": "boxing",
             "year": 2012,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 26,
-            "order": ""
+            "threshold": 26
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -5124,11 +4965,11 @@
       "graphrag": {
         "answer": "Alpine skiing at the 1994 Winter Olympics – Men's super-G",
         "llm_tokens": {
-          "input": 903,
-          "output": 108,
-          "total": 1011
+          "input": 901,
+          "output": 66,
+          "total": 967
         },
-        "latency_s": 6.561,
+        "latency_s": 10.594,
         "citations": [
           "Q1005746"
         ],
@@ -5141,13 +4982,6 @@
             "sport": "alpine skiing",
             "year": 1994,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -5293,11 +5127,11 @@
       "graphrag": {
         "answer": "Kim Un-guk",
         "llm_tokens": {
-          "input": 898,
-          "output": 98,
-          "total": 996
+          "input": 896,
+          "output": 59,
+          "total": 955
         },
-        "latency_s": 6.252,
+        "latency_s": 3.847,
         "citations": [
           "Q1139399"
         ],
@@ -5309,15 +5143,9 @@
             "operation": "previous_edition",
             "sport": "weightlifting",
             "year": 2016,
-            "season": "summer",
             "gender": "men",
             "event": "62 kg",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -5462,11 +5290,11 @@
       "graphrag": {
         "answer": "Zhou Yang; Lee Jung-su",
         "llm_tokens": {
-          "input": 1205,
-          "output": 106,
-          "total": 1311
+          "input": 1203,
+          "output": 62,
+          "total": 1265
         },
-        "latency_s": 6.108,
+        "latency_s": 6.626,
         "citations": [
           "Q916747",
           "Q938791"
@@ -5477,17 +5305,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Pacific Coliseum",
             "date": "February 20, 2010",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "ambiguous",
           "answer_source": "synthesis"
@@ -5665,16 +5485,16 @@
       "graphrag": {
         "answer": "4",
         "llm_tokens": {
-          "input": 1333,
-          "output": 95,
-          "total": 1428
+          "input": 1344,
+          "output": 59,
+          "total": 1403
         },
-        "latency_s": 6.001,
+        "latency_s": 8.52,
         "citations": [
           "Q1005804",
-          "Q1222713",
           "Q1005744",
-          "Q1005639"
+          "Q1005639",
+          "Q1222713"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -5685,14 +5505,8 @@
             "sport": "alpine skiing",
             "year": 1988,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 57,
-            "order": ""
+            "threshold": 57
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -5836,11 +5650,11 @@
       "graphrag": {
         "answer": "Bakhtiyar Akhmedov",
         "llm_tokens": {
-          "input": 936,
-          "output": 103,
-          "total": 1039
+          "input": 934,
+          "output": 73,
+          "total": 1007
         },
-        "latency_s": 6.835,
+        "latency_s": 4.321,
         "citations": [
           "Q581364"
         ],
@@ -5850,17 +5664,12 @@
           "graph_operation": "previous_edition",
           "graph_plan": {
             "operation": "previous_edition",
-            "sport": "Wrestling",
+            "sport": "wrestling",
             "year": 2012,
-            "season": "Summer",
-            "gender": "Men",
-            "event": "Freestyle 120 kg",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "season": "summer",
+            "gender": "men's",
+            "event": "freestyle 120 kg",
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -6012,11 +5821,11 @@
       "graphrag": {
         "answer": "Rowing at the 2012 Summer Olympics – Women's eight",
         "llm_tokens": {
-          "input": 853,
-          "output": 105,
-          "total": 958
+          "input": 851,
+          "output": 73,
+          "total": 924
         },
-        "latency_s": 5.987,
+        "latency_s": 6.736,
         "citations": [
           "Q370500"
         ],
@@ -6029,14 +5838,8 @@
             "sport": "rowing",
             "year": 2012,
             "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
-            "order": "desc"
+            "order": "desc",
+            "attribute": "competitor_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -6181,15 +5984,15 @@
       "graphrag": {
         "answer": "3",
         "llm_tokens": {
-          "input": 1377,
-          "output": 98,
-          "total": 1475
+          "input": 1375,
+          "output": 62,
+          "total": 1437
         },
-        "latency_s": 6.543,
+        "latency_s": 6.249,
         "citations": [
           "Q47309900",
-          "Q47309929",
-          "Q47309958"
+          "Q47309958",
+          "Q47309929"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -6200,14 +6003,8 @@
             "sport": "short-track speed skating",
             "year": 2018,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 34,
-            "order": ""
+            "threshold": 34
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -6348,11 +6145,11 @@
       "graphrag": {
         "answer": "Sailing at the 1996 Summer Olympics – Men's 470",
         "llm_tokens": {
-          "input": 893,
-          "output": 109,
-          "total": 1002
+          "input": 891,
+          "output": 67,
+          "total": 958
         },
-        "latency_s": 6.565,
+        "latency_s": 6.621,
         "citations": [
           "Q7400319"
         ],
@@ -6364,14 +6161,7 @@
             "operation": "rank_events",
             "sport": "sailing",
             "year": 1996,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
+            "season": "Summer",
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -6517,31 +6307,31 @@
       "graphrag": {
         "answer": "21",
         "llm_tokens": {
-          "input": 1665,
-          "output": 96,
-          "total": 1761
+          "input": 1648,
+          "output": 60,
+          "total": 1708
         },
-        "latency_s": 6.284,
+        "latency_s": 6.437,
         "citations": [
           "Q848291",
+          "Q1066390",
+          "Q743905",
+          "Q932865",
+          "Q947691",
+          "Q853072",
+          "Q917348",
+          "Q947678",
+          "Q754844",
+          "Q677027",
           "Q853003",
           "Q693595",
           "Q247070",
           "Q257545",
           "Q922361",
           "Q917328",
-          "Q917348",
-          "Q947678",
-          "Q754844",
-          "Q288549",
-          "Q1066390",
-          "Q743905",
-          "Q932865",
-          "Q947691",
-          "Q853072",
           "Q917333",
           "Q947750",
-          "Q677027",
+          "Q288549",
           "Q853023",
           "Q853040"
         ],
@@ -6554,14 +6344,8 @@
             "sport": "athletics",
             "year": 2008,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 40,
-            "order": ""
+            "threshold": 40
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -6756,15 +6540,15 @@
       "graphrag": {
         "answer": "3",
         "llm_tokens": {
-          "input": 1284,
-          "output": 94,
-          "total": 1378
+          "input": 1282,
+          "output": 69,
+          "total": 1351
         },
-        "latency_s": 6.116,
+        "latency_s": 6.474,
         "citations": [
           "Q10497008",
-          "Q10495989",
-          "Q10426127"
+          "Q10426127",
+          "Q10495989"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -6775,14 +6559,9 @@
             "sport": "boxing",
             "year": 1992,
             "season": "Summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
             "threshold": 30,
-            "order": ""
+            "attribute": "competitor_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -6923,11 +6702,11 @@
       "graphrag": {
         "answer": "Nouria Mérah-Benida",
         "llm_tokens": {
-          "input": 916,
-          "output": 133,
-          "total": 1049
+          "input": 914,
+          "output": 89,
+          "total": 1003
         },
-        "latency_s": 6.318,
+        "latency_s": 6.582,
         "citations": [
           "Q3628760"
         ],
@@ -6937,17 +6716,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Stadium Australia",
             "date": "27 September 2000 (heats) 29 September 2000 (semi-finals) 30 September 2000 (final)",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -7089,11 +6860,11 @@
       "graphrag": {
         "answer": "4",
         "llm_tokens": {
-          "input": 1314,
-          "output": 95,
-          "total": 1409
+          "input": 1312,
+          "output": 59,
+          "total": 1371
         },
-        "latency_s": 6.247,
+        "latency_s": 6.37,
         "citations": [
           "Q917743",
           "Q1042644",
@@ -7109,14 +6880,8 @@
             "sport": "alpine skiing",
             "year": 2006,
             "season": "Winter",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
             "comparison": "more_than",
-            "threshold": 63,
-            "order": ""
+            "threshold": 63
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -7260,11 +7025,11 @@
       "graphrag": {
         "answer": "Dmitry Monakov",
         "llm_tokens": {
-          "input": 899,
-          "output": 93,
-          "total": 992
+          "input": 897,
+          "output": 51,
+          "total": 948
         },
-        "latency_s": 6.636,
+        "latency_s": 7.02,
         "citations": [
           "Q7500750"
         ],
@@ -7274,17 +7039,10 @@
           "graph_operation": "previous_edition",
           "graph_plan": {
             "operation": "previous_edition",
-            "sport": "",
+            "sport": "shooting",
             "year": 1992,
-            "season": "Summer",
-            "gender": "",
-            "event": "mixed trap shooting",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "event": "mixed trap",
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -7432,11 +7190,11 @@
       "graphrag": {
         "answer": "Loredana Dinu, Simona Gherman, Simona Pop, Ana Maria Popescu",
         "llm_tokens": {
-          "input": 869,
-          "output": 114,
-          "total": 983
+          "input": 867,
+          "output": 70,
+          "total": 937
         },
-        "latency_s": 5.65,
+        "latency_s": 6.093,
         "citations": [
           "Q25384917"
         ],
@@ -7446,17 +7204,9 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
-            "year": 0,
-            "season": "",
-            "gender": "",
-            "event": "",
             "venue": "Carioca Arena 3",
             "date": "11 August 2016",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -7598,11 +7348,11 @@
       "graphrag": {
         "answer": "Lydia Valentín",
         "llm_tokens": {
-          "input": 940,
-          "output": 98,
-          "total": 1038
+          "input": 938,
+          "output": 63,
+          "total": 1001
         },
-        "latency_s": 6.584,
+        "latency_s": 6.414,
         "citations": [
           "Q1997032"
         ],
@@ -7614,15 +7364,9 @@
             "operation": "previous_edition",
             "sport": "weightlifting",
             "year": 2016,
-            "season": "Summer",
-            "gender": "women's",
+            "gender": "women",
             "event": "75 kg",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -7772,11 +7516,11 @@
       "graphrag": {
         "answer": "Hannah Kearney",
         "llm_tokens": {
-          "input": 1006,
-          "output": 97,
-          "total": 1103
+          "input": 1004,
+          "output": 70,
+          "total": 1074
         },
-        "latency_s": 6.15,
+        "latency_s": 6.619,
         "citations": [
           "Q905561"
         ],
@@ -7791,12 +7535,7 @@
             "season": "Winter",
             "gender": "women's",
             "event": "moguls",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -7961,11 +7700,11 @@
       "graphrag": {
         "answer": "Brahim Asloum",
         "llm_tokens": {
-          "input": 982,
-          "output": 96,
-          "total": 1078
+          "input": 980,
+          "output": 52,
+          "total": 1032
         },
-        "latency_s": 6.214,
+        "latency_s": 6.401,
         "citations": [
           "Q4951841"
         ],
@@ -7977,15 +7716,8 @@
             "operation": "previous_edition",
             "sport": "boxing",
             "year": 2004,
-            "season": "Summer",
-            "gender": "",
             "event": "light flyweight",
-            "venue": "",
-            "date": "",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -8143,11 +7875,11 @@
       "graphrag": {
         "answer": "Cycling at the 2004 Summer Olympics – Men's individual road race",
         "llm_tokens": {
-          "input": 889,
-          "output": 107,
-          "total": 996
+          "input": 887,
+          "output": 65,
+          "total": 952
         },
-        "latency_s": 6.293,
+        "latency_s": 6.541,
         "citations": [
           "Q2445057"
         ],
@@ -8159,14 +7891,7 @@
             "operation": "rank_events",
             "sport": "cycling",
             "year": 2004,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
+            "season": "Summer",
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -8312,19 +8037,19 @@
       "graphrag": {
         "answer": "7",
         "llm_tokens": {
-          "input": 1321,
-          "output": 94,
-          "total": 1415
+          "input": 1348,
+          "output": 69,
+          "total": 1417
         },
-        "latency_s": 6.199,
+        "latency_s": 10.539,
         "citations": [
           "Q2036655",
-          "Q2297633",
-          "Q754412",
-          "Q2297621",
           "Q843287",
           "Q916174",
-          "Q1005298"
+          "Q1005298",
+          "Q2297633",
+          "Q754412",
+          "Q2297621"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere",
@@ -8334,15 +8059,10 @@
             "operation": "count_events",
             "sport": "cycling",
             "year": 2012,
-            "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
+            "season": "Summer",
             "comparison": "more_than",
             "threshold": 30,
-            "order": ""
+            "attribute": "competitor_count"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
@@ -8495,11 +8215,11 @@
       "graphrag": {
         "answer": "Shooting at the 1988 Summer Olympics – Men's 50 metre rifle prone",
         "llm_tokens": {
-          "input": 902,
-          "output": 110,
-          "total": 1012
+          "input": 900,
+          "output": 68,
+          "total": 968
         },
-        "latency_s": 6.334,
+        "latency_s": 7.662,
         "citations": [
           "Q7500747"
         ],
@@ -8512,13 +8232,6 @@
             "sport": "shooting",
             "year": 1988,
             "season": "summer",
-            "gender": "",
-            "event": "",
-            "venue": "",
-            "date": "",
-            "attribute": "competitor_count",
-            "comparison": "",
-            "threshold": 0,
             "order": "desc"
           },
           "graph_status": "conclusive",
@@ -8664,11 +8377,11 @@
       "graphrag": {
         "answer": "David Rudisha",
         "llm_tokens": {
-          "input": 856,
-          "output": 100,
-          "total": 956
+          "input": 854,
+          "output": 68,
+          "total": 922
         },
-        "latency_s": 6.063,
+        "latency_s": 5.266,
         "citations": [
           "Q1049551"
         ],
@@ -8678,17 +8391,11 @@
           "graph_operation": "event_at_venue_date",
           "graph_plan": {
             "operation": "event_at_venue_date",
-            "sport": "",
             "year": 2012,
             "season": "Summer",
-            "gender": "",
-            "event": "",
             "venue": "Olympic Stadium",
             "date": "6–9 August",
-            "attribute": "gold_athlete",
-            "comparison": "",
-            "threshold": 0,
-            "order": ""
+            "attribute": "gold_athlete"
           },
           "graph_status": "conclusive",
           "answer_source": "synthesis"
