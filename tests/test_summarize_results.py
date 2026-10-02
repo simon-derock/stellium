@@ -173,3 +173,39 @@ def test_partial_rerun_overrides_only_the_rows_it_covers(tmp_path: Path) -> None
     metrics = json.loads(out.read_text())
     assert metrics["pipelines"]["graphrag"]["overall"]["exact_match"] == 2
     assert [p["rows"] for p in metrics["provenance"]] == [2, 1]
+
+
+def test_rows_with_estimated_token_counts_are_called_out(tmp_path: Path) -> None:
+    def row(qid: str, rag_source: str, agent_source: str) -> dict[str, object]:
+        return {
+            "qid": qid,
+            "qtype": "lookup",
+            "rag_answer": "1",
+            "rag_tokens": 100,
+            "rag_latency_ms": 1000,
+            "rag_retrieved_doc_ids": [],
+            "rag_retrieval_metadata": {"token_sources": [rag_source]},
+            "agentic_answer": "1",
+            "agentic_tokens": 100,
+            "agentic_latency_ms": 1000,
+            "agentic_retrieved_doc_ids": [],
+            "agentic_trace": {
+                "llm_calls": [{"token_source": "billed"}, {"token_source": agent_source}]
+            },
+        }
+
+    results = _write_jsonl(
+        tmp_path / "r.jsonl", [row("q1", "billed", "estimated"), row("q2", "billed", "billed")]
+    )
+    out = tmp_path / "metrics.json"
+    summary = subprocess.run(
+        [sys.executable, "scripts/summarize_results.py", str(results), "--json", str(out)],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    pipelines = json.loads(out.read_text())["pipelines"]
+    assert pipelines["rag"]["overall"]["estimated_token_rows"] == 0
+    assert pipelines["agentic"]["overall"]["estimated_token_rows"] == 1
+    assert "estimated, not provider-reported, in: Agentic GraphRAG 1 rows" in summary

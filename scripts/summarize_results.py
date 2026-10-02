@@ -27,6 +27,15 @@ def _mean(values: list[float]) -> float | None:
     return mean(values) if values else None
 
 
+def _token_sources(row: dict[str, Any], p: str) -> list[str]:
+    # Where each LLM call's counts came from; rows older than this field read as "reported".
+    if p == "agentic":
+        calls = (row.get("agentic_trace") or {}).get("llm_calls", [])
+        return [str(call.get("token_source", "reported")) for call in calls]
+    metadata = row.get(f"{p}_retrieval_metadata") or {}
+    return [str(source) for source in metadata.get("token_sources", ["reported"])]
+
+
 def _overall(rows: list[dict[str, Any]], p: str) -> dict[str, Any]:
     scored = [row for row in rows if f"{p}_em" in row]
     latencies = [row[f"{p}_latency_ms"] / 1000 for row in rows]
@@ -50,6 +59,7 @@ def _overall(rows: list[dict[str, Any]], p: str) -> dict[str, Any]:
         "latency_p95_s": _percentile(latencies, 0.95),
         "cost_per_100_usd": cost * 100 / len(rows),
         "citations_mean": mean(len(row[f"{p}_retrieved_doc_ids"]) for row in rows),
+        "estimated_token_rows": sum("estimated" in _token_sources(row, p) for row in rows),
     }
 
 
@@ -221,6 +231,16 @@ def render_markdown(metrics: dict[str, Any]) -> str:
             f"| {entry['label']} | {o['exact_match']:.0f}/{o['scored']} "
             f"({_pct(o['exact_match'], o['scored'])}) | {_pct(o['exact_match_strict'], o['scored'])} "
             f"| {_fmt(o['token_f1'])} | {o['tokens_mean']:,.0f} | {o['latency_mean_s']:.2f} s |"
+        )
+
+    estimated = {
+        entry["label"]: entry["overall"].get("estimated_token_rows", 0)
+        for entry in pipelines.values()
+    }
+    if any(estimated.values()):
+        lines.append(
+            "\nToken counts estimated, not provider-reported, in: "
+            + ", ".join(f"{label} {count} rows" for label, count in estimated.items() if count)
         )
 
     qtypes = sorted({qtype for entry in pipelines.values() for qtype in entry["by_type"]})
