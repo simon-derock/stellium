@@ -157,6 +157,19 @@ async def test_a_list_of_the_wrong_kind_is_never_reported_as_a_tie() -> None:
 
 
 @pytest.mark.asyncio
+async def test_a_listing_total_grounds_a_count_answer() -> None:
+    pipeline, chat = _pipeline(
+        _action("find_events", {"sport": "rowing", "year": 2004}),
+        _reply('Thought: the listing has the total.\nAction: finish\nAction Input: {"answer": 2}'),
+    )
+
+    result = await pipeline.run("q-total", "How many rowing events were held at the 2004 Games?")
+
+    assert result.answer == "2"
+    assert chat.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_answer_from_memory_is_rejected_until_grounded() -> None:
     pipeline, chat = _pipeline(
         _reply("Thought: I recall it.\nFinal Answer: Zed Unknown"),

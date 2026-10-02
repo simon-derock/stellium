@@ -471,6 +471,9 @@ class AgenticPipeline:
             if outcome.candidates and outcome.answer is None:
                 observation["candidates"] = outcome.candidates
             values = [outcome.answer] if outcome.answer else list(outcome.candidates)
+            # A listing's size is counted by the graph, as verified as count_events' own answer.
+            if isinstance(outcome.observation.get("total"), int):
+                values.append(str(outcome.observation["total"]))
             return observation, outcome, values
         if tool == "hybrid_search":
             query = str(arguments.get("query", "")).strip()
