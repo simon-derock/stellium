@@ -41,6 +41,7 @@ from src.models import (
 )
 from src.pipelines.agentic import AgenticPipeline
 from src.pipelines.graphrag import GraphRAGPipeline
+from src.pipelines.intent import classify_intent
 from src.pipelines.rag import RAGPipeline
 from src.pipelines.toolkit import catalog_for
 
@@ -272,6 +273,17 @@ async def query_compare(req: QueryRequest) -> CompareResult:
     if not safe:
         raise HTTPException(status_code=400, detail=reason)
 
+    async with _admitted(req.provider):
+        intent = await classify_intent(req.query, req.provider)
+    if intent.label == "chat":
+        return CompareResult(
+            qid=req.qid,
+            question=req.query,
+            qtype="chat",
+            intent="chat",
+            intent_tokens=intent.tokens,
+        )
+
     graph = _get_request_graph()
     coproc = get_coprocessor()
     async with (
@@ -297,6 +309,7 @@ async def query_compare(req: QueryRequest) -> CompareResult:
         qtype=agentic_res.agentic_trace.get("qtype", "general")
         if agentic_res.agentic_trace
         else "general",
+        intent_tokens=intent.tokens,
         rag=rag_res,
         graphrag=graphrag_res,
         agentic=agentic_res,

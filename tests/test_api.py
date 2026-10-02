@@ -14,6 +14,7 @@ from src.coprocessor import Coprocessor
 from src.linking import EventCatalog, EventRecord
 from src.llm import LLMCallResult, LockedLLMSession
 from src.models import Chunk
+from src.pipelines.intent import Intent
 from tests.asgi_client import InProcessASGIClient
 from tests.graph_fixtures import seeded_graph
 
@@ -283,6 +284,7 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
         chats.append(scripted_chat)
     created = iter(sessions)
     monkeypatch.setattr(api_main, "make_session", lambda provider: next(created))
+    monkeypatch.setattr(api_main, "classify_intent", AsyncMock(return_value=Intent("ask", 60, 1.0)))
 
     response = client.post(
         "/api/v1/query/compare",
@@ -292,6 +294,8 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
     assert response.status_code == 200
     payload = response.json()
     assert payload["qid"] == "compare-001"
+    assert payload["intent"] == "ask"
+    assert payload["intent_tokens"] == 60
     assert payload["rag"]["answer"] == "Samuel Wanjiru"
     assert payload["graphrag"]["answer"] == "Samuel Wanjiru"
     assert payload["agentic"]["answer"] == "Samuel Wanjiru"
@@ -506,3 +510,19 @@ def test_graph_stats_count_the_loaded_catalog(monkeypatch: pytest.MonkeyPatch) -
     # Men's single sculls 2004 -> 2008 and women's 2004 -> 2008 -> 2012.
     assert stats["previous_edition_links"] == 3
     assert {"chunks", "documents", "bm25_terms"} <= set(stats)
+
+
+def test_small_talk_stops_at_the_intent_check_without_running_a_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        api_main, "classify_intent", AsyncMock(return_value=Intent("chat", 58, 1.0))
+    )
+    pipelines = MagicMock(side_effect=AssertionError("no pipeline runs for small talk"))
+    monkeypatch.setattr(api_main, "make_session", pipelines)
+
+    payload = client.post("/api/v1/query/compare", json={"query": "hi"}).json()
+
+    assert payload["intent"] == "chat"
+    assert payload["intent_tokens"] == 58
+    assert payload["rag"] is payload["graphrag"] is payload["agentic"] is None

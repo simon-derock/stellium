@@ -133,13 +133,16 @@ class PipelineResult(BaseModel):
 
 
 class CompareResult(BaseModel):
-    # Side-by-side results for all 3 pipelines on one question
+    # Side-by-side results for all 3 pipelines on one question. Small talk ("hi") stops at the
+    # intent check: intent is "chat" and no pipeline runs.
     qid: str
     question: str
     qtype: str
-    rag: PipelineResult
-    graphrag: PipelineResult
-    agentic: PipelineResult
+    intent: Literal["ask", "chat"] = "ask"
+    intent_tokens: int = 0
+    rag: PipelineResult | None = None
+    graphrag: PipelineResult | None = None
+    agentic: PipelineResult | None = None
 
 
 # ---------------------------------------------------------------------------
