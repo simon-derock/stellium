@@ -29,9 +29,11 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 
 ---
 
-| Investigate: three pipelines side by side, with the agent's trace and evidence graph | Benchmark dashboard |
+![STELLIUM console: the Olympic graph, the question panel and the headline numbers](docs/images/console.png)
+
+| Benchmark: every published number, with charts and provenance | Docs: schema, access paths, the agent, every view |
 |---|---|
-| ![Investigate view](docs/images/investigate.png) | ![Benchmark dashboard](docs/images/benchmark-dashboard.png) |
+| ![Benchmark page](docs/images/benchmark.png) | ![Docs page](docs/images/docs.png) |
 
 Hidden-set outputs for all three pipelines (answers, tokens, latency, citations, agent traces): [`submission/hidden.json`](submission/hidden.json) · [`submission/hidden.csv`](submission/hidden.csv)
 
