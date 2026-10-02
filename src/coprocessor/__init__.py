@@ -91,6 +91,14 @@ class BM25Index:
     _doc_lengths: list[int] = field(default_factory=list)
     _avgdl: float = 0.0
 
+    def stats(self) -> dict[str, int]:
+        # Size of the in-memory index, for the docs page.
+        return {
+            "chunks": len(self._chunks),
+            "documents": len({chunk.doc_id for chunk in self._chunks}),
+            "bm25_terms": len(self._postings),
+        }
+
     def build(self, chunks: Iterable[Chunk]) -> None:
         self._chunks = list(chunks)
         self._postings = {}
@@ -348,6 +356,9 @@ class Coprocessor:
 
     def get_chunk(self, chunk_id: str) -> Chunk | None:
         return self._chunk_map.get(chunk_id)
+
+    def stats(self) -> dict[str, int]:
+        return self.bm25.stats()
 
     def expand_window(self, chunk_id: str, direction: str = "both") -> list[Chunk]:
         # Fetch predecessor / successor chunks via O(1) pointer lookup.

@@ -13,6 +13,7 @@ import asyncio
 import json
 import os
 import time
+from collections import Counter
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -337,7 +338,10 @@ async def evaluate_batch(req: BatchEvalRequest) -> list[dict[str, Any]]:
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_METRICS_PATH = _REPO_ROOT / "docs" / "metrics" / "public.json"
+_METRICS_DIR = _REPO_ROOT / "docs" / "metrics"
+_METRICS_PATH = _METRICS_DIR / "public.json"
+# Published benchmark documents the docs page may read, by name.
+_METRIC_SETS = ("public", "paraphrase", "compositional", "hidden_oracle")
 _PUBLIC_QUESTIONS = _REPO_ROOT / "hackathon-resources" / "questions" / "eval_public.jsonl"
 
 
@@ -348,6 +352,30 @@ async def benchmark_metrics() -> dict[str, Any]:
         raise HTTPException(status_code=404, detail="No benchmark metrics have been published")
     metrics: dict[str, Any] = json.loads(_METRICS_PATH.read_text(encoding="utf-8"))
     return metrics
+
+
+@app.get("/api/v1/metrics/{name}")
+async def named_metrics(name: str) -> dict[str, Any]:
+    if name not in _METRIC_SETS or not (_METRICS_DIR / f"{name}.json").exists():
+        raise HTTPException(status_code=404, detail=f"No published metrics named {name!r}")
+    document: dict[str, Any] = json.loads((_METRICS_DIR / f"{name}.json").read_text("utf-8"))
+    return document
+
+
+@app.get("/api/v1/graph/stats")
+async def graph_stats() -> dict[str, Any]:
+    # Live sizes for the docs page, read from the loaded catalog and index, not hard-coded.
+    catalog = catalog_for(_get_request_graph())
+    series = Counter((r.sport, r.season, r.label) for r in catalog.records if r.year)
+    return {
+        "events": len(catalog.records),
+        "games": len({(r.year, r.season) for r in catalog.records if r.year}),
+        "sports": len(catalog.sports),
+        "venues": len({r.venue for r in catalog.records if r.venue}),
+        # Events with an earlier edition in the corpus: the PRECEDES hops the agent can take.
+        "previous_edition_links": sum(count - 1 for count in series.values()),
+        **get_coprocessor().stats(),
+    }
 
 
 @app.get("/api/v1/presets")

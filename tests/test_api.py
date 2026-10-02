@@ -484,3 +484,22 @@ def test_graph_outage_mid_question_returns_503_with_retry_after(
     assert resp.status_code == 503
     assert resp.headers["retry-after"] == "15"
     assert "waking up" in resp.json()["detail"]
+
+
+def test_named_metrics_serve_only_published_documents() -> None:
+    assert client.get("/api/v1/metrics/compositional").json()["pipelines"]["agentic"]
+    assert client.get("/api/v1/metrics/hidden_oracle").json()["hidden"]["pipelines"]
+    assert client.get("/api/v1/metrics/..%2Fsecrets").status_code == 404
+    assert client.get("/api/v1/metrics/unknown").status_code == 404
+
+
+def test_graph_stats_count_the_loaded_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_main, "get_graph", MagicMock)
+    monkeypatch.setattr(api_main, "catalog_for", lambda graph: seeded_graph()[1])
+
+    stats = client.get("/api/v1/graph/stats").json()
+
+    assert (stats["events"], stats["games"], stats["sports"], stats["venues"]) == (6, 3, 1, 3)
+    # Men's single sculls 2004 -> 2008 and women's 2004 -> 2008 -> 2012.
+    assert stats["previous_edition_links"] == 3
+    assert {"chunks", "documents", "bm25_terms"} <= set(stats)
