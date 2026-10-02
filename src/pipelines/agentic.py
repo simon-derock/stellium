@@ -505,6 +505,7 @@ class AgenticPipeline:
         cache: dict[str, dict[str, Any]] = {}
         previous: tuple[str, str] | None = None
         step = 0
+        refused_finishes = 0
 
         if os.environ.get("STELLIUM_AGENT_INITIAL_HYBRID", "").casefold() in {"1", "true", "yes"}:
             # Optional ablation: hand the planner passages before its first decision.
@@ -551,6 +552,13 @@ class AgenticPipeline:
                             log.cite([str(doc) for doc in requested if str(doc) in log.citations])
                     break
                 log.invalid_responses += 1
+                refused_finishes += 1
+                if refused_finishes >= 2 and not state.tool_history:
+                    # Twice it answered without consulting anything (a greeting, chit-chat): no
+                    # tool applies, so there is nothing to ground and nothing more to spend.
+                    state.final_answer = "Not found in corpus"
+                    state.stopping_reason = "The question asks for nothing a tool can look up"
+                    break
                 messages.append(
                     {
                         "role": "user",

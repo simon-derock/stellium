@@ -140,6 +140,20 @@ async def test_answer_from_memory_is_rejected_until_grounded() -> None:
 
 
 @pytest.mark.asyncio
+async def test_small_talk_stops_after_two_tool_free_answers() -> None:
+    pipeline, chat = _pipeline(
+        _reply("Thought: a greeting.\nFinal Answer: Hello!"),
+        _reply("Thought: still a greeting.\nFinal Answer: Hello!"),
+    )
+
+    result = await pipeline.run("q-hi", "hi")
+
+    assert result.answer == "Not found in corpus"
+    assert chat.await_count == 2
+    assert _trace(result)["stopping_reason"] == "The question asks for nothing a tool can look up"
+
+
+@pytest.mark.asyncio
 async def test_failed_lookup_then_passage_search_records_strategy_change() -> None:
     pipeline, _ = _pipeline(
         _action("count_events", {"sport": "curling", "year": 2008, "threshold": 1}),
