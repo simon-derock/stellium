@@ -1,0 +1,22 @@
+# Netlify site for the STELLIUM console (base directory: web).
+# The API runs on Render; Netlify proxies it so the console calls its own origin: no CORS, and
+# the backend address can change without rebuilding the site. Replace the host if Render gives
+# the service a different name.
+[build]
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://stellium-api.onrender.com/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/health"
+  to = "https://stellium-api.onrender.com/health"
+  status = 200
+  force = true

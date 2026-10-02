@@ -216,8 +216,8 @@ Links: `?tab=benchmark` and `?tab=docs` open those pages; `?q=<question>` asks a
 | Part | Where | How |
 |---|---|---|
 | API | Render (free web service) | `render.yaml` + `Dockerfile`; set TigerGraph and Cohere secrets in the dashboard |
-| Console | Cloudflare Pages | Root `web`, build `npm ci && npm run build`, output `dist`, `VITE_API_BASE` = API URL |
-| Keep-alive | Any cron | `GET /health?deep=true` every 10 minutes keeps both the API and the graph workspace awake |
+| Console | Netlify | Base directory `web`; `web/netlify.toml` builds it and proxies `/api` to the API, so there is no CORS |
+| Keep-alive | Any cron | `GET /health?deep=true` every 10 minutes keeps the API warm and the graph workspace awake |
 
 ---
 
