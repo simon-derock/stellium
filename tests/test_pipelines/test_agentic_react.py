@@ -124,6 +124,39 @@ async def test_iteration_limit_with_pending_ambiguity_reports_all_candidates() -
 
 
 @pytest.mark.asyncio
+async def test_a_day_with_nothing_is_not_moved_to_another_year() -> None:
+    moved = _action(
+        "event_at_venue_date", {"venue": "Lake A", "date": "15 to 21 August 2004", "year": 2004}
+    )
+    pipeline, _ = _pipeline(
+        moved, _reply("Thought: nothing on that day.\nFinal Answer: Not found in corpus")
+    )
+
+    result = await pipeline.run("q-day", "Who won the event held at Lake A on 15 August 2000?")
+
+    assert result.answer == "Not found in corpus"
+    assert "exactly as the question states" in _trace(result)["tools_called"][0]["output_summary"]
+
+
+@pytest.mark.asyncio
+async def test_a_list_of_the_wrong_kind_is_never_reported_as_a_tie() -> None:
+    listing = _action("find_events", {"sport": "rowing"})
+    pipeline, _ = _pipeline(
+        listing,
+        _action("find_events", {"sport": "rowing", "year": 2004}),
+        _action("find_events", {"sport": "rowing", "season": "Summer"}),
+        _action("find_events", {"sport": "rowing", "gender": "Men"}),
+        _action("find_events", {"sport": "rowing", "year": 2008}),
+        _reply("Not found in corpus"),
+    )
+
+    result = await pipeline.run("q-who", "Who won the gold medal in rowing on a day nobody raced?")
+
+    assert result.answer == "Not found in corpus"
+    assert "reporting every candidate" not in _trace(result)["stopping_reason"]
+
+
+@pytest.mark.asyncio
 async def test_answer_from_memory_is_rejected_until_grounded() -> None:
     pipeline, chat = _pipeline(
         _reply("Thought: I recall it.\nFinal Answer: Zed Unknown"),

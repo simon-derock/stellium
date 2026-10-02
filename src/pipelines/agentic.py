@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -34,6 +35,9 @@ logger = logging.getLogger(__name__)
 ORCHESTRATOR = "OrchestratorAgent"
 _PASSAGE_CHARS = 700
 _PASSAGES_SHOWN = 4
+# A handful of same-kind candidates is a real tie worth reporting; more is an unfinished search.
+_MAX_REPORTED_CANDIDATES = 6
+_YEAR = re.compile(r"\b(?:18|19|20)\d\d\b")
 
 # Which specialist owns each non-graph tool, for the trace.
 _TEXT_TOOL_AGENTS = {
@@ -78,6 +82,14 @@ class ReActParsedStep:
     action_input: dict[str, Any] = field(default_factory=dict)
     final_answer: str | None = None
     is_terminal: bool = False
+
+
+def _rewrites_the_day(question: str, arguments: dict[str, Any]) -> bool:
+    # A venue-and-day lookup answers only for the day the question names. Moving it to another
+    # year when the asked day held nothing turns "no such event" into someone else's medal.
+    asked = set(_YEAR.findall(question))
+    given = set(_YEAR.findall(f"{arguments.get('date', '')} {arguments.get('year', '')}"))
+    return bool(asked) and bool(given - asked)
 
 
 def _answer_is_grounded(answer: str, verified_values: set[str], passages: list[str]) -> bool:
@@ -591,6 +603,12 @@ class AgenticPipeline:
                     "previous_observation": cache[cache_key],
                 }
                 values: list[str] = []
+            elif tool == "event_at_venue_date" and _rewrites_the_day(question, arguments):
+                observation = {
+                    "error": "Use the venue and date exactly as the question states them; "
+                    "another year is a different question."
+                }
+                values = []
             else:
                 try:
                     observation, outcome, values = await self._execute(
@@ -692,7 +710,13 @@ class AgenticPipeline:
                     )
                 break
             if outcome is not None and outcome.ambiguous:
-                pending_candidates = list(outcome.candidates)
+                kind = outcome.answer_kind
+                # Events for a "who" question, or two hundred titles, are a search still in
+                # progress, not a tie; only a short list of the asked kind is worth reporting.
+                if len(outcome.candidates) <= _MAX_REPORTED_CANDIDATES and (
+                    asked is None or kind is None or kind == asked
+                ):
+                    pending_candidates = list(outcome.candidates)
 
             observation_text = json.dumps(observation, ensure_ascii=False, default=str)
             observations.append(observation_text)
