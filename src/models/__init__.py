@@ -67,7 +67,8 @@ class EvalQuestion(BaseModel):
     # One row from eval_public.jsonl or eval_hidden.jsonl
     qid: str
     question: str
-    qtype: Literal["aggregation", "lookup", "multi_hop", "superlative", "temporal"]
+    # The five official types, or any label from a bring-your-own dataset.
+    qtype: str
     answer: list[str] | None = None  # None for hidden questions
     gold_doc_ids: list[str] | None = None  # None for hidden questions
 

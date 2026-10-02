@@ -155,6 +155,7 @@ def _summarize_records(
 ) -> tuple[dict[str, dict[str, float]], dict[str, int], dict[str, dict[str, dict[str, float]]]]:
     # Recompute report metrics from the durable result rows after fresh or resumed runs.
     qtypes = ["aggregation", "temporal", "superlative", "multi_hop", "lookup"]
+    qtypes += sorted({q.qtype for q in questions} - set(qtypes))
     stats = {
         pipeline: {
             metric: 0.0
@@ -184,7 +185,7 @@ def _summarize_records(
         "prec5": "prec@5",
     }
     for question, record in zip(questions, records, strict=True):
-        qtype = question.qtype if question.qtype in qtypes else "lookup"
+        qtype = question.qtype
         qtype_counts[qtype] += 1
         for pipeline in pipeline_names:
             tokens = float(record.get(f"{pipeline}_tokens", 0.0))
