@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 _SUPPORTING_DOCS = 3
 _SUPPORT_CHARS = 700
 
-_EXTRACTION_PROMPT = f"""Map the question to one structured lookup over a graph of Olympic events. Return only a JSON object with these keys:
+_EXTRACTION_PROMPT = f"""Map the question to one structured lookup over a graph of Olympic events. Return only a JSON object, using just the keys that apply:
 {{"operation": "", "sport": "", "year": 0, "season": "", "gender": "", "event": "", "venue": "", "date": "", "attribute": "", "comparison": "", "threshold": 0, "order": ""}}
 
 operation is one of:
@@ -43,7 +43,7 @@ operation is one of:
 - none: anything else
 
 attribute is one of: {", ".join(EVENT_ATTRIBUTES)}.
-Copy names, dates, and numbers exactly as the question writes them; leave a field empty or 0 when the question does not state it."""
+Copy names, dates, and numbers exactly as the question writes them; omit every key the question does not state."""
 
 _ANSWER_PROMPT = """Answer the question using only the graph result and passages provided.
 If the graph result contains a value or answer, return that value exactly; if it lists several candidates that the passages cannot separate, return all of them joined by "; ".
