@@ -1,6 +1,7 @@
 # Mock-based contract tests for graph DDL, upsert mapping, and parameterized queries.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock
 
 import pytest
@@ -357,3 +358,49 @@ def test_wait_for_graph_ready_fails_closed_after_timeout(monkeypatch: pytest.Mon
     monkeypatch.setattr(requests, "get", unreachable)
     with pytest.raises(RuntimeError, match="did not become ready"):
         wait_for_graph_ready("https://graph.example", timeout_s=0.0, poll_interval_s=1.0)
+
+
+def test_reads_reconnect_once_after_a_stale_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    graph_module = sys.modules[GraphClient.__module__]
+    stale = MagicMock()
+    stale.runInstalledQuery.side_effect = RuntimeError("User authentication failed")
+    fresh = MagicMock()
+    fresh.runInstalledQuery.return_value = [{"match_count": 3, "events": [], "gold_doc_ids": []}]
+    monkeypatch.setattr(graph_module, "connect", lambda: fresh)
+    client = GraphClient(conn=stale)
+
+    result = client.run_aggregation(sport="Rowing", year=2008, min_competitors=10)
+
+    assert result["count"] == 3
+    assert client.conn is fresh
+    assert stale.runInstalledQuery.call_count == 1
+
+
+def test_other_graph_errors_are_raised_without_reconnecting(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    graph_module = sys.modules[GraphClient.__module__]
+    broken = MagicMock()
+    broken.runInstalledQuery.side_effect = RuntimeError("query timed out")
+    reconnect = MagicMock()
+    monkeypatch.setattr(graph_module, "connect", reconnect)
+
+    with pytest.raises(RuntimeError, match="timed out"):
+        GraphClient(conn=broken).run_aggregation(sport="Rowing")
+    reconnect.assert_not_called()
+
+
+def test_mock_connections_never_reconnect(monkeypatch: pytest.MonkeyPatch) -> None:
+    from src.graph.mock import MockTigerGraphConnection
+
+    graph_module = sys.modules[GraphClient.__module__]
+    conn = MockTigerGraphConnection()
+    monkeypatch.setattr(
+        conn, "runInstalledQuery", MagicMock(side_effect=RuntimeError("authentication failed"))
+    )
+    reconnect = MagicMock()
+    monkeypatch.setattr(graph_module, "connect", reconnect)
+
+    with pytest.raises(RuntimeError):
+        GraphClient(conn=conn).run_aggregation(sport="Rowing")
+    reconnect.assert_not_called()

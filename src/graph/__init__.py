@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -529,9 +530,41 @@ CREATE OR REPLACE QUERY vector_search_chunks (
 # ---------------------------------------------------------------------------
 
 
+def _is_auth_failure(exc: Exception) -> bool:
+    # A Savanna restart invalidates the session token; pyTigerGraph then fails every request with
+    # an authentication error (or a 401/403) until a new connection mints a fresh token.
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    message = str(exc).casefold()
+    return (
+        status in (401, 403)
+        or "authentication failed" in message
+        or "token" in message
+        and ("expired" in message or "invalid" in message)
+    )
+
+
 @dataclass
 class GraphClient:
     conn: tg.TigerGraphConnection = field(default_factory=connect)
+
+    def _read[T](self, call: Callable[[tg.TigerGraphConnection], T]) -> T:
+        # Reads reconnect once on a stale token instead of failing until the server restarts.
+        try:
+            return call(self.conn)
+        except Exception as exc:
+            if isinstance(self.conn, MockTigerGraphConnection) or not _is_auth_failure(exc):
+                raise
+            self.conn = connect()
+            return call(self.conn)
+
+    def _installed(self, name: str, params: dict[str, Any], timeout: int = 10000) -> Any:
+        return self._read(lambda conn: conn.runInstalledQuery(name, params=params, timeout=timeout))
+
+    def vertices_by_id(self, vertex_type: str, vertex_ids: list[str]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = self._read(
+            lambda conn: conn.getVerticesById(vertex_type, vertex_ids)
+        )
+        return rows
 
     def run_generated_gsql(self, query: str) -> dict[str, Any]:
         # Execute only bounded, read-only GSQL that passes the application allowlist.
@@ -540,18 +573,21 @@ class GraphClient:
         if not safe:
             raise ValueError(f"Generated GSQL rejected: {reason}")
         started = time.perf_counter()
-        if self.conn._version_greater_than_4_0():
-            # pyTigerGraph's v4 runInterpretedQuery selects password auth, while Savanna
-            # deployments commonly configure bearer tokens. Call the same v4 endpoint through
-            # its request layer so the existing token is used and the GSQL request is bounded.
-            rows = self.conn._post(
-                self.conn.gsUrl + "/gsql/v1/queries/interpret",
-                authMode="token",
-                headers={"Content-Type": "text/plain", "GSQL-TIMEOUT": "15000"},
-                data=query,
-            )
-        else:
-            rows = self.conn.runInterpretedQuery(query)
+
+        def interpret(conn: tg.TigerGraphConnection) -> Any:
+            if conn._version_greater_than_4_0():
+                # pyTigerGraph's v4 runInterpretedQuery selects password auth, while Savanna
+                # deployments commonly configure bearer tokens. Call the same v4 endpoint through
+                # its request layer so the existing token is used and the request is bounded.
+                return conn._post(
+                    conn.gsUrl + "/gsql/v1/queries/interpret",
+                    authMode="token",
+                    headers={"Content-Type": "text/plain", "GSQL-TIMEOUT": "15000"},
+                    data=query,
+                )
+            return conn.runInterpretedQuery(query)
+
+        rows = self._read(interpret)
         return {
             "rows": rows,
             "event_candidates": _extract_event_candidates(rows),
@@ -712,7 +748,7 @@ class GraphClient:
         top_k: int = 10,
     ) -> list[tuple[str, float]]:
         # Returns [(chunk_id, cosine_score)] from TigerVector HNSW.
-        results = self.conn.runInstalledQuery(
+        results = self._installed(
             "vector_search_chunks",
             params={"query_vector": query_vector, "top_k": top_k},
             timeout=10000,
@@ -746,7 +782,7 @@ class GraphClient:
         max_competitors: int = 0,
     ) -> dict[str, Any]:
         t0 = time.perf_counter()
-        results = self.conn.runInstalledQuery(
+        results = self._installed(
             "get_event_aggregates",
             params={
                 "sport": sport,
@@ -773,7 +809,7 @@ class GraphClient:
         gender: str = "",
     ) -> dict[str, Any]:
         t0 = time.perf_counter()
-        results = self.conn.runInstalledQuery(
+        results = self._installed(
             "get_preceding_event",
             params={
                 "sport": sport,
@@ -801,7 +837,7 @@ class GraphClient:
         limit: int = 1,
     ) -> dict[str, Any]:
         t0 = time.perf_counter()
-        results = self.conn.runInstalledQuery(
+        results = self._installed(
             "get_superlative_event",
             params={
                 "sport": sport,
@@ -847,7 +883,7 @@ class GraphClient:
 
         r: dict[str, Any] = {}
         for candidate in venue_candidates:
-            results = self.conn.runInstalledQuery(
+            results = self._installed(
                 "get_event_by_venue_date",
                 params={
                     "venue_name_fragment": candidate,
@@ -894,7 +930,7 @@ class GraphClient:
                 "latency_ms": 0.0,
             }
         t0 = time.perf_counter()
-        results = self.conn.runInstalledQuery(
+        results = self._installed(
             "get_event_attribute",
             params={
                 "event_name_fragment": event_fragment,

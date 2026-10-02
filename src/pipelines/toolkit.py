@@ -180,7 +180,7 @@ class GraphToolkit:
         # One REST read for the linked vertices; attribute values always come from TigerGraph.
         if not records:
             return {}
-        rows = self.graph.conn.getVerticesById("Event", [record.event_id for record in records])
+        rows = self.graph.vertices_by_id("Event", [record.event_id for record in records])
         return {str(row["v_id"]): dict(row.get("attributes", {})) for row in rows}
 
     def _prose_confirming_count(self, doc_id: str, count: int) -> str | None:

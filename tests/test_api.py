@@ -41,7 +41,7 @@ def _wire_retrieval_api(
         "gold_doc_ids": ["Q123"],
     }
     graph.run_lookup.return_value = {"events": [], "gold_athletes": [], "gold_doc_ids": []}
-    graph.conn.getVerticesById.return_value = [
+    graph.vertices_by_id.return_value = [
         {"v_id": "Q123", "attributes": {"gold_athlete": "Samuel Wanjiru"}}
     ]
     marathon = EventRecord(
