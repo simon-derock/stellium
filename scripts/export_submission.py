@@ -10,6 +10,18 @@ from pathlib import Path
 from typing import Any
 
 _PIPELINES = ("rag", "graphrag", "agentic")
+# Per-call fields that describe the local run setup, not the answer; older traces still carry them.
+_PRIVATE_CALL_FIELDS = frozenset({"credential_alias"})
+
+
+def _public_trace(trace: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not trace or "llm_calls" not in trace:
+        return trace
+    calls = [
+        {key: value for key, value in call.items() if key not in _PRIVATE_CALL_FIELDS}
+        for call in trace["llm_calls"]
+    ]
+    return {**trace, "llm_calls": calls}
 
 
 def _pipeline_entry(row: dict[str, Any], pipeline: str) -> dict[str, Any] | None:
@@ -34,7 +46,7 @@ def _pipeline_entry(row: dict[str, Any], pipeline: str) -> dict[str, Any] | None
             for key in ("graph_operation", "graph_plan", "graph_status", "answer_source")
         }
     if pipeline == "agentic":
-        entry["trace"] = row.get("agentic_trace")
+        entry["trace"] = _public_trace(row.get("agentic_trace"))
     if f"{pipeline}_em" in row:
         entry["scores"] = {
             "exact_match": row[f"{pipeline}_em"],

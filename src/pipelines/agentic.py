@@ -477,7 +477,6 @@ class AgenticPipeline:
                 "operation": operation,
                 "model_name": result.model_name,
                 "provider": result.provider,
-                "credential_alias": result.credential_alias,
                 "prompt_tokens": result.input_tokens,
                 "completion_tokens": result.output_tokens,
                 # Wall time includes any client-side rate-limit pacing; provider time does not.

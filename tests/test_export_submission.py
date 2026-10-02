@@ -26,7 +26,7 @@ def test_export_writes_json_and_csv_with_traces(tmp_path: Path) -> None:
         "agentic_tokens": 700,
         "agentic_trace": {
             "step_count": 2,
-            "llm_calls": [{"prompt_tokens": 690}],
+            "llm_calls": [{"prompt_tokens": 690, "credential_alias": "LOCAL_ALIAS"}],
             "retrieval_methods": ["event_attribute"],
             "agents_invoked": ["OrchestratorAgent", "EntityLinkingAgent"],
             "strategy_changed": False,
@@ -55,6 +55,8 @@ def test_export_writes_json_and_csv_with_traces(tmp_path: Path) -> None:
     assert question["rag"]["latency_s"] == 1.5
     assert question["graphrag"]["graph"]["graph_operation"] == "event_attribute"
     assert question["agentic"]["trace"]["step_count"] == 2
+    assert question["agentic"]["trace"]["llm_calls"] == [{"prompt_tokens": 690}]
+    assert "LOCAL_ALIAS" not in (tmp_path / "out" / "hidden.json").read_text()
     with (tmp_path / "out" / "hidden.csv").open() as csv_file:
         flat = next(csv.DictReader(csv_file))
     assert flat["agentic_agents"] == "OrchestratorAgent;EntityLinkingAgent"
