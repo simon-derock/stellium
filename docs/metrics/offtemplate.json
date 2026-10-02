@@ -1,0 +1,240 @@
+{
+  "pipelines": {
+    "rag": {
+      "label": "RAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 8.0,
+        "exact_match_strict": 8.0,
+        "exact_match_ci95": [
+          0.3906,
+          0.8619
+        ],
+        "token_f1": 0.6666666666666666,
+        "tokens_mean": 2077,
+        "latency_mean_s": 7.039668330498898,
+        "latency_p50_s": 6.9110160900017945,
+        "latency_p95_s": 8.894977322997875,
+        "cost_per_100_usd": 0.521875,
+        "citations_mean": 5,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "offtemplate_film": {
+          "questions": 9,
+          "exact_match": 6.0,
+          "tokens_mean": 2074.1111111111113
+        },
+        "offtemplate_office": {
+          "questions": 3,
+          "exact_match": 2.0,
+          "tokens_mean": 2085.6666666666665
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 8,
+        "grounded": 6,
+        "grounding_checked": 6,
+        "abstained": 4
+      },
+      "retrieval": {
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "precision_at_5": 0.2,
+        "context_precision_at_5": 1.0,
+        "context_recall": 1.0,
+        "context_recall_questions": 10
+      }
+    },
+    "graphrag": {
+      "label": "GraphRAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 7.0,
+        "exact_match_strict": 7.0,
+        "exact_match_ci95": [
+          0.3195,
+          0.8067
+        ],
+        "token_f1": 0.5833333333333334,
+        "tokens_mean": 1371.3333333333333,
+        "latency_mean_s": 7.604832905416818,
+        "latency_p50_s": 7.571339321999403,
+        "latency_p95_s": 9.447740342999168,
+        "cost_per_100_usd": 0.35133333333333333,
+        "citations_mean": 5,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "offtemplate_film": {
+          "questions": 9,
+          "exact_match": 5.0,
+          "tokens_mean": 1351.3333333333333
+        },
+        "offtemplate_office": {
+          "questions": 3,
+          "exact_match": 2.0,
+          "tokens_mean": 1431.3333333333333
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 7,
+        "grounded": 6,
+        "grounding_checked": 6,
+        "abstained": 4
+      },
+      "retrieval": {
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "precision_at_5": 0.2,
+        "context_precision_at_5": 1.0,
+        "context_recall": 1.0,
+        "context_recall_questions": 10
+      }
+    },
+    "agentic": {
+      "label": "Agentic GraphRAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 10.0,
+        "exact_match_strict": 10.0,
+        "exact_match_ci95": [
+          0.552,
+          0.953
+        ],
+        "token_f1": 0.8333333333333334,
+        "tokens_mean": 5102.833333333333,
+        "latency_mean_s": 12.113148382000267,
+        "latency_p50_s": 8.818435509005212,
+        "latency_p95_s": 20.00265448099526,
+        "cost_per_100_usd": 1.4315833333333332,
+        "citations_mean": 4.833333333333333,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "offtemplate_film": {
+          "questions": 9,
+          "exact_match": 7.0,
+          "tokens_mean": 4822.777777777777
+        },
+        "offtemplate_office": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 5943
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 10,
+        "grounded": 10,
+        "grounding_checked": 10,
+        "abstained": 2
+      },
+      "retrieval": {
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "precision_at_5": 0.2375,
+        "context_precision_at_5": 1.0,
+        "context_recall": 1.0,
+        "context_recall_questions": 10
+      }
+    }
+  },
+  "agent": {
+    "questions": 12,
+    "steps_mean": 4.583333333333333,
+    "steps_median": 3.0,
+    "steps_max": 9,
+    "llm_calls_mean": 3.1666666666666665,
+    "single_call_answers": 0,
+    "strategy_changes": 0,
+    "tools": {
+      "hybrid_search": 17
+    },
+    "specialists": {
+      "OrchestratorAgent": 12,
+      "DocumentRetrievalAgent": 12
+    },
+    "stopping_reasons": {
+      "Orchestrator finished with an answer grounded in tool observations": 10,
+      "Iteration budget used; no grounded answer was available": 2
+    }
+  },
+  "graph_pipeline_misses": [
+    {
+      "qid": "off-003",
+      "qtype": "offtemplate_film",
+      "pipeline": "graphrag",
+      "answer": "Not found in corpus."
+    },
+    {
+      "qid": "off-005",
+      "qtype": "offtemplate_film",
+      "pipeline": "graphrag",
+      "answer": "Not found in corpus"
+    },
+    {
+      "qid": "off-007",
+      "qtype": "offtemplate_film",
+      "pipeline": "graphrag",
+      "answer": "Not found in corpus"
+    },
+    {
+      "qid": "off-008",
+      "qtype": "offtemplate_film",
+      "pipeline": "graphrag",
+      "answer": "2006"
+    },
+    {
+      "qid": "off-008",
+      "qtype": "offtemplate_film",
+      "pipeline": "agentic",
+      "answer": "Not found in corpus"
+    },
+    {
+      "qid": "off-009",
+      "qtype": "offtemplate_film",
+      "pipeline": "agentic",
+      "answer": "Not found in corpus"
+    },
+    {
+      "qid": "off-010",
+      "qtype": "offtemplate_office",
+      "pipeline": "graphrag",
+      "answer": "Not found in corpus"
+    }
+  ],
+  "provenance": [
+    {
+      "pipelines": [
+        "rag",
+        "graphrag",
+        "agentic"
+      ],
+      "commit": "281d47d",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "0bb2155d254c210ffae01e9a6285dd4fb4e5c4f34919cba8285ad1d63e4b72e0",
+      "finished_at": "2026-10-03T00:41:13+0530",
+      "rows": 12
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "59cbd67",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "0bb2155d254c210ffae01e9a6285dd4fb4e5c4f34919cba8285ad1d63e4b72e0",
+      "finished_at": "2026-10-03T00:51:20+0530",
+      "rows": 12
+    }
+  ]
+}

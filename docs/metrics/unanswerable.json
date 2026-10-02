@@ -1,0 +1,197 @@
+{
+  "pipelines": {
+    "rag": {
+      "label": "RAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 12.0,
+        "exact_match_strict": 7.0,
+        "exact_match_ci95": [
+          0.7575,
+          1.0
+        ],
+        "token_f1": 0.8958333333333334,
+        "tokens_mean": 2708.4166666666665,
+        "latency_mean_s": 9.474350736666869,
+        "latency_p50_s": 9.364358696002455,
+        "latency_p95_s": 10.47092194200377,
+        "cost_per_100_usd": 0.6804166666666666,
+        "citations_mean": 5,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "unanswerable_lookup": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 2698.5
+        },
+        "unanswerable_rank": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 2816.25
+        },
+        "unanswerable_venue_date": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 2610.5
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 0,
+        "grounded": 0,
+        "grounding_checked": 0,
+        "abstained": 12
+      },
+      "retrieval": {
+        "context_recall_questions": 0
+      }
+    },
+    "graphrag": {
+      "label": "GraphRAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 12.0,
+        "exact_match_strict": 11.0,
+        "exact_match_ci95": [
+          0.7575,
+          1.0
+        ],
+        "token_f1": 0.9791666666666666,
+        "tokens_mean": 1722.8333333333333,
+        "latency_mean_s": 10.07606342750114,
+        "latency_p50_s": 10.176317776997166,
+        "latency_p95_s": 10.795809085000656,
+        "cost_per_100_usd": 0.4772708333333333,
+        "citations_mean": 5,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "unanswerable_lookup": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 1698.5
+        },
+        "unanswerable_rank": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 1681.75
+        },
+        "unanswerable_venue_date": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 1788.25
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 0,
+        "grounded": 0,
+        "grounding_checked": 0,
+        "abstained": 12
+      },
+      "retrieval": {
+        "context_recall_questions": 0
+      }
+    },
+    "agentic": {
+      "label": "Agentic GraphRAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 12.0,
+        "exact_match_strict": 12.0,
+        "exact_match_ci95": [
+          0.7575,
+          1.0
+        ],
+        "token_f1": 1.0,
+        "tokens_mean": 7277,
+        "latency_mean_s": 15.589075898915931,
+        "latency_p50_s": 14.048729975998867,
+        "latency_p95_s": 24.930862637003884,
+        "cost_per_100_usd": 2.0585625000000003,
+        "citations_mean": 4.75,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "unanswerable_lookup": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 9306.5
+        },
+        "unanswerable_rank": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 3597
+        },
+        "unanswerable_venue_date": {
+          "questions": 4,
+          "exact_match": 4.0,
+          "tokens_mean": 8927.5
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 0,
+        "grounded": 0,
+        "grounding_checked": 0,
+        "abstained": 12
+      },
+      "retrieval": {
+        "context_recall_questions": 0
+      }
+    }
+  },
+  "agent": {
+    "questions": 12,
+    "steps_mean": 7.833333333333333,
+    "steps_median": 8.0,
+    "steps_max": 11,
+    "llm_calls_mean": 4.416666666666667,
+    "single_call_answers": 0,
+    "strategy_changes": 9,
+    "tools": {
+      "hybrid_search": 15,
+      "find_events": 10,
+      "gsql_query": 7,
+      "rank_events": 4,
+      "event_at_venue_date": 4,
+      "event_attribute": 1
+    },
+    "specialists": {
+      "OrchestratorAgent": 12,
+      "EntityLinkingAgent": 12,
+      "DocumentRetrievalAgent": 9,
+      "AggregationAgent": 4,
+      "QueryGenerationAgent": 3
+    },
+    "stopping_reasons": {
+      "Orchestrator finished with an answer grounded in tool observations": 9,
+      "Iteration budget used; synthesized a grounded answer": 2,
+      "Iteration budget used; no grounded answer was available": 1
+    }
+  },
+  "graph_pipeline_misses": [],
+  "provenance": [
+    {
+      "pipelines": [
+        "rag",
+        "graphrag",
+        "agentic"
+      ],
+      "commit": "db351ea",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "c6b24e8a6b4c94d16f9ce4dc3fcf842845e3fa837b2b1bed4ad102aa24e5c8d8",
+      "finished_at": "2026-10-03T00:35:10+0530",
+      "rows": 12
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "59cbd67",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "c6b24e8a6b4c94d16f9ce4dc3fcf842845e3fa837b2b1bed4ad102aa24e5c8d8",
+      "finished_at": "2026-10-03T00:48:48+0530",
+      "rows": 12
+    }
+  ]
+}

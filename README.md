@@ -22,8 +22,8 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 |---|---|
 | **Accuracy** | 99/100 Agentic GraphRAG · 99/100 GraphRAG · 67/100 RAG on the public questions; the one miss is undecidable from the corpus |
 | **Hidden 50** | Graph pipelines agree with an independent corpus oracle on 49 of 49 decidable questions |
-| **Robustness** | Agent: 24/24 two-step questions (GraphRAG 19, RAG 15) and 12/12 reworded questions |
-| **Cost** | 928 LLM tokens per agentic answer, about $0.31 per 100 questions |
+| **Robustness** | Agent: 24/24 two-step questions (GraphRAG 19, RAG 15), 12/12 reworded, 12/12 unanswerable declined, 10/12 off-template |
+| **Cost** | 949 LLM tokens per agentic answer, about $0.31 per 100 questions |
 | **Evidence** | Every graph-pipeline answer is stated in a source article it cites |
 | **Stack** | TigerGraph Savanna (graph + native vector search) · Cohere Command A · local int8 reranker |
 
@@ -47,9 +47,9 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 |---|---:|---:|---:|---:|---:|---:|
 | RAG | 67% | 57–75% | 2,581 | 1 | 4.4 s | $0.65 |
 | GraphRAG | **99%** | 94.5–99.8% | 1,056 | 2 | 6.5 s | $0.31 |
-| Agentic GraphRAG | **99%** | 94.5–99.8% | **928** | 1.18 | **3.4 s** | **$0.31** |
+| Agentic GraphRAG | **99%** | 94.5–99.8% | **949** | 1.20 | **1.8 s** | **$0.31** |
 
-<sub>Graph pipelines re-run on commit 468fedf; RAG rows from 4923d3a (its code is unchanged). Latency includes client-side request pacing for a trial key. Wilson 95% intervals.</sub>
+<sub>Agent re-run on commit 59cbd67, GraphRAG on 468fedf, RAG from 4923d3a (its code is unchanged). Latency includes client-side request pacing, which was lighter on the agent's re-run. Wilson 95% intervals.</sub>
 
 ### By question type
 
@@ -89,9 +89,11 @@ Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audit
 | Count or ranking across many events | GraphRAG | Five passages hold about a third of the events; one graph query holds all |
 | Two steps chained (rank, then read the winner's attribute) | Agentic | 24/24, against 19/24 for GraphRAG's single fixed operation |
 | Ambiguous names or a failed first lookup | Agentic | Re-plans after an error or a tie |
+| Outside the five templates (films, officeholders) | Agentic | 10/12, against 8 for RAG and 7 for GraphRAG; it falls back to passages when no graph tool fits |
+| Nothing in the corpus answers it | Any | All three decline on 12/12; the agent never moves a venue's day to another year to find something |
 | Any structured question where cost matters | Agentic | Stops on the first verified value of the kind asked for |
 
-> **Finding.** On the five official templates the agent matches a well-built GraphRAG (99/100 each) at 12% fewer tokens. Where a question needs two graph steps, it is the only pipeline at 100%: it recognises the event it found as a step, not the answer, and reads the attribute next.
+> **Finding.** On the five official templates the agent matches a well-built GraphRAG (99/100 each) at 10% fewer tokens. Where a question needs two graph steps, it is the only pipeline at 100%: it recognises the event it found as a step, not the answer, and reads the attribute next.
 
 ---
 

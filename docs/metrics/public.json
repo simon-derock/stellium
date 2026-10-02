@@ -142,11 +142,11 @@
           0.9982
         ],
         "token_f1": 0.9866666666666667,
-        "tokens_mean": 927.54,
-        "latency_mean_s": 3.9848872212799686,
-        "latency_p50_s": 3.402581875001488,
-        "latency_p95_s": 6.933642164000048,
-        "cost_per_100_usd": 0.305685,
+        "tokens_mean": 949.07,
+        "latency_mean_s": 2.21981857838975,
+        "latency_p50_s": 1.7824025430018082,
+        "latency_p95_s": 4.7611010809996515,
+        "cost_per_100_usd": 0.31244,
         "citations_mean": 2.14,
         "estimated_token_rows": 0
       },
@@ -159,22 +159,22 @@
         "lookup": {
           "questions": 19,
           "exact_match": 19.0,
-          "tokens_mean": 781.2631578947369
+          "tokens_mean": 830.9473684210526
         },
         "multi_hop": {
           "questions": 28,
           "exact_match": 27.0,
-          "tokens_mean": 786.1428571428571
+          "tokens_mean": 786.9642857142857
         },
         "superlative": {
           "questions": 10,
           "exact_match": 10.0,
-          "tokens_mean": 733.2
+          "tokens_mean": 732.6
         },
         "temporal": {
           "questions": 22,
           "exact_match": 22.0,
-          "tokens_mean": 1494.590909090909
+          "tokens_mean": 1548.7727272727273
         }
       },
       "evidence": {
@@ -198,19 +198,19 @@
   },
   "agent": {
     "questions": 100,
-    "steps_mean": 2.35,
+    "steps_mean": 2.39,
     "steps_median": 2.0,
     "steps_max": 4,
-    "llm_calls_mean": 1.18,
-    "single_call_answers": 82,
-    "strategy_changes": 12,
+    "llm_calls_mean": 1.2,
+    "single_call_answers": 80,
+    "strategy_changes": 11,
     "tools": {
-      "event_attribute": 30,
+      "event_attribute": 31,
       "event_at_venue_date": 28,
       "count_events": 21,
-      "find_events": 17,
-      "previous_edition": 11,
-      "rank_events": 10
+      "find_events": 19,
+      "rank_events": 10,
+      "previous_edition": 10
     },
     "specialists": {
       "OrchestratorAgent": 100,
@@ -220,11 +220,11 @@
       "AggregationAgent": 31
     },
     "stopping_reasons": {
-      "event_attribute returned one verified graph value": 30,
+      "event_attribute returned one verified graph value": 31,
       "event_at_venue_date returned one verified graph value": 27,
       "count_events returned one verified graph value": 21,
-      "previous_edition returned one verified graph value": 11,
       "rank_events returned one verified graph value": 10,
+      "previous_edition returned one verified graph value": 10,
       "Orchestrator finished with an answer grounded in tool observations": 1
     }
   },
@@ -265,10 +265,10 @@
     },
     {
       "pipelines": "agentic",
-      "commit": "468fedf",
+      "commit": "59cbd67",
       "model": "command-a-03-2025",
       "dataset_sha256": "abddb7d18a6d8ed908f514a7e560fe4950ebe479ebb2cdb75a7456887c10c6e5",
-      "finished_at": "2026-10-02T19:18:28+0530",
+      "finished_at": "2026-10-03T00:55:12+0530",
       "rows": 100
     }
   ]
