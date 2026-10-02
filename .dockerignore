@@ -1,0 +1,16 @@
+.git
+.venv
+**/__pycache__
+.env
+*.ses
+results
+data
+samples
+submission
+web
+tests
+benchmarks
+prompts
+scripts
+docs/images
+hackathon-resources/questions/eval_hidden.jsonl

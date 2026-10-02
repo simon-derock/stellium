@@ -1,0 +1,27 @@
+# Render blueprint for the STELLIUM API (free web service). Secrets are set in the dashboard.
+services:
+  - type: web
+    name: stellium-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: STELLIUM_LLM_PROVIDER
+        value: cohere
+      - key: STELLIUM_MAX_CONCURRENT_QUERIES
+        value: "2"
+      - key: TG_HOST
+        sync: false
+      - key: TG_GRAPH_NAME
+        sync: false
+      - key: TG_USERNAME
+        sync: false
+      - key: TG_PASSWORD
+        sync: false
+      - key: TG_SECRET
+        sync: false
+      - key: COHERE_CHAT_API_KEY
+        sync: false
