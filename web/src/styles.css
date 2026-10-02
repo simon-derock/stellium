@@ -1,0 +1,329 @@
+@import "tailwindcss" source(none);
+@source "./";
+
+/*
+ * STELLIUM: a flat editorial instrument panel over a full-bleed graph.
+ * The canvas, its themes and their atmospheres are ported from Lunarbit; theme
+ * presets swap the whole ink/paper gamut at runtime (src/graph/graph.ts).
+ */
+
+@theme inline {
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --font-display: "Cormorant Garamond", "Iowan Old Style", "Times New Roman", serif;
+  --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: "Inter", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root {
+  --background: #08090a;
+  --surface: #0e1011;
+  --foreground: #eceded;
+  --muted-foreground: #84898c;
+  --border: #22262a;
+  --primary: #f5f6f6;
+  --primary-foreground: #08090a;
+  --accent: #cba36a;
+  --destructive: #c0503c;
+  /* One hue per pipeline, fixed across themes so the comparison reads the same everywhere. */
+  --rag: #3987e5;
+  --graphrag: #199e70;
+  --agentic: #c98500;
+}
+
+* { border-color: var(--border); }
+html, body, #root { height: 100%; }
+html { background: var(--background); color-scheme: dark; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Small caps instrument label */
+@utility tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Solid flat panel: the only surface treatment in the app */
+@utility plate {
+  background: color-mix(in oklab, var(--background) 97%, transparent);
+  border: 1px solid var(--border);
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* HDR pass: soft luminance lift, vignette and a fine grain over the canvas */
+@utility hdr {
+  background-image:
+    radial-gradient(120% 90% at 50% 42%, color-mix(in oklab, var(--foreground) 7%, transparent), transparent 62%),
+    radial-gradient(115% 100% at 50% 50%, transparent 52%, color-mix(in oklab, var(--background) 88%, black) 100%);
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+}
+
+@utility grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity: 0.045;
+  mix-blend-mode: overlay;
+}
+
+/* ---------------- menus (Lunarbit) ---------------- */
+.menu-popover {
+  background: var(--background);
+  border: 1px solid var(--border);
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.menu-popover-start { left: 0; }
+.menu-popover-end { right: 0; }
+.menu-popover::-webkit-scrollbar { display: none; }
+
+/* Command bar: controls are typography, not containers. */
+.header-controls > .relative > button {
+  height: 30px;
+  min-width: 0;
+  padding: 0 5px;
+  border: 0;
+  background: transparent;
+  color: color-mix(in oklab, var(--foreground) 72%, var(--muted-foreground));
+}
+.header-controls > .relative > button:hover {
+  color: var(--foreground);
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--foreground) 55%, transparent);
+}
+
+/* ---------------- STELLIUM wordmark ---------------- */
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--foreground);
+  text-decoration: none;
+}
+.wordmark-glyph { width: 30px; height: 30px; flex: none; }
+.wordmark-type {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 23px;
+  line-height: 1;
+  letter-spacing: 0.34em;
+  margin-right: -0.34em;
+  font-feature-settings: "kern", "liga", "lnum";
+}
+.wordmark-sub {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* ---------------- tabs ---------------- */
+.tab {
+  height: 30px;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  transition: color 140ms ease, box-shadow 140ms ease;
+}
+.tab:hover { color: var(--foreground); }
+.tab[aria-current="page"] {
+  color: var(--foreground);
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+
+/* ---------------- ask panel ---------------- */
+.ask-input {
+  width: 100%;
+  resize: none;
+  background: transparent;
+  border: 0;
+  outline: none;
+  color: var(--foreground);
+  font-family: var(--font-display);
+  font-size: 21px;
+  line-height: 1.28;
+}
+.ask-input::placeholder { color: color-mix(in oklab, var(--muted-foreground) 70%, transparent); }
+.ask-submit {
+  flex: none;
+  white-space: nowrap;
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in oklab, var(--foreground) 40%, transparent);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--foreground);
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.ask-submit:hover:not(:disabled) { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+.ask-submit:disabled { cursor: not-allowed; opacity: 0.35; }
+
+.lane { border-top: 1px solid var(--border); padding: 12px 14px 13px; position: relative; }
+.lane::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 13px; width: 2px; background: var(--lane); }
+.lane-answer { margin-top: 6px; font-family: var(--font-display); font-size: 19px; line-height: 1.22; overflow-wrap: anywhere; }
+.lane-meta { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted-foreground); }
+.lane-meta b { color: var(--foreground); font-weight: 500; }
+.chip {
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--muted-foreground);
+  transition: color 140ms ease, border-color 140ms ease;
+}
+.chip:hover { color: var(--foreground); border-color: color-mix(in oklab, var(--foreground) 40%, transparent); }
+
+/* ---------------- trace ---------------- */
+.trace-step { display: grid; grid-template-columns: 26px 1fr; gap: 0 8px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.trace-index { font-family: var(--font-mono); font-size: 10px; color: var(--accent); padding-top: 1px; }
+.trace-thought { font-family: var(--font-display); font-size: 15.5px; line-height: 1.3; }
+.trace-call { margin-top: 5px; font-family: var(--font-mono); font-size: 10px; color: var(--foreground); overflow-wrap: anywhere; }
+.trace-call span { color: var(--muted-foreground); }
+.trace-obs { margin-top: 4px; font-family: var(--font-mono); font-size: 9.5px; line-height: 1.5; color: var(--muted-foreground); overflow-wrap: anywhere; }
+.trace-note { margin-top: 4px; font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); }
+
+/* ---------------- benchmark sheet ---------------- */
+.sheet { background: color-mix(in oklab, var(--background) 95%, transparent); border: 1px solid var(--border); }
+.figure { font-family: var(--font-display); font-weight: 500; font-size: 64px; line-height: 0.9; letter-spacing: -0.02em; font-feature-settings: "lnum", "tnum"; }
+.figure small { font-size: 0.42em; color: var(--muted-foreground); margin-left: 4px; letter-spacing: 0; }
+.ledger { width: 100%; border-collapse: collapse; font-family: var(--font-mono); font-size: 10.5px; font-feature-settings: "tnum"; }
+.ledger th { text-align: left; font-weight: 400; font-size: 8.5px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted-foreground); padding: 0 10px 8px 0; border-bottom: 1px solid var(--border); }
+.ledger td { padding: 9px 10px 9px 0; border-bottom: 1px solid color-mix(in oklab, var(--border) 60%, transparent); vertical-align: middle; }
+.ledger td.num, .ledger th.num { text-align: right; }
+.bar { height: 3px; background: color-mix(in oklab, var(--border) 80%, transparent); }
+.bar > i { display: block; height: 100%; background: var(--lane); }
+
+.status-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--muted-foreground); }
+.status-dot[data-state="ok"] { background: var(--graphrag); box-shadow: 0 0 0 3px color-mix(in oklab, var(--graphrag) 25%, transparent); }
+.status-dot[data-state="waking"] { background: var(--agentic); animation: pulse 1.4s ease-in-out infinite; }
+.status-dot[data-state="down"] { background: var(--destructive); }
+@keyframes pulse { 50% { opacity: 0.35; } }
+
+@media (max-width: 900px) {
+  .figure { font-size: 46px; }
+}
+
+/* ---------------- theme atmospheres (Lunarbit) ---------------- */
+/* Aurum Dust: a restrained, slow particulate field behind the graph. */
+@keyframes aurum-drift {
+  from { background-position: 0 0, 38px 74px, 0 0; }
+  to { background-position: 120px -90px, -80px 140px, 0 0; }
+}
+
+.theme-aurum-dust .grain {
+  background-image:
+    radial-gradient(circle at 12% 22%, rgba(244,213,139,.34) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 72% 66%, rgba(230,189,103,.24) 0 1px, transparent 1.7px),
+    radial-gradient(circle at 42% 82%, rgba(255,239,184,.18) 0 .8px, transparent 1.6px),
+    radial-gradient(ellipse at center, transparent 42%, rgba(18,16,13,.36) 100%);
+  background-size: 180px 220px, 260px 300px, 340px 260px, 100% 100%;
+  opacity: .2;
+  mix-blend-mode: screen;
+  animation: aurum-drift 24s linear infinite;
+}
+
+/* A luminous gold cosmos rather than the flat paper treatment used by the
+   other palettes. The transparent graph canvas lets this depth show through. */
+.theme-aurum-dust {
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 47%, rgba(190,139,39,.48) 0%, rgba(111,73,12,.34) 32%, transparent 70%),
+    radial-gradient(ellipse 42% 36% at 51% 48%, rgba(255,224,132,.14) 0%, transparent 72%),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #342106 0%, #1b1204 48%, #090702 100%) !important;
+}
+
+.theme-abyssal-opal {
+  background:
+    radial-gradient(ellipse 56% 58% at 50% 46%, rgba(95,190,183,.28) 0%, rgba(45,91,108,.2) 34%, transparent 72%),
+    radial-gradient(ellipse 38% 32% at 53% 48%, rgba(187,167,255,.15) 0%, transparent 72%),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #123b3f 0%, #0a2428 48%, #051114 100%) !important;
+}
+
+/* Premium editorial atmospheres for the three new graph studies. */
+@keyframes observatory-drift {
+  from { background-position: 0 0, 42px 86px, 0 0; }
+  to { background-position: 150px -110px, -90px 150px, 0 0; }
+}
+
+.theme-obsidian-observatory {
+  background:
+    radial-gradient(circle at 50% 46%, rgba(213, 181, 119, .12) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 22% 70%, rgba(237, 240, 242, .16) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #171b22 0%, #0d1016 48%, #07080b 100%) !important;
+}
+
+.theme-obsidian-observatory .grain,
+.theme-black-opal .grain {
+  background-image:
+    radial-gradient(circle at 16% 22%, rgba(255, 244, 215, .3) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 74% 66%, rgba(215, 221, 226, .2) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, .36) 100%);
+  background-size: 190px 220px, 270px 300px, 100% 100%;
+  opacity: .18;
+  mix-blend-mode: screen;
+  animation: observatory-drift 30s linear infinite;
+}
+
+.theme-black-opal {
+  background:
+    radial-gradient(ellipse 58% 58% at 50% 45%, rgba(72, 194, 180, .2) 0%, rgba(74, 79, 173, .16) 34%, transparent 72%),
+    radial-gradient(circle at 18% 28%, rgba(155, 231, 207, .2) 0 1px, transparent 1.8px),
+    radial-gradient(circle at 82% 68%, rgba(184, 164, 255, .18) 0 1px, transparent 1.8px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #102c30 0%, #081a1e 50%, #041012 100%) !important;
+}
+
+.theme-ivory-ledger {
+  background:
+    linear-gradient(rgba(117, 110, 98, .055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(117, 110, 98, .035) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #faf7ef 0%, #f3efe5 58%, #e6dece 100%) !important;
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+}
+
+.theme-architectural-constellation {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(142, 203, 222, .12) 0 1px, transparent 1.6px),
+    linear-gradient(rgba(142, 203, 222, .035) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #142435 0%, #0c151f 52%, #080d14 100%) !important;
+  background-size: 170px 170px, 42px 42px, 100% 100%;
+}
+
+.theme-glass-observatory {
+  background:
+    radial-gradient(ellipse 52% 48% at 50% 44%, rgba(183, 221, 255, .16), transparent 70%),
+    radial-gradient(circle at 14% 24%, rgba(233, 244, 255, .22) 0 1px, transparent 1.7px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #152943 0%, #0b1728 52%, #060b14 100%) !important;
+}
+
+.theme-museum-archive {
+  background:
+    linear-gradient(rgba(119, 111, 99, .05) 1px, transparent 1px),
+    radial-gradient(ellipse 120% 110% at 50% 50%, #f7f2e8 0%, #eee8dc 58%, #ddd2c1 100%) !important;
+  background-size: 26px 26px, 100% 100%;
+}
