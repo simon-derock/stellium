@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import time
 from collections import Counter
@@ -104,6 +105,25 @@ def get_coprocessor() -> Coprocessor:
     return _coprocessor
 
 
+logger = logging.getLogger(__name__)
+
+# Savanna suspends a workspace after the idle interval set in its console, and only real query
+# traffic counts as activity. While the API runs it reads the graph on this beat, so nobody's
+# first question waits for a resume. 0 turns the beat off.
+_KEEPALIVE_S = float(os.environ.get("STELLIUM_GRAPH_KEEPALIVE_S", "300"))
+
+
+async def _keep_graph_awake(interval_s: float) -> None:
+    while True:
+        await asyncio.sleep(interval_s)
+        try:
+            venues = await asyncio.to_thread(get_graph().ping)
+            logger.info("graph keep-alive: %s venues", venues)
+        except Exception as exc:
+            # One missed beat is not an outage; the next one tries again.
+            logger.warning("graph keep-alive failed: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global _coprocessor
@@ -113,7 +133,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         chunks = load_all_chunks(corpus_path)
         _coprocessor.build(chunks)
 
+    beat = asyncio.create_task(_keep_graph_awake(_KEEPALIVE_S)) if _KEEPALIVE_S > 0 else None
     yield
+    if beat:
+        beat.cancel()
 
 
 app = FastAPI(

@@ -219,7 +219,7 @@ Links: `?tab=benchmark` and `?tab=docs` open those pages; `?q=<question>` asks a
 |---|---|---|
 | API | Render (free web service) | `render.yaml` + `Dockerfile`; set TigerGraph and Cohere secrets in the dashboard |
 | Console | Netlify | Base directory `web`; `web/netlify.toml` builds it and proxies `/api` to the API, so there is no CORS |
-| Keep-alive | Any cron | `GET /health?deep=true` every 10 minutes keeps the API warm and the graph workspace awake |
+| Keep-alive | API + GitHub Actions | The API reads the graph every 5 minutes while it runs (`STELLIUM_GRAPH_KEEPALIVE_S`); `.github/workflows/keepalive.yml` calls `/health?deep=true` every 10 minutes once `STELLIUM_API_URL` is set, so a sleeping API wakes too |
 
 ---
 

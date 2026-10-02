@@ -526,3 +526,21 @@ def test_small_talk_stops_at_the_intent_check_without_running_a_pipeline(
     assert payload["intent"] == "chat"
     assert payload["intent_tokens"] == 58
     assert payload["rag"] is payload["graphrag"] is payload["agentic"] is None
+
+
+@pytest.mark.asyncio
+async def test_keep_alive_reads_the_graph_and_survives_a_failed_beat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    graph = MagicMock()
+    graph.ping.side_effect = [RuntimeError("Starting workspace"), 316, 316]
+    monkeypatch.setattr(api_main, "get_graph", lambda: graph)
+
+    beat = asyncio.create_task(api_main._keep_graph_awake(0.01))
+    while graph.ping.call_count < 3:
+        await asyncio.sleep(0.01)
+    beat.cancel()
+
+    assert graph.ping.call_count >= 3
