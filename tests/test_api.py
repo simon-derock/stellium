@@ -453,3 +453,31 @@ def test_presets_list_public_questions_without_answers() -> None:
     presets = resp.json()
     assert len(presets) == 100
     assert set(presets[0]) == {"qid", "qtype", "question"}
+
+
+def test_deep_health_runs_a_real_graph_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    graph = MagicMock()
+    graph.ping.return_value = 316
+    monkeypatch.setattr(api_main, "get_graph", lambda: graph)
+
+    shallow = client.get("/health").json()
+    deep = client.get("/health", params={"deep": "true"}).json()
+
+    assert "graph" not in shallow
+    assert deep["graph"]["venues"] == 316
+    graph.ping.assert_called_once()
+
+
+def test_graph_outage_mid_question_returns_503_with_retry_after(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pyTigerGraph.common.exception import TigerGraphException
+
+    graph, _ = _wire_retrieval_api(monkeypatch, [])
+    graph.vector_search.side_effect = TigerGraphException("Bad gateway while resuming", None)
+
+    resp = client.post("/api/v1/query/rag", json={"query": "Who won the marathon in 2008?"})
+
+    assert resp.status_code == 503
+    assert resp.headers["retry-after"] == "15"
+    assert "waking up" in resp.json()["detail"]

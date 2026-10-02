@@ -566,6 +566,12 @@ class GraphClient:
         )
         return rows
 
+    def ping(self) -> int:
+        # A cheap real read: counts Venue vertices. Keep-alive checks use it so the workspace sees
+        # genuine query activity, not just a load-balancer ping.
+        count: int = self._read(lambda conn: conn.getVertexCount("Venue"))
+        return count
+
     def run_generated_gsql(self, query: str) -> dict[str, Any]:
         # Execute only bounded, read-only GSQL that passes the application allowlist.
         query, quotes_normalized = normalize_gsql_string_quotes(query)

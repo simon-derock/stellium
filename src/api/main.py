@@ -18,11 +18,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+import requests
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from pyTigerGraph.common.exception import TigerGraphException
 
 from src.coprocessor import Coprocessor
 from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
@@ -197,8 +199,28 @@ async def _admitted(provider: str) -> AsyncIterator[None]:
 
 
 @app.get("/health")
-async def health_check() -> dict[str, str]:
-    return {"status": "ok", "system": "stellium", "version": "0.1.0"}
+async def health_check(deep: bool = False) -> dict[str, Any]:
+    # deep=true also runs a real graph read, which keeps an idle workspace from suspending.
+    status: dict[str, Any] = {"status": "ok", "system": "stellium", "version": "0.1.0"}
+    if deep:
+        started = time.perf_counter()
+        venues = _get_request_graph().ping()
+        status["graph"] = {
+            "venues": venues,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    return status
+
+
+@app.exception_handler(TigerGraphException)
+@app.exception_handler(requests.RequestException)
+async def graph_unavailable(_request: Request, _exc: Exception) -> JSONResponse:
+    # A suspended or restarting graph is a temporary outage, not a server bug.
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "The graph database is waking up or unreachable; retry shortly."},
+        headers={"Retry-After": "15"},
+    )
 
 
 @app.post("/api/v1/query/rag", response_model=PipelineResult)
