@@ -1,0 +1,26 @@
+{
+  "public": {
+    "questions": 100,
+    "contain_gold": 100,
+    "ambiguous": 3
+  },
+  "hidden": {
+    "unscored": [
+      "eval-032"
+    ],
+    "pipelines": {
+      "rag": {
+        "agree": 19,
+        "scored": 49
+      },
+      "graphrag": {
+        "agree": 49,
+        "scored": 49
+      },
+      "agentic": {
+        "agree": 49,
+        "scored": 49
+      }
+    }
+  }
+}

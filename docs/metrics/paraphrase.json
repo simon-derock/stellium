@@ -1,0 +1,233 @@
+{
+  "pipelines": {
+    "rag": {
+      "label": "RAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 5.0,
+        "exact_match_strict": 5.0,
+        "token_f1": 0.4166666666666667,
+        "tokens_mean": 2199.0833333333335,
+        "latency_mean_s": 4.824856907916607,
+        "latency_p50_s": 4.8692880799990235,
+        "latency_p95_s": 5.830642958999306,
+        "cost_per_100_usd": 0.5520833333333334,
+        "citations_mean": 5,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "paraphrase_aggregation": {
+          "questions": 3,
+          "exact_match": 0.0,
+          "tokens_mean": 2513.3333333333335
+        },
+        "paraphrase_lookup": {
+          "questions": 1,
+          "exact_match": 1.0,
+          "tokens_mean": 2081
+        },
+        "paraphrase_multi_hop": {
+          "questions": 3,
+          "exact_match": 2.0,
+          "tokens_mean": 2045
+        },
+        "paraphrase_superlative": {
+          "questions": 2,
+          "exact_match": 0.0,
+          "tokens_mean": 2210
+        },
+        "paraphrase_temporal": {
+          "questions": 3,
+          "exact_match": 2.0,
+          "tokens_mean": 2071
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 5,
+        "grounded": 6,
+        "grounding_checked": 6,
+        "abstained": 2
+      },
+      "retrieval": {
+        "hit_at_1": 0.8333333333333334,
+        "hit_at_5": 0.9166666666666666,
+        "mrr": 0.875,
+        "ndcg_at_5": 0.8293594539267458,
+        "recall_at_5": 0.6978052584670231,
+        "precision_at_5": 0.4666666666666667,
+        "context_precision_at_5": 0.7888888888888889,
+        "context_recall": 0.625,
+        "context_recall_questions": 8
+      }
+    },
+    "graphrag": {
+      "label": "GraphRAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 12.0,
+        "exact_match_strict": 12.0,
+        "token_f1": 1.0,
+        "tokens_mean": 1081.5,
+        "latency_mean_s": 6.066003483750137,
+        "latency_p50_s": 6.295441288999427,
+        "latency_p95_s": 6.326775327001087,
+        "cost_per_100_usd": 0.34481249999999997,
+        "citations_mean": 2.0833333333333335,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "paraphrase_aggregation": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 1394.3333333333333
+        },
+        "paraphrase_lookup": {
+          "questions": 1,
+          "exact_match": 1.0,
+          "tokens_mean": 968
+        },
+        "paraphrase_multi_hop": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 941
+        },
+        "paraphrase_superlative": {
+          "questions": 2,
+          "exact_match": 2.0,
+          "tokens_mean": 965.5
+        },
+        "paraphrase_temporal": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 1024.3333333333333
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 12,
+        "grounded": 8,
+        "grounding_checked": 8,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 0.7700407134573799,
+        "recall_at_5": 0.5707219251336898,
+        "precision_at_5": 1.0,
+        "context_precision_at_5": 0.7083333333333334,
+        "context_recall": 1.0,
+        "context_recall_questions": 8
+      }
+    },
+    "agentic": {
+      "label": "Agentic GraphRAG",
+      "overall": {
+        "questions": 12,
+        "scored": 12,
+        "exact_match": 12.0,
+        "exact_match_strict": 12.0,
+        "token_f1": 1.0,
+        "tokens_mean": 1197.0833333333333,
+        "latency_mean_s": 5.337964093583196,
+        "latency_p50_s": 4.389673793999464,
+        "latency_p95_s": 7.760001902999647,
+        "cost_per_100_usd": 0.3798333333333333,
+        "citations_mean": 2.0833333333333335,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "paraphrase_aggregation": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 806
+        },
+        "paraphrase_lookup": {
+          "questions": 1,
+          "exact_match": 1.0,
+          "tokens_mean": 1990
+        },
+        "paraphrase_multi_hop": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 812.3333333333334
+        },
+        "paraphrase_superlative": {
+          "questions": 2,
+          "exact_match": 2.0,
+          "tokens_mean": 785.5
+        },
+        "paraphrase_temporal": {
+          "questions": 3,
+          "exact_match": 3.0,
+          "tokens_mean": 1983
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 12,
+        "grounded": 8,
+        "grounding_checked": 8,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 0.7700407134573799,
+        "recall_at_5": 0.5707219251336898,
+        "precision_at_5": 1.0,
+        "context_precision_at_5": 0.7083333333333334,
+        "context_recall": 1.0,
+        "context_recall_questions": 8
+      }
+    }
+  },
+  "agent": {
+    "questions": 12,
+    "steps_mean": 2.6666666666666665,
+    "steps_median": 2.0,
+    "steps_max": 6,
+    "llm_calls_mean": 1.3333333333333333,
+    "single_call_answers": 9,
+    "strategy_changes": 3,
+    "tools": {
+      "count_events": 3,
+      "find_events": 3,
+      "event_attribute": 3,
+      "event_at_venue_date": 3,
+      "rank_events": 2,
+      "previous_edition": 2
+    },
+    "specialists": {
+      "OrchestratorAgent": 12,
+      "EntityLinkingAgent": 7,
+      "GraphTraversalAgent": 7,
+      "EvidenceEvaluationAgent": 7,
+      "AggregationAgent": 5
+    },
+    "stopping_reasons": {
+      "count_events returned one verified graph value": 3,
+      "event_attribute returned one verified graph value": 3,
+      "event_at_venue_date returned one verified graph value": 3,
+      "rank_events returned one verified graph value": 2,
+      "previous_edition returned one verified graph value": 1
+    }
+  },
+  "graph_pipeline_misses": [],
+  "provenance": [
+    {
+      "pipelines": [
+        "rag",
+        "graphrag",
+        "agentic"
+      ],
+      "commit": "b0a5a25",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "dbe24ef6924e452f87967f88647e5e46a328a6813ee9712922c340ba2f654873",
+      "finished_at": "2026-10-02T14:48:14+0530",
+      "rows": 12
+    }
+  ]
+}

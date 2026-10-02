@@ -1,0 +1,250 @@
+{
+  "pipelines": {
+    "rag": {
+      "label": "RAG",
+      "overall": {
+        "questions": 24,
+        "scored": 24,
+        "exact_match": 15.0,
+        "exact_match_strict": 15.0,
+        "token_f1": 0.625,
+        "tokens_mean": 2588.375,
+        "latency_mean_s": 5.015697542708192,
+        "latency_p50_s": 4.804608399001154,
+        "latency_p95_s": 7.246971020000274,
+        "cost_per_100_usd": 0.6496562499999999,
+        "citations_mean": 5,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "compositional_gold": {
+          "questions": 8,
+          "exact_match": 5.0,
+          "tokens_mean": 2592.625
+        },
+        "compositional_nations": {
+          "questions": 8,
+          "exact_match": 2.0,
+          "tokens_mean": 2518.625
+        },
+        "compositional_venue": {
+          "questions": 8,
+          "exact_match": 8.0,
+          "tokens_mean": 2653.875
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 15,
+        "grounded": 16,
+        "grounding_checked": 16,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 0.16666666666666666,
+        "hit_at_5": 0.5416666666666666,
+        "mrr": 0.2826388888888889,
+        "ndcg_at_5": 0.3462421764594241,
+        "recall_at_5": 0.5416666666666666,
+        "precision_at_5": 0.10833333333333334,
+        "context_precision_at_5": 0.2826388888888889,
+        "context_recall": 0.9375,
+        "context_recall_questions": 16
+      }
+    },
+    "graphrag": {
+      "label": "GraphRAG",
+      "overall": {
+        "questions": 24,
+        "scored": 24,
+        "exact_match": 19.0,
+        "exact_match_strict": 19.0,
+        "token_f1": 0.7916666666666666,
+        "tokens_mean": 1202.8333333333333,
+        "latency_mean_s": 7.595262945291779,
+        "latency_p50_s": 7.1890766989999975,
+        "latency_p95_s": 10.69738097699883,
+        "cost_per_100_usd": 0.3480520833333333,
+        "citations_mean": 2.3333333333333335,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "compositional_gold": {
+          "questions": 8,
+          "exact_match": 8.0,
+          "tokens_mean": 936
+        },
+        "compositional_nations": {
+          "questions": 8,
+          "exact_match": 3.0,
+          "tokens_mean": 1722.375
+        },
+        "compositional_venue": {
+          "questions": 8,
+          "exact_match": 8.0,
+          "tokens_mean": 950.125
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 19,
+        "grounded": 16,
+        "grounding_checked": 16,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 0.75,
+        "hit_at_5": 0.8333333333333334,
+        "mrr": 0.7847222222222222,
+        "ndcg_at_5": 0.7971220730654774,
+        "recall_at_5": 0.8333333333333334,
+        "precision_at_5": 0.7,
+        "context_precision_at_5": 0.7847222222222222,
+        "context_recall": 1.0,
+        "context_recall_questions": 16
+      }
+    },
+    "agentic": {
+      "label": "Agentic GraphRAG",
+      "overall": {
+        "questions": 24,
+        "scored": 24,
+        "exact_match": 24.0,
+        "exact_match_strict": 24.0,
+        "token_f1": 1.0,
+        "tokens_mean": 1693.0833333333333,
+        "latency_mean_s": 8.621889260249722,
+        "latency_p50_s": 6.556096475000231,
+        "latency_p95_s": 22.919812047999585,
+        "cost_per_100_usd": 0.5422708333333334,
+        "citations_mean": 1,
+        "estimated_token_rows": 0
+      },
+      "by_type": {
+        "compositional_gold": {
+          "questions": 8,
+          "exact_match": 8.0,
+          "tokens_mean": 1686.875
+        },
+        "compositional_nations": {
+          "questions": 8,
+          "exact_match": 8.0,
+          "tokens_mean": 1698.75
+        },
+        "compositional_venue": {
+          "questions": 8,
+          "exact_match": 8.0,
+          "tokens_mean": 1693.625
+        }
+      },
+      "evidence": {
+        "gold_among_answers": 24,
+        "grounded": 16,
+        "grounding_checked": 16,
+        "abstained": 0
+      },
+      "retrieval": {
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 1.0,
+        "recall_at_5": 1.0,
+        "precision_at_5": 1.0,
+        "context_precision_at_5": 1.0,
+        "context_recall": 1.0,
+        "context_recall_questions": 16
+      }
+    }
+  },
+  "agent": {
+    "questions": 24,
+    "steps_mean": 4,
+    "steps_median": 4.0,
+    "steps_max": 4,
+    "llm_calls_mean": 2,
+    "single_call_answers": 0,
+    "strategy_changes": 0,
+    "tools": {
+      "rank_events": 24,
+      "event_attribute": 24
+    },
+    "specialists": {
+      "OrchestratorAgent": 24,
+      "AggregationAgent": 24,
+      "EntityLinkingAgent": 24,
+      "GraphTraversalAgent": 24,
+      "EvidenceEvaluationAgent": 24
+    },
+    "stopping_reasons": {
+      "event_attribute returned one verified graph value": 24
+    }
+  },
+  "graph_pipeline_misses": [
+    {
+      "qid": "comp-017",
+      "qtype": "compositional_nations",
+      "pipeline": "graphrag",
+      "answer": "34"
+    },
+    {
+      "qid": "comp-018",
+      "qtype": "compositional_nations",
+      "pipeline": "graphrag",
+      "answer": "12"
+    },
+    {
+      "qid": "comp-019",
+      "qtype": "compositional_nations",
+      "pipeline": "graphrag",
+      "answer": "32"
+    },
+    {
+      "qid": "comp-021",
+      "qtype": "compositional_nations",
+      "pipeline": "graphrag",
+      "answer": "72"
+    },
+    {
+      "qid": "comp-024",
+      "qtype": "compositional_nations",
+      "pipeline": "graphrag",
+      "answer": "56"
+    }
+  ],
+  "provenance": [
+    {
+      "pipelines": [
+        "rag",
+        "graphrag",
+        "agentic"
+      ],
+      "commit": "c265e64",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "dd16cf52e9ea04817cea364bf17ad884eb8eb92727795e1defaf179d9485b8ad",
+      "finished_at": "2026-10-02T14:55:50+0530",
+      "rows": 24
+    },
+    {
+      "pipelines": "graphrag",
+      "commit": "0da4ceb",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "dd16cf52e9ea04817cea364bf17ad884eb8eb92727795e1defaf179d9485b8ad",
+      "finished_at": "2026-10-02T16:02:58+0530",
+      "rows": 24
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "3b3ff72",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "dd16cf52e9ea04817cea364bf17ad884eb8eb92727795e1defaf179d9485b8ad",
+      "finished_at": "2026-10-02T15:59:49+0530",
+      "rows": 24
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "d267836",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "a2aefc7852ea0e48ed89cbd3f4f2918d3d53259a97bcdef12a25dd4beef5a81a",
+      "finished_at": "2026-10-02T16:05:15+0530",
+      "rows": 14
+    }
+  ]
+}

@@ -109,6 +109,7 @@ def main() -> None:
     parser.add_argument("--public", default="hackathon-resources/questions/eval_public.jsonl")
     parser.add_argument("--hidden", default="hackathon-resources/questions/eval_hidden.jsonl")
     parser.add_argument("--submission", default="submission/hidden.json")
+    parser.add_argument("--json", help="also write the summary as JSON for the docs page")
     args = parser.parse_args()
     events = load_events(args.corpus)
 
@@ -121,6 +122,10 @@ def main() -> None:
         agree += any(normalize_answer(a) in golds for a in expected)
         ambiguous += len(expected) > 1
     print(f"oracle vs public gold: {agree}/{len(public)} contain gold; {ambiguous} ambiguous")
+    summary: dict[str, Any] = {
+        "public": {"questions": len(public), "contain_gold": agree, "ambiguous": ambiguous},
+        "hidden": {"unscored": [], "pipelines": {}},
+    }
 
     # 2. Check the submitted hidden answers.
     hidden = {
@@ -134,6 +139,7 @@ def main() -> None:
         expected = oracle(hidden[entry["qid"]]["question"], events)
         if len(expected) != 1:
             print(f"  {entry['qid']}: oracle finds {len(expected)} answers; not scored")
+            summary["hidden"]["unscored"].append(entry["qid"])
             continue
         for p in _PIPELINES:
             if p in entry:
@@ -150,6 +156,9 @@ def main() -> None:
                     )
     for p, (ok, n) in scores.items():
         print(f"hidden {p}: {ok}/{n} agree with the oracle")
+        summary["hidden"]["pipelines"][p] = {"agree": ok, "scored": n}
+    if args.json:
+        Path(args.json).write_text(json.dumps(summary, indent=2) + "\n")
 
 
 if __name__ == "__main__":
