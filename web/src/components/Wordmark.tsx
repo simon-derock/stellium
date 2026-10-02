@@ -1,21 +1,24 @@
-// The STELLIUM lockup: a stellium is a cluster of bodies in one sign, drawn here as three stars on
-// an orbit with the brightest in the accent colour, set beside a wide-tracked display serif.
+// The STELLIUM lockup. A stellium is three or more bodies gathered in one sign: the mark draws
+// the sign as a ring and the gathering as three bodies close together on a tilted orbit, the
+// brightest one a four-point star. Pure vector, so it stays sharp at any pixel density.
 export function Wordmark() {
   return (
     <a className="wordmark" href="/" aria-label="STELLIUM home">
-      <svg className="wordmark-glyph" viewBox="0 0 32 32" aria-hidden="true">
-        <ellipse cx="16" cy="17" rx="13.5" ry="6.2" transform="rotate(-18 16 17)" fill="none"
-          stroke="currentColor" strokeOpacity="0.32" strokeWidth="0.6" />
-        <path d="M6.2 21.4 L15.6 13.2 L25.4 15.6" fill="none" stroke="currentColor"
-          strokeOpacity="0.55" strokeWidth="0.7" strokeLinecap="round" />
-        <circle cx="6.2" cy="21.4" r="1.5" fill="currentColor" />
-        <circle cx="25.4" cy="15.6" r="1.8" fill="currentColor" />
-        <path d="M15.6 6.6 Q16.1 12.7 22.2 13.2 Q16.1 13.7 15.6 19.8 Q15.1 13.7 9 13.2 Q15.1 12.7 15.6 6.6 Z"
-          fill="var(--accent)" />
+      <svg className="wordmark-mark" viewBox="0 0 48 48" aria-hidden="true" shapeRendering="geometricPrecision">
+        <circle cx="24" cy="24" r="21.5" fill="none" stroke="currentColor" strokeOpacity="0.42" strokeWidth="1.1" />
+        <circle cx="24" cy="24" r="1.1" fill="currentColor" fillOpacity="0.8" />
+        <g className="wordmark-orbit">
+          <ellipse cx="24" cy="24" rx="21.5" ry="7.4" transform="rotate(-28 24 24)" fill="none"
+            stroke="currentColor" strokeOpacity="0.85" strokeWidth="1.15" />
+          <circle cx="25.22" cy="15.22" r="2.1" fill="currentColor" />
+          <circle cx="42.52" cy="13.28" r="2.7" fill="currentColor" />
+          <path className="wordmark-star"
+            d="M36.31 5.67 C36.81 10.17 38.21 11.57 42.71 12.07 C38.21 12.57 36.81 13.97 36.31 18.47 C35.81 13.97 34.41 12.57 29.91 12.07 C34.41 11.57 35.81 10.17 36.31 5.67 Z" />
+        </g>
       </svg>
-      <span>
-        <span className="wordmark-type block">STELLIUM</span>
-        <span className="wordmark-sub block">Agentic GraphRAG · TigerGraph</span>
+      <span className="wordmark-text">
+        <span className="wordmark-name">Stellium</span>
+        <span className="wordmark-sub">Agentic GraphRAG on TigerGraph</span>
       </span>
     </a>
   );

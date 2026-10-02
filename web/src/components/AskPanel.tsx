@@ -35,7 +35,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
 
   return (
     <section className="plate pointer-events-auto flex max-h-full w-full flex-col overflow-hidden">
-      <div className="px-4 pt-3.5 pb-3">
+      <div className="px-5 pt-4 pb-3.5">
         <div className="tag">Ask the Olympic graph</div>
         <textarea
           className="ask-input mt-2"
@@ -53,7 +53,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
               <button
                 key={type}
                 className="chip"
-                style={type === qtype ? { color: "var(--foreground)", borderColor: "var(--accent)" } : undefined}
+                aria-pressed={type === qtype}
                 onClick={() => setQtype(type)}
               >
                 {QTYPE_NAMES[type] ?? type}
@@ -65,11 +65,11 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
           </button>
         </div>
         {samples.length > 0 && (
-          <ul className="mt-2.5 grid gap-1">
+          <ul className="mt-2.5 grid grid-cols-[minmax(0,1fr)]">
             {samples.map((preset) => (
               <li key={preset.qid}>
                 <button
-                  className="w-full truncate text-left font-mono text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+                  className="sample"
                   title={preset.question}
                   onClick={() => setQuestion(preset.question)}
                 >

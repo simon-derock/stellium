@@ -10,7 +10,7 @@ export function TracePanel({ trace }: { trace: AgentTrace | null }) {
 
   return (
     <section className="plate pointer-events-auto flex max-h-full w-full flex-col overflow-hidden">
-      <header className="flex items-baseline justify-between px-4 pt-3.5 pb-2.5">
+      <header className="flex items-baseline justify-between px-4 pt-4 pb-3">
         <span className="tag" style={{ color: "var(--agentic)" }}>
           Agent trace
         </span>
@@ -39,13 +39,13 @@ export function TracePanel({ trace }: { trace: AgentTrace | null }) {
           </li>
         ))}
       </ol>
-      <footer className="border-t border-border px-4 py-2.5">
+      <footer className="border-t border-[color:var(--hair)] px-4 py-3">
         <div className="tag">Specialists</div>
-        <div className="mt-1 font-mono text-[10px] text-muted-foreground">{trace.agents_invoked.join(" · ")}</div>
+        <div className="mt-1 text-[12px] leading-relaxed text-[color:var(--soft)]">{trace.agents_invoked.join(" · ")}</div>
         <div className="tag mt-2">Stopped because</div>
-        <div className="mt-1 font-mono text-[10px] text-foreground">{trace.stopping_reason}</div>
+        <div className="mt-1 text-[12.5px] text-foreground">{trace.stopping_reason}</div>
         {trace.strategy_changed && trace.strategy_change_rationale && (
-          <div className="mt-1 font-mono text-[10px] text-muted-foreground">{trace.strategy_change_rationale}</div>
+          <div className="mt-1 text-[12px] text-[color:var(--soft)]">{trace.strategy_change_rationale}</div>
         )}
       </footer>
     </section>

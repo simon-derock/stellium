@@ -1,4 +1,5 @@
-// Flat rule-bordered menu ported from Lunarbit: drives VIEW, STYLE and THEME.
+// Menu ported from Lunarbit (wheel-to-cycle, popover placement), restyled as a fixed-width
+// segment so the control bar never changes size with the selected label.
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 export function Menu({
@@ -85,24 +86,33 @@ export function Menu({
           onChange(options[nextIndex]!.id);
         }}
         data-wheel-explore={wheelExplore ? "true" : undefined}
-        className="plate flex h-9 min-w-[9.5rem] items-center gap-3 px-3 text-left transition-colors hover:border-foreground/40"
+        data-open={open ? "true" : undefined}
+        className="control"
+        title={`${tag}: ${active.name} (scroll to cycle)`}
       >
-        <span className="tag">{tag}</span>
-        <span className="flex-1 truncate text-[11px] text-foreground">{active.name}</span>
+        <span className="control-tag">{tag}</span>
+        <span className="control-value">{active.name}</span>
         {active.swatches && (
-          <span className="flex gap-[2px]">
-            {active.swatches.slice(0, 4).map((c, i) => (
-              <span key={i} className="h-2.5 w-[3px]" style={{ background: c }} />
+          <span className="control-swatches" aria-hidden="true">
+            {active.swatches.slice(0, 5).map((c, i) => (
+              <span key={i} style={{ background: c }} />
             ))}
           </span>
         )}
-        <span className="tag">{open ? "—" : "+"}</span>
+        <svg className="control-chevron" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </button>
       {open && (
         <div
-          className={`menu-popover menu-popover-${align} absolute z-50 mt-[-1px] max-h-[22rem] overflow-y-auto no-scrollbar`}
+          role="menu"
+          className={`menu-popover menu-popover-${align} no-scrollbar`}
           style={popoverStyle ?? { width, [align === "end" ? "right" : "left"]: 0 }}
         >
+          <div className="menu-heading">
+            <span>{tag}</span>
+            <span>{options.length} options · scroll the button to cycle</span>
+          </div>
           {options.map((o) => (
             <button
               key={o.id}
@@ -110,20 +120,19 @@ export function Menu({
                 onChange(o.id);
                 if (!keepOpenOnSelect) setOpen(false);
               }}
-              role="menuitem"
-              className={`flex w-full items-start gap-2 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-foreground/5 ${
-                o.id === value ? "bg-foreground/[0.07]" : ""
-              }`}
+              role="menuitemradio"
+              aria-checked={o.id === value}
+              className="menu-item"
             >
-              <span className="tag w-3 pt-[2px]">{o.id === value ? "▪" : ""}</span>
-              <span className="flex-1">
-                <span className="block text-[11px] text-foreground">{o.name}</span>
-                {o.hint && <span className="mt-[3px] block text-[10px] text-muted-foreground">{o.hint}</span>}
+              <span className="menu-item-mark" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="menu-item-name">{o.name}</span>
+                {o.hint && <span className="menu-item-hint">{o.hint}</span>}
               </span>
               {o.swatches && (
-                <span className="flex gap-[2px] pt-[3px]">
+                <span className="menu-item-swatches" aria-hidden="true">
                   {o.swatches.slice(0, 6).map((c, i) => (
-                    <span key={i} className="h-3 w-[3px]" style={{ background: c }} />
+                    <span key={i} style={{ background: c }} />
                   ))}
                 </span>
               )}
