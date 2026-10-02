@@ -177,7 +177,8 @@ def investigation(catalog: EventCatalog, focus: Sequence[str]) -> SnapshotDTO:
     records = [record for event_id in dict.fromkeys(focus) if (record := catalog.get(event_id))]
     # Focused events claim their layer first, so a rival of one focus still reads as a focus.
     for record in records:
-        build.event(record, layer="evidence", label=record.name)
+        # Short labels keep the camera close: the Games and sport are their own nodes.
+        build.event(record, layer="evidence", label=f"{record.label} · {record.year}")
     for record in records:
         event = record.event_id
         build.edge(event, build.games(record), "AT_GAMES", "Event.year, Event.season")
