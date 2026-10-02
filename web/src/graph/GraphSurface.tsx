@@ -162,7 +162,20 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
 
   useEffect(() => {
     nodeLookupRef.current = new Map(data.nodes.map((node) => [node.id, node]));
-  }, [data]);
+    // Who sits next to whom, built once per graph; labels read live positions through it.
+    const byId = nodeLookupRef.current;
+    const neighbors = new Map<string, Pt[]>();
+    for (const link of layout?.links ?? []) {
+      const source = byId.get(link.source) as (GraphNode & Pt) | undefined;
+      const target = byId.get(link.target) as (GraphNode & Pt) | undefined;
+      if (!source || !target) continue;
+      if (!neighbors.has(source.id)) neighbors.set(source.id, []);
+      if (!neighbors.has(target.id)) neighbors.set(target.id, []);
+      neighbors.get(source.id)!.push(target);
+      neighbors.get(target.id)!.push(source);
+    }
+    labelNeighborsRef.current = neighbors;
+  }, [data, layout]);
 
   const focus = hovered ?? selectedId;
   const near = useMemo(() => {
@@ -1073,15 +1086,6 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
             }}
             onRenderFramePre={() => {
               labelGridRef.current.clear();
-              const neighbors = new Map<string, Pt[]>();
-              for (const link of data.links) {
-                const source = (typeof link.source === "object" ? link.source : nodeLookupRef.current.get(String(link.source))) as (GraphNode & Pt) | undefined;
-                const target = (typeof link.target === "object" ? link.target : nodeLookupRef.current.get(String(link.target))) as (GraphNode & Pt) | undefined;
-                if (!source || !target) continue;
-                neighbors.set(source.id, [...(neighbors.get(source.id) ?? []), target]);
-                neighbors.set(target.id, [...(neighbors.get(target.id) ?? []), source]);
-              }
-              labelNeighborsRef.current = neighbors;
             }}
 
           />

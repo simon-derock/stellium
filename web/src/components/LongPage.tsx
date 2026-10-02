@@ -19,14 +19,21 @@ export function LongPage({ sections, children }: Props) {
     const wrapper = scroller.current;
     const inner = content.current;
     if (!wrapper || !inner) return;
+    // Title drift: written straight onto the title block. A custom property on the scroller
+    // would be inherited by the whole page and restyle all of it on every frame.
+    const titles = Array.from(inner.querySelectorAll<HTMLElement>(":scope > h1, :scope > .lede"));
+    let last = -1;
     const publish = (top: number) => {
-      wrapper.style.setProperty("--scroll", top.toFixed(1));
+      const y = Math.min(top, 460);
+      if (y === last) return;
+      last = y;
+      for (const title of titles) {
+        title.style.transform = `translate3d(0, ${(y * 0.32).toFixed(1)}px, 0)`;
+        title.style.opacity = String(Math.max(0, 1 - y / 420));
+      }
     };
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      const onNative = () => publish(wrapper.scrollTop);
-      wrapper.addEventListener("scroll", onNative, { passive: true });
-      return () => wrapper.removeEventListener("scroll", onNative);
-    }
+    // Reduced motion: native scrolling, and the title stays put.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const smooth = new Lenis({ wrapper, content: inner, lerp: 0.085, smoothWheel: true });
     lenis.current = smooth;
     smooth.on("scroll", ({ scroll }: { scroll: number }) => publish(scroll));

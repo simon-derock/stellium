@@ -93,18 +93,23 @@ main[data-scheme="dark"] { color-scheme: dark; }
   &::-webkit-scrollbar { display: none; }
 }
 
+/* The two full-screen atmosphere layers use plain alpha, never a blend mode: a blend over the
+   live canvas makes the browser re-blend the whole screen on every graph frame, which is what
+   made hover and style changes stutter. Each sits on its own GPU layer and is painted once. */
 @utility hdr {
   background-image:
-    radial-gradient(120% 90% at 50% 42%, color-mix(in oklab, var(--foreground) 7%, transparent), transparent 62%),
-    radial-gradient(115% 100% at 50% 50%, transparent 52%, color-mix(in oklab, var(--background) 88%, black) 100%);
-  mix-blend-mode: soft-light;
-  opacity: 0.9;
+    radial-gradient(120% 90% at 50% 42%, color-mix(in oklab, var(--foreground) 3.5%, transparent), transparent 62%),
+    radial-gradient(115% 100% at 50% 50%, transparent 55%, color-mix(in oklab, var(--background) 70%, black) 100%);
+  opacity: 0.75;
+  transform: translateZ(0);
+  contain: strict;
 }
 
 @utility grain {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
-  opacity: 0.045;
-  mix-blend-mode: overlay;
+  opacity: 0.03;
+  transform: translateZ(0);
+  contain: strict;
 }
 
 @layer components {
@@ -461,12 +466,8 @@ main[data-scheme="dark"] { color-scheme: dark; }
     animation-duration: 340ms;
     animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
-  /* Depth while reading: the title block moves at a third of the scroll and fades out. */
-  .page-scroll > div > h1, .page-scroll > div > .lede {
-    transform: translate3d(0, calc(var(--scroll, 0) * 0.32px), 0);
-    opacity: max(0, calc(1 - var(--scroll, 0) / 420));
-    will-change: transform, opacity;
-  }
+  /* Depth while reading: the title block moves at a third of the scroll and fades out (LongPage). */
+  .page-scroll > div > h1, .page-scroll > div > .lede { will-change: transform, opacity; }
   @media (prefers-reduced-motion: reduce) {
     .page-scroll > div > h1, .page-scroll > div > .lede { transform: none; opacity: 1; }
   }
@@ -499,20 +500,20 @@ main[data-scheme="dark"] { color-scheme: dark; }
 
 /* ---------------- theme atmospheres (Lunarbit) ---------------- */
 /* Aurum Dust: a restrained, slow particulate field behind the graph. */
+/* Drifts move the layer itself (compositor only), never its background: no repaint per frame. */
 @keyframes aurum-drift {
-  from { background-position: 0 0, 38px 74px, 0 0; }
-  to { background-position: 120px -90px, -80px 140px, 0 0; }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(120px, -90px, 0); }
 }
 
 .theme-aurum-dust .grain {
   background-image:
     radial-gradient(circle at 12% 22%, rgba(244,213,139,.34) 0 1px, transparent 1.8px),
     radial-gradient(circle at 72% 66%, rgba(230,189,103,.24) 0 1px, transparent 1.7px),
-    radial-gradient(circle at 42% 82%, rgba(255,239,184,.18) 0 .8px, transparent 1.6px),
-    radial-gradient(ellipse at center, transparent 42%, rgba(18,16,13,.36) 100%);
-  background-size: 180px 220px, 260px 300px, 340px 260px, 100% 100%;
+    radial-gradient(circle at 42% 82%, rgba(255,239,184,.18) 0 .8px, transparent 1.6px);
+  background-size: 180px 220px, 260px 300px, 340px 260px;
+  inset: -180px;
   opacity: .2;
-  mix-blend-mode: screen;
   animation: aurum-drift 24s linear infinite;
 }
 
@@ -542,8 +543,8 @@ main[data-scheme="dark"] { color-scheme: dark; }
 
 /* Premium editorial atmospheres for the three new graph studies. */
 @keyframes observatory-drift {
-  from { background-position: 0 0, 42px 86px, 0 0; }
-  to { background-position: 150px -110px, -90px 150px, 0 0; }
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(150px, -110px, 0); }
 }
 
 .theme-obsidian-observatory {
@@ -557,11 +558,10 @@ main[data-scheme="dark"] { color-scheme: dark; }
 .theme-black-opal .grain {
   background-image:
     radial-gradient(circle at 16% 22%, rgba(255, 244, 215, .3) 0 1px, transparent 1.8px),
-    radial-gradient(circle at 74% 66%, rgba(215, 221, 226, .2) 0 1px, transparent 1.7px),
-    radial-gradient(ellipse at center, transparent 42%, rgba(0, 0, 0, .36) 100%);
-  background-size: 190px 220px, 270px 300px, 100% 100%;
+    radial-gradient(circle at 74% 66%, rgba(215, 221, 226, .2) 0 1px, transparent 1.7px);
+  background-size: 190px 220px, 270px 300px;
+  inset: -180px;
   opacity: .18;
-  mix-blend-mode: screen;
   animation: observatory-drift 30s linear infinite;
 }
 
