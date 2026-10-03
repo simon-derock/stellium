@@ -123,7 +123,7 @@ def record_key_call(key: str, kind: str, status: int, headers: Mapping[str, str]
     try:
         status = int(status)
         with _lock:
-            usage = _usage.setdefault(key, {"chat": 0, "embed": 0, "errors": 0})
+            usage = _usage.setdefault(key, {"chat": 0, "embed": 0, "rerank": 0, "errors": 0})
             usage[kind] = usage.get(kind, 0) + 1
             usage["errors"] += status >= 400
             usage["last_status"] = status

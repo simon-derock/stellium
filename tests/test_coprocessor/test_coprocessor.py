@@ -8,8 +8,8 @@ from rank_bm25 import BM25Plus
 import src.coprocessor as coprocessor_module
 from src.coprocessor import (
     BM25Index,
+    CohereReranker,
     Coprocessor,
-    LocalCrossEncoder,
     build_filter_mask,
     reciprocal_rank_fusion,
     season_mask,
@@ -260,37 +260,66 @@ def test_hybrid_search_runs_reranker_and_records_stage_metrics(
     assert result.fused_candidate_count == 2
 
 
-def test_local_reranker_batches_candidates_without_dropping_scores(
+def test_cohere_reranker_maps_scores_back_to_input_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class FakeSession:
-        def __init__(self) -> None:
-            self.batch_sizes: list[int] = []
+    from unittest.mock import MagicMock
 
-        def get_inputs(self) -> list[SimpleNamespace]:
-            return [SimpleNamespace(name="input_ids")]
+    from src import credentials
 
-        def run(self, _outputs: None, inputs: dict[str, Any]) -> list[list[list[float]]]:
-            input_ids = inputs["input_ids"]
-            self.batch_sizes.append(len(input_ids))
-            return [[[float(sum(row))] for row in input_ids]]
+    credentials.reset_exhausted_keys()
+    monkeypatch.setenv("COHERE_KEY", "busy-key")
+    monkeypatch.setenv("COHERE_BACKUP", "good-key")
+    sent: list[dict[str, Any]] = []
 
-    class FakeTokenizer:
-        def encode(self, query: str, document: str) -> SimpleNamespace:
-            ids = [len(query), len(document)]
-            return SimpleNamespace(ids=ids, attention_mask=[1, 1], type_ids=[0, 1])
+    def post(url: str, headers: dict[str, str], json: dict[str, Any]) -> MagicMock:
+        sent.append({"key": headers["Authorization"].removeprefix("Bearer "), **json})
+        if headers["Authorization"].endswith("busy-key"):
+            return MagicMock(status_code=429, text="{}", headers={})
+        # Cohere returns results best first, each pointing back at its input position.
+        body = {
+            "results": [
+                {"index": 2, "relevance_score": 0.9},
+                {"index": 0, "relevance_score": 0.5},
+                {"index": 1, "relevance_score": 0.1},
+            ]
+        }
+        return MagicMock(status_code=200, text="{}", headers={}, json=MagicMock(return_value=body))
 
-    monkeypatch.setenv("RERANKER_BATCH_SIZE", "2")
-    session = FakeSession()
-    reranker = LocalCrossEncoder(session=session, tokenizer=FakeTokenizer())
+    client = MagicMock(post=MagicMock(side_effect=post))
+    client.__enter__ = MagicMock(return_value=client)
+    client.__exit__ = MagicMock(return_value=False)
+    monkeypatch.setattr("httpx.Client", lambda **_: client)
 
-    scores = reranker.predict(
-        [("q", "one"), ("q", "two"), ("q", "three"), ("q", "four"), ("q", "five")]
-    )
+    scores = CohereReranker().predict([("q", "one"), ("q", "two"), ("q", "three")])
 
-    assert session.batch_sizes == [2, 2, 1]
-    assert scores == [4.0, 4.0, 6.0, 5.0, 5.0]
-    assert reranker.latency_ms >= 0
+    assert scores == [0.5, 0.1, 0.9]
+    assert sent[-1]["key"] == "good-key"
+    assert sent[-1]["documents"] == ["one", "two", "three"]
+    credentials.reset_exhausted_keys()
+
+
+def test_hybrid_search_keeps_fusion_order_when_rerank_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    chunks = [
+        Chunk(chunk_id=f"{d}#0", doc_id=d, chunk_index=0, section_title=d, text=t, raw_text=t)
+        for d, t in [("d1", "alpha first"), ("d2", "alpha second")]
+    ]
+    coprocessor = Coprocessor()
+    coprocessor.build(chunks)
+
+    def out_of_calls(pairs: list[tuple[str, str]]) -> list[float]:
+        raise RuntimeError("No Cohere key has calls left for reranking")
+
+    reranker = SimpleNamespace(predict=out_of_calls, model_name="rerank-v3.5", latency_ms=0.0)
+    monkeypatch.setattr(coprocessor_module, "_get_reranker", lambda: reranker)
+
+    result = coprocessor.hybrid_search("alpha", [("d2#0", 0.9), ("d1#0", 0.8)], final_top_k=2)
+
+    # The question still gets passages, in fused order, and the trace says no rerank ran.
+    assert [chunk.doc_id for chunk, _ in result.chunks] == ["d2", "d1"]
+    assert result.reranker_executed is False
 
 
 def test_hybrid_search_keeps_one_passage_per_document(monkeypatch: pytest.MonkeyPatch) -> None:

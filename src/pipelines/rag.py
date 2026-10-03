@@ -1,4 +1,4 @@
-# Pipeline 1: Hybrid RAG control. Dense + BM25 → RRF → local reranker → answer.
+# Pipeline 1: Hybrid RAG control. Dense + BM25 → RRF → Cohere Rerank → answer.
 from __future__ import annotations
 
 import asyncio

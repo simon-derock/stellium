@@ -252,7 +252,7 @@ def _write_manifest(
                     "COHERE_CHAT_REQUEST_INTERVAL_S",
                     "STELLIUM_QUERY_EMBEDDING_CACHE",
                     "STELLIUM_LLM_RESPONSE_CACHE",
-                    "RERANKER_CPU_THREADS",
+                    "COHERE_RERANK_MODEL",
                 )
             },
             "python": sys.version.split()[0],

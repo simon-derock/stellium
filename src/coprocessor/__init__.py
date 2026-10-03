@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import heapq
+import logging
 import math
 import os
 import time
@@ -13,8 +14,20 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
+import httpx
+
+from src.credentials import (
+    available_cohere_keys,
+    is_monthly_cap,
+    live_key_count,
+    park_exhausted_key,
+    record_key_call,
+    rest_key,
+)
 from src.guardrails import normalize
 from src.models import Chunk
+
+log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Filter Mask Bit Layout
@@ -215,85 +228,85 @@ def reciprocal_rank_fusion(
 
 
 # ---------------------------------------------------------------------------
-# Quantized local cross-encoder reranker (lazy-loaded on first hybrid query).
+# Cohere Rerank: one API call per search, no model weights on this host.
 # ---------------------------------------------------------------------------
 
-_RERANKER_REPO = "cross-encoder/ms-marco-MiniLM-L6-v2"
-_RERANKER_FILE = "onnx/model_quint8_avx2.onnx"
-# Pinned model commit: a moved branch head can never swap the weights under a benchmark.
-_RERANKER_REVISION = "233902d25c440f23af6f7d6e94d2946bac0bee0a"
-_reranker: LocalCrossEncoder | None = None
-_reranker_load_error: str | None = None
+_RERANK_URL = "https://api.cohere.com/v2/rerank"
+_RERANK_MODEL = "rerank-v3.5"
+_RERANK_RETRY_ELSEWHERE = frozenset({429, 500, 502, 503, 504})
+_reranker: CohereReranker | None = None
 
 
 @dataclass
-class LocalCrossEncoder:
-    # Int8 MiniLM cross-encoder; ONNX Runtime avoids the much larger PyTorch dependency.
-    session: Any
-    tokenizer: Any
-    model_name: str = _RERANKER_REPO
+class CohereReranker:
+    # Scores (query, passage) pairs through Cohere Rerank, using the shared key pool: a spent or
+    # rejected key is parked, a throttled one rests while another key takes the call.
+    model_name: str = field(
+        default_factory=lambda: os.environ.get("COHERE_RERANK_MODEL", _RERANK_MODEL)
+    )
     latency_ms: float = 0.0
-
-    @classmethod
-    def load(cls) -> LocalCrossEncoder:
-        import onnxruntime as ort
-        from huggingface_hub import hf_hub_download
-        from tokenizers import Tokenizer
-
-        model_path = hf_hub_download(
-            repo_id=_RERANKER_REPO, filename=_RERANKER_FILE, revision=_RERANKER_REVISION
-        )
-        tokenizer_path = hf_hub_download(
-            repo_id=_RERANKER_REPO, filename="tokenizer.json", revision=_RERANKER_REVISION
-        )
-        options = ort.SessionOptions()
-        options.intra_op_num_threads = max(1, int(os.environ.get("RERANKER_CPU_THREADS", "2")))
-        options.inter_op_num_threads = 1
-        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-        # Avoid ONNX Runtime's extra CPU arena and dynamic-shape buffers on small hosted instances.
-        options.enable_cpu_mem_arena = False
-        options.enable_mem_pattern = False
-        session = ort.InferenceSession(
-            model_path, sess_options=options, providers=["CPUExecutionProvider"]
-        )
-        tokenizer = Tokenizer.from_file(tokenizer_path)
-        tokenizer.enable_truncation(max_length=512)
-        return cls(session=session, tokenizer=tokenizer)
+    timeout_s: float = 30.0
+    _turn: int = 0
 
     def predict(self, pairs: list[tuple[str, str]]) -> list[float]:
-        import numpy as np
-
         started = time.perf_counter()
         if not pairs:
             self.latency_ms = 0.0
             return []
-        encodings = [self.tokenizer.encode(query, document) for query, document in pairs]
-        names = {item.name for item in self.session.get_inputs()}
-        batch_size = max(1, min(16, int(os.environ.get("RERANKER_BATCH_SIZE", "1"))))
-        normalized_scores: list[float] = []
-        for start in range(0, len(encodings), batch_size):
-            batch = encodings[start : start + batch_size]
-            max_length = max(len(encoding.ids) for encoding in batch)
-            input_ids = np.zeros((len(batch), max_length), dtype=np.int64)
-            attention_mask = np.zeros_like(input_ids)
-            token_type_ids = np.zeros_like(input_ids)
-            for row, encoding in enumerate(batch):
-                size = len(encoding.ids)
-                input_ids[row, :size] = encoding.ids
-                attention_mask[row, :size] = encoding.attention_mask
-                token_type_ids[row, :size] = encoding.type_ids
-            values = {
-                "input_ids": input_ids,
-                "attention_mask": attention_mask,
-                "token_type_ids": token_type_ids,
-            }
-            scores = self.session.run(None, {name: values[name] for name in names})[0]
-            normalized_scores.extend(np.asarray(scores).reshape(-1).astype(float).tolist())
+        documents = [document for _, document in pairs]
+        payload = {
+            "model": self.model_name,
+            "query": pairs[0][0],
+            "documents": documents,
+            "top_n": len(documents),
+            "max_tokens_per_doc": 512,
+        }
+        results = self._post(payload).get("results", [])
+        scores = [0.0] * len(documents)
+        for item in results:
+            scores[int(item["index"])] = float(item["relevance_score"])
         self.latency_ms = (time.perf_counter() - started) * 1000
-        if len(normalized_scores) != len(pairs):
-            raise RuntimeError("Local reranker returned a score count that does not match inputs")
-        return normalized_scores
+        if len(results) != len(documents):
+            raise RuntimeError("Cohere Rerank returned a score count that does not match inputs")
+        return scores
+
+    def _post(self, payload: dict[str, Any]) -> dict[str, Any]:
+        handoffs = 0
+        with httpx.Client(timeout=self.timeout_s) as client:
+            while True:
+                pool = available_cohere_keys()
+                if not pool:
+                    raise RuntimeError("No Cohere key has calls left for reranking")
+                key = pool[self._turn % len(pool)][1]
+                self._turn += 1
+                can_hand_off = handoffs < live_key_count() and live_key_count() > 1
+                try:
+                    response = client.post(
+                        _RERANK_URL,
+                        headers={"Authorization": f"Bearer {key}"},
+                        json=payload,
+                    )
+                except httpx.TransportError as exc:
+                    if not can_hand_off:
+                        raise RuntimeError("Cohere Rerank is unreachable") from exc
+                    rest_key(key, 20.0)
+                    handoffs += 1
+                    continue
+                record_key_call(key, "rerank", response.status_code, response.headers)
+                if is_monthly_cap(response.status_code, response.text) or response.status_code in (
+                    401,
+                    403,
+                ):
+                    park_exhausted_key(key)
+                    continue
+                if response.status_code in _RERANK_RETRY_ELSEWHERE and can_hand_off:
+                    rest_key(key, 30.0 if response.status_code == 429 else 10.0)
+                    handoffs += 1
+                    continue
+                if response.status_code >= 400:
+                    raise RuntimeError(f"Cohere Rerank failed with HTTP {response.status_code}")
+                body: dict[str, Any] = response.json()
+                return body
 
 
 @dataclass
@@ -308,18 +321,10 @@ class HybridRetrievalResult:
     reranker_latency_ms: float
 
 
-def _get_reranker() -> LocalCrossEncoder:
-    global _reranker, _reranker_load_error
+def _get_reranker() -> CohereReranker:
+    global _reranker
     if _reranker is None:
-        if _reranker_load_error:
-            raise RuntimeError(f"Required local reranker is unavailable: {_reranker_load_error}")
-        try:
-            _reranker = LocalCrossEncoder.load()
-        except Exception as exc:
-            _reranker_load_error = f"{type(exc).__name__}: {exc}"
-            raise RuntimeError(
-                f"Required local reranker failed to load: {_reranker_load_error}"
-            ) from exc
+        _reranker = CohereReranker()
     return _reranker
 
 
@@ -328,7 +333,7 @@ def rerank(
     candidates: list[Chunk],
     top_k: int = 5,
 ) -> list[tuple[Chunk, float]]:
-    # Every nonempty candidate set must pass through the local cross-encoder.
+    # Every nonempty candidate set goes through the reranker.
     if not candidates:
         return []
     reranker = _get_reranker()
@@ -425,20 +430,27 @@ class Coprocessor:
             if chunk:
                 candidates.append(chunk)
 
-        # Cross-encoder rerank the fused candidates to top final_top_k.
+        # Rerank the fused candidates to top final_top_k.
+        reranker = _get_reranker()
         if not candidates:
             return HybridRetrievalResult(
                 chunks=[],
                 dense_candidate_count=len(dense_results),
                 sparse_candidate_count=len(sparse_results),
                 fused_candidate_count=0,
-                reranker_model=_RERANKER_REPO,
+                reranker_model=reranker.model_name,
                 reranker_executed=False,
                 reranker_latency_ms=0.0,
             )
-        reranker = _get_reranker()
-        pairs = [(query, chunk.raw_text) for chunk in candidates]
-        scores = reranker.predict(pairs)
+        executed = True
+        try:
+            scores = reranker.predict([(query, chunk.raw_text) for chunk in candidates])
+        except RuntimeError as exc:
+            # Out of rerank calls or unreachable: keep the fused order rather than fail the
+            # question, and record that the rerank stage did not run.
+            log.warning("rerank skipped, keeping rank-fusion order: %s", exc)
+            executed = False
+            scores = [1.0 / (rank + 1) for rank in range(len(candidates))]
         ranked = sorted(zip(candidates, scores), key=lambda item: item[1], reverse=True)
         if distinct_documents:
             # One passage per article: near-duplicate chunks of the same event otherwise fill
@@ -454,6 +466,6 @@ class Coprocessor:
             sparse_candidate_count=len(sparse_results),
             fused_candidate_count=len(candidates),
             reranker_model=reranker.model_name,
-            reranker_executed=True,
-            reranker_latency_ms=reranker.latency_ms,
+            reranker_executed=executed,
+            reranker_latency_ms=reranker.latency_ms if executed else 0.0,
         )
