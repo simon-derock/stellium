@@ -28,6 +28,7 @@ const QTYPE_NAMES: Record<string, string> = {
 
 const SECTIONS = [
   { id: "glance", title: "At a glance" },
+  { id: "verdict", title: "When is the agent worth it?" },
   { id: "by-type", title: "Public 100 by type" },
   { id: "retrieval", title: "Retrieval and evidence" },
   { id: "robustness", title: "Robustness" },
@@ -79,6 +80,158 @@ function TypeLedger({ metrics }: { metrics: Metrics }) {
               })}
             </tr>
           ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+interface Shape {
+  label: string;
+  rows: Partial<Record<PipelineId, { correct: number; n: number; tokens: number }>>;
+}
+
+// The hackathon's own question, answered per question shape: among the pipelines with the top
+// accuracy, the cheapest one is the right choice. Computed from the published documents, so the
+// verdict moves with the numbers and can say "overkill" as readily as "decisive".
+function shapesFrom(data: BenchData): Shape[] {
+  const shapes: Shape[] = [];
+  const fromType = (metrics: Metrics | null, qtype: string, label: string) => {
+    if (!metrics) return;
+    const rows: Shape["rows"] = {};
+    for (const p of PIPELINES) {
+      const group = metrics.pipelines[p.id]?.by_type[qtype];
+      if (group) rows[p.id] = { correct: group.exact_match, n: group.questions, tokens: group.tokens_mean };
+    }
+    shapes.push({ label, rows });
+  };
+  const fromSet = (metrics: Metrics | null, label: string) => {
+    if (!metrics) return;
+    const rows: Shape["rows"] = {};
+    for (const p of PIPELINES) {
+      const o = metrics.pipelines[p.id]?.overall;
+      if (o) rows[p.id] = { correct: o.exact_match, n: o.scored, tokens: o.tokens_mean };
+    }
+    shapes.push({ label, rows });
+  };
+  fromType(data.public, "lookup", "One attribute of one event");
+  fromType(data.public, "temporal", "Winner at the previous Games");
+  fromType(data.public, "multi_hop", "Venue and date to the winner");
+  fromType(data.public, "aggregation", "Count events over a threshold");
+  fromType(data.public, "superlative", "Event with the most competitors");
+  fromSet(data.paraphrase, "Any of the above, reworded");
+  fromSet(data.compositional, "Two steps: rank, then read an attribute");
+  fromSet(data.offtemplate, "Outside the templates: films, officeholders");
+  fromSet(data.unanswerable, "Nothing in the corpus answers it");
+  return shapes;
+}
+
+function verdict(shape: Shape): { winner: PipelineId; decisive: boolean; note: string } | null {
+  const entries = PIPELINES.flatMap((p) => (shape.rows[p.id] ? [[p.id, shape.rows[p.id]!] as const] : []));
+  if (!entries.length) return null;
+  const top = Math.max(...entries.map(([, r]) => r.correct));
+  const best = entries.filter(([, r]) => r.correct === top).sort((a, b) => a[1].tokens - b[1].tokens);
+  const [winner, row] = best[0]!;
+  const name = (id: PipelineId) => PIPELINES.find((p) => p.id === id)!.name;
+  if (best.length === 1) {
+    const runner = Math.max(...entries.filter(([id]) => id !== winner).map(([, r]) => r.correct));
+    return { winner, decisive: true, note: `only ${name(winner)} reaches ${top}/${row.n}; next best ${runner}` };
+  }
+  // Compared with the next cheapest pipeline that is equally right, never with one that is wrong.
+  const others = best.slice(1).map(([id]) => name(id));
+  const saving = Math.round((1 - row.tokens / best[1]![1].tokens) * 100);
+  return {
+    winner,
+    decisive: false,
+    note: `ties ${others.join(" and ")} at ${top}/${row.n}; ${saving}% fewer tokens than ${others[0]}`,
+  };
+}
+
+function VerdictSummary({ data }: { data: BenchData }) {
+  const verdicts = shapesFrom(data).flatMap((shape) => {
+    const v = verdict(shape);
+    return v ? [v] : [];
+  });
+  if (!verdicts.length) return null;
+  return (
+    <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+      {PIPELINES.map((p) => {
+        const won = verdicts.filter((v) => v.winner === p.id);
+        const decisive = won.filter((v) => v.decisive).length;
+        return (
+          <div key={p.id} className="card">
+            <div className="tag" style={{ color: p.color }}>
+              {p.name}
+            </div>
+            <div className="figure mt-3">
+              {won.length}
+              <small>/ {verdicts.length} shapes</small>
+            </div>
+            <div className="mt-3 text-[12.5px] text-[color:var(--soft)]">
+              right choice{decisive ? `, decisive on ${decisive}` : ""}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function VerdictTable({ data }: { data: BenchData }) {
+  const shapes = shapesFrom(data);
+  return (
+    <div className="ledger-wrap">
+      <table className="ledger">
+        <thead>
+          <tr>
+            <th>Question shape</th>
+            {PIPELINES.map((p) => (
+              <th key={p.id} className="num" style={{ color: p.color }}>
+                <span className="sm:hidden">{p.short}</span>
+                <span className="hidden sm:inline">{p.name}</span>
+              </th>
+            ))}
+            <th>Right choice</th>
+          </tr>
+        </thead>
+        <tbody>
+          {shapes.map((shape) => {
+            const v = verdict(shape);
+            const chosen = v && PIPELINES.find((p) => p.id === v.winner)!;
+            return (
+              <tr key={shape.label}>
+                <td>{shape.label}</td>
+                {PIPELINES.map((p) => {
+                  const r = shape.rows[p.id];
+                  return (
+                    <td key={p.id} className="num">
+                      {r ? (
+                        <>
+                          <div className="font-medium" style={v?.winner === p.id ? { color: p.color } : undefined}>
+                            {r.correct.toFixed(0)}/{r.n}
+                          </div>
+                          <div className="whitespace-nowrap text-[11.5px] text-[color:var(--faint)]">{tokens(r.tokens)} tok</div>
+                        </>
+                      ) : (
+                        "n/a"
+                      )}
+                    </td>
+                  );
+                })}
+                <td>
+                  {v && chosen && (
+                    <>
+                      <div className="font-medium" style={{ color: chosen.color }}>
+                        {chosen.name}
+                        {v.decisive ? " · decisive" : ""}
+                      </div>
+                      <div className="text-[12px] text-[color:var(--soft)]">{v.note}</div>
+                    </>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -192,6 +345,22 @@ export function BenchmarkPage({ data, themeKey }: Props) {
             </tbody>
           </table>
         </div>
+      </Section>
+
+      <Section id="verdict" title="When is the agent worth it?">
+        <p>
+          The hackathon's own question, answered per question shape. For each shape, the right choice is the cheapest pipeline
+          among those with the top accuracy: an agent earns its place where it is the only one right, and is overkill where a
+          simpler pipeline is right for fewer tokens.
+        </p>
+        <VerdictSummary data={data} />
+        <VerdictTable data={data} />
+        <p>
+          Reading it: the agent is decisive when a question chains two graph steps, and where it ties it is usually still the
+          cheapest correct choice, because it stops on the first verified graph value instead of reading passages. It is
+          overkill where one fixed graph lookup already suffices, where nothing in the corpus answers the question, and outside
+          the templates, where reranked retrieval alone is right for fewer tokens.
+        </p>
       </Section>
 
       <Section id="by-type" title="Public 100 by question type">
