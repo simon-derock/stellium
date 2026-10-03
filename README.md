@@ -9,8 +9,11 @@
 ![TigerGraph](https://img.shields.io/badge/TigerGraph-Savanna%204.2.5-orange)
 ![Typed](https://img.shields.io/badge/mypy-strict-blue)
 ![Style](https://img.shields.io/badge/ruff-checked-black)
+![License](https://img.shields.io/badge/license-MIT-green)
 
 TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
+
+**[Live demo](https://stellium.philipsimonderock.com)** · [Hidden-50 outputs](submission/hidden.json) · [Benchmark audit](docs/benchmark-audits/public-final-20261002.md) · [How it works](https://stellium.philipsimonderock.com/?tab=docs)
 
 </div>
 
@@ -29,13 +32,35 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 
 ---
 
-![STELLIUM console: the Olympic graph, the question panel and the headline numbers](docs/images/console.png)
+![STELLIUM live: the Olympic graph forms, a count question is asked, the agent and GraphRAG answer 5 while RAG answers 2, and the camera moves to the cited events](docs/images/demo.gif)
+
+<sub>Recorded in real time on the live console. Agentic GraphRAG answers in one LLM call with one graph query; RAG, reading five passages, undercounts.</sub>
+
+![Ask view: three answers side by side, the agent's trace on the right, the cited biathlon events in the graph](docs/images/console.webp)
 
 | Benchmark: every published number, with charts and provenance | Docs: schema, access paths, the agent, every view |
 |---|---|
-| ![Benchmark page](docs/images/benchmark.png) | ![Docs page](docs/images/docs.png) |
+| ![Benchmark page](docs/images/benchmark.webp) | ![Docs page](docs/images/docs.webp) |
+
+<p align="center"><img src="docs/images/phone.webp" alt="The console on a phone: the graph above, the question box below, and an answered question" width="560"></p>
 
 Hidden-set outputs for all three pipelines (answers, tokens, latency, citations, agent traces): [`submission/hidden.json`](submission/hidden.json) · [`submission/hidden.csv`](submission/hidden.csv)
+
+---
+
+## Submission details
+
+| | |
+|---|---|
+| **Model** | Cohere `command-a-03-2025`, temperature 0, for every LLM call in every pipeline, the planner included |
+| **Embeddings** | Cohere `embed-v4.0`, 1024 dimensions |
+| **Vector database** | TigerGraph native vector search (HNSW) in the same Savanna workspace as the graph; no external vector store |
+| **Graph backend** | TigerGraph Savanna 4.2.5, graph `OlympicsGraph`: 2,210 events, 2,951 articles, 22,016 passages |
+| **Pipelines** | RAG (hybrid retrieval, 1 LLM call) · GraphRAG (one typed graph operation, 2 calls) · Agentic GraphRAG (ReAct over seven specialists) |
+| **Agentic steps** | 2.31 tool steps and 1.16 LLM calls per question on average (median 2 steps, at most 4); 84 of 100 public questions answered with one LLM call |
+| **Token counting** | LLM tokens as billed by Cohere; graph queries, retrieval and reranking count zero |
+| **Hidden 50** | [`submission/hidden.json`](submission/hidden.json) and [`.csv`](submission/hidden.csv): answers, tokens, latency, citations and agent traces for all three pipelines |
+| **Live demo** | [stellium.philipsimonderock.com](https://stellium.philipsimonderock.com): ask anything, watch the three pipelines answer side by side |
 
 ---
 
@@ -97,11 +122,15 @@ Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audit
 
 ---
 
-## How it works
+## Architecture
+
+**Figure 1. STELLIUM architecture: one question, three pipelines, one TigerGraph workspace.** The live console adds a three-token intent check in front, so small talk never starts a pipeline; benchmark runs skip it.
 
 ```mermaid
 flowchart LR
-    Q([Question]) --> RAG & GR & AG
+    Q([Question]) --> I{{Intent check<br/>live console only}}
+    I -->|asks for a fact| RAG & GR & AG
+    I -.->|small talk| W([Greeting, no pipeline])
 
     subgraph RAG [RAG · 1 LLM call]
         R1[Vector + BM25 search] --> R2[Rank fusion + reranker] --> R3[Answer]
@@ -233,3 +262,9 @@ Links: `?tab=benchmark` and `?tab=docs` open those pages; `?q=<question>` asks a
 | Client-side request pacing | Pipelines with more LLM calls look slower |
 | Template-shaped benchmark | Passage search and generated GSQL are rarely exercised |
 | Round 2 conflict handling | Schema and resolver exist, not yet wired into evidence evaluation |
+
+---
+
+## License
+
+Code: [MIT](LICENSE). The corpus and question sets in `hackathon-resources/` were provided by the hackathon organisers; the corpus is derived from English Wikipedia and licensed [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
