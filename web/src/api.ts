@@ -169,6 +169,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+// A host waking from sleep answers 502/503/504, or drops the request, until it is up. Startup
+// reads wait that out instead of leaving a section empty; a real error still fails at once.
+const WAKE_BUDGET_MS = 120_000;
+
+export async function untilAwake<T>(load: () => Promise<T>): Promise<T> {
+  const started = Date.now();
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await load();
+    } catch (exc) {
+      const waking = !(exc instanceof ApiError) || [502, 503, 504].includes(exc.status);
+      if (!waking || Date.now() - started > WAKE_BUDGET_MS) throw exc;
+      await new Promise((resolve) => setTimeout(resolve, Math.min(2000 * attempt, 8000)));
+    }
+  }
+}
+
 export function fetchSnapshot(view: ViewId, focus: string[] = []): Promise<Snapshot> {
   const params = new URLSearchParams({ view });
   if (focus.length) params.set("focus", focus.join(","));

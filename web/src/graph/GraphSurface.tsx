@@ -55,7 +55,9 @@ interface Props {
   onSelect: (node: GraphNode | null) => void;
   onLinkSelect: (edge: GraphEdge | null) => void;
   // Canvas pixels covered by panels on each side; the graph frames itself in the space between.
-  clear?: { left: number; right: number };
+  // Screen space other UI covers. Top and bottom are given on narrow screens, where the ask panel
+  // sits below the graph instead of beside it.
+  clear?: { left: number; right: number; top?: number; bottom?: number };
 }
 
 function useSize() {
@@ -218,9 +220,11 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
   const [animating, setAnimating] = useState(false);
   const clearLeft = clear?.left ?? 0;
   const clearRight = clear?.right ?? 0;
-  const clearRef = useRef({ left: clearLeft, right: clearRight });
+  const clearTop = clear?.top;
+  const clearBottom = clear?.bottom;
+  const clearRef = useRef({ left: clearLeft, right: clearRight, top: clearTop, bottom: clearBottom });
   const glideRef = useRef(0);
-  clearRef.current = { left: clearLeft, right: clearRight };
+  clearRef.current = { left: clearLeft, right: clearRight, top: clearTop, bottom: clearBottom };
   const frame = useCallback((ms = 0) => {
     const fg = fgRef.current;
     const final = finalRef.current;
@@ -244,8 +248,10 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
     const roomy = size.w - panels.left - panels.right > size.w * 0.38;
     const left = roomy ? Math.max(side, panels.left + 28) : side;
     const right = roomy ? Math.max(side, panels.right + 28) : side;
-    const top = phone ? 36 : 84;
-    const bottom = phone ? 36 : 124;
+    // A measured band between header and panel wins while it is still a usable stage.
+    const band = panels.top !== undefined && panels.bottom !== undefined && size.h - panels.top - panels.bottom >= 90;
+    const top = band ? panels.top! : phone ? 36 : 84;
+    const bottom = band ? panels.bottom! : phone ? 36 : 124;
     const fill = 0.94;
     const k =
       Math.min(
@@ -292,7 +298,7 @@ export function GraphSurface({ nodes, edges, palette, viz, selectedId, onSelect,
       return;
     }
     if (!userRef.current) frameRef.current(700);
-  }, [clearLeft, clearRight]);
+  }, [clearLeft, clearRight, clearTop, clearBottom]);
 
   /* ---------- intro: the shape blooms out from its centre, once, then rests ---------- */
   useLayoutEffect(() => {

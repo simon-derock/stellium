@@ -7,6 +7,8 @@
     <meta name="theme-color" content="#07080b" />
     <title>STELLIUM</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <!-- The default view's graph downloads alongside the app script instead of after it runs. -->
+    <link rel="preload" href="/api/v1/graph/snapshot?view=venues" as="fetch" crossorigin="anonymous" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600&display=swap" rel="stylesheet" />

@@ -1,11 +1,22 @@
 // STELLIUM console: the Olympic graph full bleed, a question plate on the left, the agent's trace
 // on the right, the headline numbers along the bottom, and the full benchmark and docs one tab away.
 import { flushSync } from "react-dom";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   ApiError,
   compare,
   fetchHealth,
+  untilAwake,
   fetchMetricSet,
   fetchPublishedSets,
   fetchMetrics,
@@ -114,12 +125,39 @@ export function App() {
   // graph frames itself between them.
   const wide = useWide();
   const tracing = Boolean(result?.agentic?.agentic_trace);
+  // On narrower screens the panel sits below the graph: measure the band between the header and
+  // the panel's top edge, live, so the whole graph frames into the space actually left for it.
+  const headerRef = useRef<HTMLElement>(null);
+  const askRef = useRef<HTMLDivElement>(null);
+  const [band, setBand] = useState<{ top: number; bottom: number } | null>(null);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    const panel = askRef.current?.firstElementChild as HTMLElement | null | undefined;
+    if (wide || mode !== "ask" || !header || !panel) {
+      setBand(null);
+      return;
+    }
+    const measure = () => {
+      const top = Math.round(header.getBoundingClientRect().bottom + 14);
+      const bottom = Math.round(window.innerHeight - panel.getBoundingClientRect().top + 14);
+      setBand((prev) => (prev && Math.abs(prev.top - top) < 4 && Math.abs(prev.bottom - bottom) < 4 ? prev : { top, bottom }));
+    };
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(header);
+    watch.observe(panel);
+    window.addEventListener("resize", measure);
+    return () => {
+      watch.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [wide, mode]);
   const clear = useMemo(
     () =>
       mode === "ask" && wide
         ? { left: PANEL_LEFT_PX, right: tracing ? PANEL_RIGHT_PX : 0 }
-        : { left: 0, right: 0 },
-    [mode, wide, tracing],
+        : { left: 0, right: 0, ...band },
+    [mode, wide, tracing, band],
   );
   const viz = VIZ_PROFILES.find((v) => v.id === vizId) ?? VIZ_PROFILES[0]!;
   const chrome = useMemo(() => chromeFor(theme.vars), [theme]);
@@ -137,15 +175,17 @@ export function App() {
   // A deep health check reads the graph, so it also wakes a suspended workspace.
   useEffect(() => {
     const slow = window.setTimeout(() => setHealth((h) => (h === "checking" ? "waking" : h)), 2500);
-    fetchHealth(true)
+    // Every startup read waits out a host that is still waking, so a cold start fills in late
+    // instead of leaving sections empty.
+    untilAwake(() => fetchHealth(true))
       .then(() => setHealth("ok"))
       .catch(() => setHealth("down"))
       .finally(() => window.clearTimeout(slow));
-    fetchPresets().then(setPresets).catch(() => setPresets([]));
+    untilAwake(fetchPresets).then(setPresets).catch(() => setPresets([]));
     // Each published document arrives on its own; a missing one only hides its numbers.
-    fetchMetrics().then((d) => setBench((b) => ({ ...b, public: d }))).catch(() => undefined);
+    untilAwake(fetchMetrics).then((d) => setBench((b) => ({ ...b, public: d }))).catch(() => undefined);
     // Ask only for the sets that have been published, so nothing 404s in the console.
-    fetchPublishedSets()
+    untilAwake(fetchPublishedSets)
       .then((published) => {
         for (const name of ["paraphrase", "compositional", "unanswerable", "offtemplate"] as const) {
           if (!published.includes(name)) continue;
@@ -156,7 +196,7 @@ export function App() {
         }
       })
       .catch(() => undefined);
-    fetchStats().then(setStats).catch(() => setStats(null));
+    untilAwake(fetchStats).then(setStats).catch(() => setStats(null));
     return () => window.clearTimeout(slow);
   }, []);
 
@@ -257,7 +297,7 @@ export function App() {
       <div className="hdr pointer-events-none absolute inset-0" />
       <div className="grain pointer-events-none absolute inset-0" />
 
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 pt-4 md:px-5 md:pt-5">
+      <header ref={headerRef} className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 pt-4 md:px-5 md:pt-5">
         <div className="pointer-events-auto py-2 pl-1">
           <Wordmark />
         </div>
@@ -324,7 +364,7 @@ export function App() {
 
       {mode === "ask" ? (
         <>
-          <div className="pointer-events-none absolute inset-x-4 top-[10.5rem] bottom-28 z-10 flex items-end md:bottom-[8.5rem] lg:top-[10rem] xl:top-[6.75rem] lg:right-auto lg:left-5 lg:w-[26rem] lg:items-start">
+          <div ref={askRef} className="pointer-events-none absolute inset-x-4 top-[44dvh] bottom-[4.5rem] z-10 flex items-end md:top-[10.5rem] md:bottom-[8.5rem] lg:top-[10rem] xl:top-[6.75rem] lg:right-auto lg:left-5 lg:w-[26rem] lg:items-start">
             <AskPanel
               initialQuestion={LINKED_QUESTION}
               presets={presets}
