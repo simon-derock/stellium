@@ -452,20 +452,19 @@ main[data-scheme="dark"] { color-scheme: dark; }
   .ledger td.mono { font-family: var(--font-mono); font-size: 12.5px; }
   .ledger tr:last-child td { border-bottom: 0; }
   /* A table wider than a phone swipes sideways inside its own frame instead of being cut off. */
-  .ledger-wrap {
-    --cover: color-mix(in oklab, var(--background) 96%, var(--foreground));
-    --edge: color-mix(in oklab, var(--foreground) 16%, transparent);
-    margin: 0 0 18px;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    /* Edge shadows appear only on a side with more table to swipe to: the covers scroll with the
-       content and hide each shadow while that edge is reached. */
-    background:
-      linear-gradient(to right, var(--cover) 40%, transparent) left / 28px 100% no-repeat local,
-      linear-gradient(to left, var(--cover) 40%, transparent) right / 28px 100% no-repeat local,
-      radial-gradient(farthest-side at 0 50%, var(--edge), transparent) left / 12px 100% no-repeat scroll,
-      radial-gradient(farthest-side at 100% 50%, var(--edge), transparent) right / 12px 100% no-repeat scroll;
+  .ledger-wrap { margin: 0 0 18px; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  @media (max-width: 639px) {
+    .ledger-wrap {
+      --cover: color-mix(in oklab, var(--background) 96%, var(--foreground));
+      --edge: color-mix(in oklab, var(--foreground) 16%, transparent);
+      /* Phones only, where a table can outgrow the screen: an edge shadow shows on a side with more
+         table to swipe to, and the covers scrolling with the content hide it at either end. */
+      background:
+        linear-gradient(to right, var(--cover) 40%, transparent) left / 28px 100% no-repeat local,
+        linear-gradient(to left, var(--cover) 40%, transparent) right / 28px 100% no-repeat local,
+        radial-gradient(farthest-side at 0 50%, var(--edge), transparent) left / 12px 100% no-repeat scroll,
+        radial-gradient(farthest-side at 100% 50%, var(--edge), transparent) right / 12px 100% no-repeat scroll;
+    }
   }
   .ledger-wrap::-webkit-scrollbar { display: none; }
   .ledger-wrap > .ledger { margin-bottom: 0; }
