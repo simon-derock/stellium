@@ -18,7 +18,7 @@ from src.coprocessor import Coprocessor
 from src.graph import GraphClient
 from src.graph.mock import MockTigerGraphConnection
 from src.guardrails import normalize, sanitize_output
-from src.linking import EventCatalog
+from src.linking import EventCatalog, fold
 from src.llm import LockedLLMSession
 from src.models import AgentState, EvidenceItem, PipelineResult, ToolAuditCall
 from src.pipelines.toolkit import (
@@ -104,7 +104,16 @@ def _rewrites_the_day(question: str, arguments: dict[str, Any]) -> bool:
     return bool(asked) and bool(given - asked)
 
 
-def _answer_is_grounded(answer: str, verified_values: set[str], passages: list[str]) -> bool:
+def _asks_for_year(question: str) -> bool:
+    # "In which year was Hostel released?": the one numeric answer a passage may supply.
+    return asked_kind(question) != "number" and (
+        "year" in fold(question).split() or asked_kind(question) == "date"
+    )
+
+
+def _answer_is_grounded(
+    answer: str, verified_values: set[str], passages: list[str], year_asked: bool = False
+) -> bool:
     # Refuse a terminal answer unless it is an exact graph value or exact passage span.
     candidate = answer.strip()
     if normalize(candidate).casefold() == "not found in corpus":
@@ -112,7 +121,13 @@ def _answer_is_grounded(answer: str, verified_values: set[str], passages: list[s
     if candidate in verified_values:
         return True
     if candidate.isdecimal():
-        return False
+        # Counts come from the graph only; a passage may supply a year the question asks for,
+        # stated as a whole number in the passage.
+        return (
+            year_asked
+            and bool(_YEAR.fullmatch(candidate))
+            and any(re.search(rf"(?<!\d){candidate}(?!\d)", passage) for passage in passages)
+        )
     normalized_answer = normalize(candidate).casefold()
     return bool(normalized_answer) and any(
         normalized_answer in normalize(passage).casefold() for passage in passages
@@ -317,10 +332,14 @@ def parse_react_response(text: str) -> ReActParsedStep:
 # ---------------------------------------------------------------------------
 
 
-def _answer_parts_grounded(answer: str, verified: set[str], passages: list[str]) -> bool:
+def _answer_parts_grounded(
+    answer: str, verified: set[str], passages: list[str], year_asked: bool = False
+) -> bool:
     # A multi-candidate answer ("A; B") is grounded only if every part is.
     parts = [part.strip() for part in answer.split(";") if part.strip()]
-    return bool(parts) and all(_answer_is_grounded(part, verified, passages) for part in parts)
+    return bool(parts) and all(
+        _answer_is_grounded(part, verified, passages, year_asked) for part in parts
+    )
 
 
 @dataclass
@@ -575,7 +594,9 @@ class AgenticPipeline:
             passages = [item.text for item in state.evidence if item.text]
 
             if parsed.is_terminal and parsed.final_answer:
-                if _answer_parts_grounded(parsed.final_answer, verified, passages):
+                if _answer_parts_grounded(
+                    parsed.final_answer, verified, passages, _asks_for_year(question)
+                ):
                     state.final_answer = parsed.final_answer
                     state.confidence_score = 0.9
                     state.stopping_reason = (
@@ -777,7 +798,9 @@ class AgenticPipeline:
         )
         parsed = parse_react_response(content)
         answer = (parsed.final_answer or content).strip()
-        if not parsed.action and _answer_parts_grounded(answer, verified, passages):
+        if not parsed.action and _answer_parts_grounded(
+            answer, verified, passages, _asks_for_year(question)
+        ):
             state.final_answer = answer
             state.confidence_score = 0.7
             state.stopping_reason = "Iteration budget used; synthesized a grounded answer"

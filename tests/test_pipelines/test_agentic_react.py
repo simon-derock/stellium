@@ -483,3 +483,20 @@ async def test_wrong_tool_arguments_trigger_a_replan_not_a_silent_answer() -> No
     assert chat.await_count == 2
     assert "count_events does not take event" in trace["tools_called"][0]["output_summary"]
     assert trace["strategy_changed"] is True
+
+
+def test_a_passage_may_ground_a_year_that_is_asked_for_but_never_a_count() -> None:
+    from src.pipelines.agentic import _answer_parts_grounded, _asks_for_year
+
+    passage = "Title: Hostel (2005 film)\n  released: 2005-09-17\n  runtime: 94 minutes"
+    assert _asks_for_year("In which year was Hostel released?")
+    assert _answer_parts_grounded(
+        "2005", set(), [passage], _asks_for_year("In which year was Hostel released?")
+    )
+    # A count stays graph-only even when the number happens to appear in a passage.
+    assert not _asks_for_year("How many events were held in the year 2008?")
+    assert not _answer_parts_grounded(
+        "94", set(), [passage], _asks_for_year("How many minutes is Hostel?")
+    )
+    # A year must appear whole in the passage, not inside a longer number.
+    assert not _answer_parts_grounded("2005", set(), ["Catalogue 120051."], True)
