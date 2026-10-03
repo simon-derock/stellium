@@ -122,45 +122,49 @@ export function DocsPage({ stats }: { stats: GraphStats | null }) {
           lookup by id is a direct seek.
         </p>
         <h3>Vertices</h3>
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Vertex</th>
-              <th>Primary id</th>
-              <th>Attributes</th>
-              <th>Role</th>
-            </tr>
-          </thead>
-          <tbody>
-            {VERTICES.map(([name, id, attrs, role]) => (
-              <tr key={name}>
-                <td className="mono">{name}</td>
-                <td className="mono">{id}</td>
-                <td className="text-[12.5px] text-[color:var(--soft)]">{attrs}</td>
-                <td className="text-[12.5px]">{role}</td>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Vertex</th>
+                <th>Primary id</th>
+                <th>Attributes</th>
+                <th>Role</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {VERTICES.map(([name, id, attrs, role]) => (
+                <tr key={name}>
+                  <td className="mono">{name}</td>
+                  <td className="mono">{id}</td>
+                  <td className="text-[12.5px] text-[color:var(--soft)]">{attrs}</td>
+                  <td className="text-[12.5px]">{role}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <h3>Edges (directed)</h3>
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Edge</th>
-              <th>From → to</th>
-              <th>Meaning</th>
-            </tr>
-          </thead>
-          <tbody>
-            {EDGES.map(([name, ends, meaning]) => (
-              <tr key={name}>
-                <td className="mono">{name}</td>
-                <td className="mono">{ends}</td>
-                <td>{meaning}</td>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Edge</th>
+                <th>From → to</th>
+                <th>Meaning</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {EDGES.map(([name, ends, meaning]) => (
+                <tr key={name}>
+                  <td className="mono">{name}</td>
+                  <td className="mono">{ends}</td>
+                  <td>{meaning}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <h3>Two doubly linked lists</h3>
         <ul>
           <li>
@@ -194,55 +198,57 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
       </Section>
 
       <Section id="access" title="Access paths and cost">
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Path</th>
-              <th>How</th>
-              <th className="num">Cost</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Event by id or exact title</td>
-              <td>Hash maps built once from the graph at startup (by id, by spacing-insensitive title)</td>
-              <td className="num mono">O(1)</td>
-            </tr>
-            <tr>
-              <td>Attribute values</td>
-              <td>One REST read of the linked vertices by primary id, so every value comes from TigerGraph</td>
-              <td className="num mono">O(k) for k events</td>
-            </tr>
-            <tr>
-              <td>Previous edition</td>
-              <td>Installed query seeded at the linked event, one PRECEDES hop</td>
-              <td className="num mono">O(1) hop</td>
-            </tr>
-            <tr>
-              <td>Neighbouring passage</td>
-              <td>prev_chunk_id / next_chunk_id pointer</td>
-              <td className="num mono">O(1)</td>
-            </tr>
-            <tr>
-              <td>Year and season filter</td>
-              <td>
-                <code>filter_mask</code>: one bit per Games year from 1988 (bits 0 to 19) plus Summer (bit 20) and Winter (bit 21);
-                a filter is one bitwise AND
-              </td>
-              <td className="num mono">O(1) per passage</td>
-            </tr>
-            <tr>
-              <td>Dense passage search</td>
-              <td>TigerGraph native HNSW over Chunk.embedding, cosine</td>
-              <td className="num mono">≈ O(log n)</td>
-            </tr>
-            <tr>
-              <td>Keyword passage search</td>
-              <td>BM25Plus over an inverted index of compact integer postings; top-k by heap</td>
-              <td className="num mono">O(postings + n log k)</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>How</th>
+                <th className="num">Cost</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Event by id or exact title</td>
+                <td>Hash maps built once from the graph at startup (by id, by spacing-insensitive title)</td>
+                <td className="num mono">O(1)</td>
+              </tr>
+              <tr>
+                <td>Attribute values</td>
+                <td>One REST read of the linked vertices by primary id, so every value comes from TigerGraph</td>
+                <td className="num mono">O(k) for k events</td>
+              </tr>
+              <tr>
+                <td>Previous edition</td>
+                <td>Installed query seeded at the linked event, one PRECEDES hop</td>
+                <td className="num mono">O(1) hop</td>
+              </tr>
+              <tr>
+                <td>Neighbouring passage</td>
+                <td>prev_chunk_id / next_chunk_id pointer</td>
+                <td className="num mono">O(1)</td>
+              </tr>
+              <tr>
+                <td>Year and season filter</td>
+                <td>
+                  <code>filter_mask</code>: one bit per Games year from 1988 (bits 0 to 19) plus Summer (bit 20) and Winter (bit 21);
+                  a filter is one bitwise AND
+                </td>
+                <td className="num mono">O(1) per passage</td>
+              </tr>
+              <tr>
+                <td>Dense passage search</td>
+                <td>TigerGraph native HNSW over Chunk.embedding, cosine</td>
+                <td className="num mono">≈ O(log n)</td>
+              </tr>
+              <tr>
+                <td>Keyword passage search</td>
+                <td>BM25Plus over an inverted index of compact integer postings; top-k by heap</td>
+                <td className="num mono">O(postings + n log k)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <p>
           Entity linking runs in memory against the graph-loaded catalog: exact title first, then order-insensitive token
           overlap within the sport, Games and gender the question names. Numbers must match exactly, so "200 metre" never links
@@ -291,24 +297,26 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
           A ReAct orchestrator plans one step at a time (Thought, Action, Action Input) and gets at most five planning steps. Each tool
           belongs to a named specialist, and every step lands in the trace with its latency and token count.
         </p>
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Tool</th>
-              <th>Specialist</th>
-              <th>What it does</th>
-            </tr>
-          </thead>
-          <tbody>
-            {TOOLS.map(([tool, agent, what]) => (
-              <tr key={tool}>
-                <td className="mono">{tool}</td>
-                <td className="mono">{agent}</td>
-                <td>{what}</td>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Tool</th>
+                <th>Specialist</th>
+                <th>What it does</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {TOOLS.map(([tool, agent, what]) => (
+                <tr key={tool}>
+                  <td className="mono">{tool}</td>
+                  <td className="mono">{agent}</td>
+                  <td>{what}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <h3>Stopping and guard rails</h3>
         <ul>
           <li>Stops as soon as a tool returns one verified value of the kind the question asks for (a person, a number, a venue, an event).</li>
@@ -322,43 +330,47 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
 
       <Section id="views" title="Views and formations">
         <h3>Views</h3>
-        <table className="ledger">
-          <tbody>
-            {VIEWS.map((view) => (
-              <tr key={view.id}>
-                <td className="w-44 font-medium">{view.name}</td>
-                <td className="text-[color:var(--soft)]">{view.hint}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <tbody>
+              {VIEWS.map((view) => (
+                <tr key={view.id}>
+                  <td className="w-44 font-medium">{view.name}</td>
+                  <td className="text-[color:var(--soft)]">{view.hint}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p>
           Every edge the canvas draws names its source: an edge in the graph (HELD_AT, PRECEDES) or the Event attribute a
           grouping is read from (year and season for Games, sport for Sport).
         </p>
         <h3>Styles ({VIZ_PROFILES.length})</h3>
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Style</th>
-              <th>Bodies</th>
-              <th>Links</th>
-              <th>Formation</th>
-              <th>Character</th>
-            </tr>
-          </thead>
-          <tbody>
-            {VIZ_PROFILES.map((viz) => (
-              <tr key={viz.id}>
-                <td className="font-medium">{viz.name}</td>
-                <td className="mono">{viz.nodeMark}</td>
-                <td className="mono">{viz.edgeMark}</td>
-                <td className="mono">{viz.formation}</td>
-                <td className="text-[color:var(--soft)]">{viz.hint}</td>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Style</th>
+                <th>Bodies</th>
+                <th>Links</th>
+                <th>Formation</th>
+                <th>Character</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {VIZ_PROFILES.map((viz) => (
+                <tr key={viz.id}>
+                  <td className="font-medium">{viz.name}</td>
+                  <td className="mono">{viz.nodeMark}</td>
+                  <td className="mono">{viz.edgeMark}</td>
+                  <td className="mono">{viz.formation}</td>
+                  <td className="text-[color:var(--soft)]">{viz.hint}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <h3>Themes ({THEMES.length})</h3>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
           {THEMES.map((theme) => (
@@ -378,29 +390,31 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
       </Section>
 
       <Section id="api" title="API">
-        <table className="ledger">
-          <tbody>
-            {(
-              [
-                ["POST /api/v1/query/compare", "Intent check, then all three pipelines on one question, side by side"],
-                ["POST /api/v1/query/{rag|graphrag|agentic}", "One pipeline"],
-                ["GET /api/v1/graph/snapshot?view=&focus=", "The canvas payload for a view, optionally around cited events"],
-                ["GET /api/v1/graph/stats", "Live catalog and index sizes"],
-                ["GET /api/v1/metrics/index", "Which benchmark documents are published"],
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <tbody>
+              {(
                 [
-                  "GET /api/v1/metrics/{set}",
-                  "Published benchmark documents: public, paraphrase, compositional, unanswerable, offtemplate, hidden_oracle",
-                ],
-                ["GET /health?deep=true", "A real graph read, which also wakes a suspended workspace"],
-              ] as const
-            ).map(([route, what]) => (
-              <tr key={route}>
-                <td className="mono w-[22rem]">{route}</td>
-                <td>{what}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  ["POST /api/v1/query/compare", "Intent check, then all three pipelines on one question, side by side"],
+                  ["POST /api/v1/query/{rag|graphrag|agentic}", "One pipeline"],
+                  ["GET /api/v1/graph/snapshot?view=&focus=", "The canvas payload for a view, optionally around cited events"],
+                  ["GET /api/v1/graph/stats", "Live catalog and index sizes"],
+                  ["GET /api/v1/metrics/index", "Which benchmark documents are published"],
+                  [
+                    "GET /api/v1/metrics/{set}",
+                    "Published benchmark documents: public, paraphrase, compositional, unanswerable, offtemplate, hidden_oracle",
+                  ],
+                  ["GET /health?deep=true", "A real graph read, which also wakes a suspended workspace"],
+                ] as const
+              ).map(([route, what]) => (
+                <tr key={route}>
+                  <td className="mono w-[22rem]">{route}</td>
+                  <td>{what}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <p className="mt-4">
           Live questions are shared fairly: 100 a day across the demo and 20 an hour per visitor. Past either limit the API
           answers 429 with a Retry-After header, and the console says when to try again. Benchmark and docs pages are never

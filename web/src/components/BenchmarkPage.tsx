@@ -42,40 +42,46 @@ function TypeLedger({ metrics }: { metrics: Metrics }) {
   const ids = PIPELINES.filter((p) => metrics.pipelines[p.id]);
   const qtypes = Object.keys(metrics.pipelines.agentic?.by_type ?? metrics.pipelines.graphrag?.by_type ?? {});
   return (
-    <table className="ledger">
-      <thead>
-        <tr>
-          <th>Question type</th>
-          {ids.map((p) => (
-            <th key={p.id} className="num" style={{ color: p.color }}>
-              {p.name}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {qtypes.map((qtype) => (
-          <tr key={qtype}>
-            <td>{QTYPE_NAMES[qtype] ?? qtype.replaceAll("_", " ")}</td>
-            {ids.map((p) => {
-              const group = metrics.pipelines[p.id as PipelineId].by_type[qtype];
-              if (!group) return <td key={p.id} className="num">n/a</td>;
-              return (
-                <td key={p.id} className="num" style={{ ["--lane" as string]: p.color }}>
-                  <div className="font-medium">
-                    {group.exact_match.toFixed(0)}/{group.questions}
-                    <span className="font-normal text-[color:var(--soft)]"> · {tokens(group.tokens_mean)} tok</span>
-                  </div>
-                  <div className="bar mt-1.5 ml-auto w-32">
-                    <i style={{ width: `${(100 * group.exact_match) / group.questions}%` }} />
-                  </div>
-                </td>
-              );
-            })}
+    <div className="ledger-wrap">
+      <table className="ledger">
+        <thead>
+          <tr>
+            <th>Question type</th>
+            {ids.map((p) => (
+              <th key={p.id} className="num" style={{ color: p.color }}>
+                <span className="sm:hidden">{p.short}</span>
+                <span className="hidden sm:inline">{p.name}</span>
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {qtypes.map((qtype) => (
+            <tr key={qtype}>
+              <td>{QTYPE_NAMES[qtype] ?? qtype.replaceAll("_", " ")}</td>
+              {ids.map((p) => {
+                const group = metrics.pipelines[p.id as PipelineId].by_type[qtype];
+                if (!group) return <td key={p.id} className="num">n/a</td>;
+                return (
+                  <td key={p.id} className="num" style={{ ["--lane" as string]: p.color }}>
+                    <div className="font-medium">
+                      {group.exact_match.toFixed(0)}/{group.questions}
+                      <span className="block font-normal text-[color:var(--soft)] sm:inline">
+                        <span className="hidden sm:inline"> · </span>
+                        {tokens(group.tokens_mean)} tok
+                      </span>
+                    </div>
+                    <div className="bar mt-1.5 ml-auto w-16 sm:w-32">
+                      <i style={{ width: `${(100 * group.exact_match) / group.questions}%` }} />
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
@@ -133,56 +139,59 @@ export function BenchmarkPage({ data, themeKey }: Props) {
             </ChartCard>
           </div>
         )}
-        <table className="ledger mt-6">
-          <thead>
-            <tr>
-              <th>Set</th>
-              {ids.map((p) => (
-                <th key={p.id} className="num" style={{ color: p.color }}>
-                  {p.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(
-              [
-                ["Public 100 (gold answers)", metrics],
-                ["Paraphrased (12, reworded public questions)", data.paraphrase],
-                ["Two-step (24, rank then read an attribute)", data.compositional],
-                ["Unanswerable (12, the right reply is “Not found”)", data.unanswerable],
-                ["Off-template (12, films and officeholders)", data.offtemplate],
-              ] as const
-            ).map(([label, set]) =>
-              set ? (
-                <tr key={label}>
-                  <td>{label}</td>
+        <div className="ledger-wrap">
+          <table className="ledger mt-6">
+            <thead>
+              <tr>
+                <th>Set</th>
+                {ids.map((p) => (
+                  <th key={p.id} className="num" style={{ color: p.color }}>
+                    <span className="sm:hidden">{p.short}</span>
+                    <span className="hidden sm:inline">{p.name}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(
+                [
+                  ["Public 100 (gold answers)", metrics],
+                  ["Paraphrased (12, reworded public questions)", data.paraphrase],
+                  ["Two-step (24, rank then read an attribute)", data.compositional],
+                  ["Unanswerable (12, the right reply is “Not found”)", data.unanswerable],
+                  ["Off-template (12, films and officeholders)", data.offtemplate],
+                ] as const
+              ).map(([label, set]) =>
+                set ? (
+                  <tr key={label}>
+                    <td>{label}</td>
+                    {ids.map((p) => {
+                      const o = set.pipelines[p.id as PipelineId]?.overall;
+                      return (
+                        <td key={p.id} className="num font-medium">
+                          {o ? `${o.exact_match.toFixed(0)}/${o.scored}` : "n/a"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ) : null,
+              )}
+              {oracle && (
+                <tr>
+                  <td>Hidden 50, agreement with the corpus oracle</td>
                   {ids.map((p) => {
-                    const o = set.pipelines[p.id as PipelineId]?.overall;
+                    const h = oracle.hidden.pipelines[p.id as PipelineId];
                     return (
                       <td key={p.id} className="num font-medium">
-                        {o ? `${o.exact_match.toFixed(0)}/${o.scored}` : "n/a"}
+                        {h ? `${h.agree}/${h.scored}` : "n/a"}
                       </td>
                     );
                   })}
                 </tr>
-              ) : null,
-            )}
-            {oracle && (
-              <tr>
-                <td>Hidden 50, agreement with the corpus oracle</td>
-                {ids.map((p) => {
-                  const h = oracle.hidden.pipelines[p.id as PipelineId];
-                  return (
-                    <td key={p.id} className="num font-medium">
-                      {h ? `${h.agree}/${h.scored}` : "n/a"}
-                    </td>
-                  );
-                })}
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section id="by-type" title="Public 100 by question type">
@@ -207,42 +216,45 @@ export function BenchmarkPage({ data, themeKey }: Props) {
           cites.
         </p>
         <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1.15fr_1fr]">
-          <table className="ledger">
-          <thead>
-            <tr>
-              <th>Measure</th>
-              {ids.map((p) => (
-                <th key={p.id} className="num" style={{ color: p.color }}>
-                  {p.name}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {(
-              [
-                ["Hit@1", (m) => m.retrieval?.hit_at_1.toFixed(2)],
-                ["Hit@5", (m) => m.retrieval?.hit_at_5.toFixed(2)],
-                ["MRR", (m) => m.retrieval?.mrr.toFixed(3)],
-                ["nDCG@5", (m) => m.retrieval?.ndcg_at_5.toFixed(3)],
-                ["Precision@5", (m) => m.retrieval?.precision_at_5.toFixed(3)],
-                ["Context recall", (m) => m.retrieval && percent(m.retrieval.context_recall * 100, 100)],
-                ["Gold among answers", (m) => m.evidence && `${m.evidence.gold_among_answers}/100`],
-                ["Grounded in cited articles", (m) => m.evidence && `${m.evidence.grounded}/${m.evidence.grounding_checked}`],
-                ["Abstained", (m) => m.evidence && `${m.evidence.abstained}`],
-              ] as [string, (m: Metrics["pipelines"][PipelineId]) => string | undefined][]
-            ).map(([label, read]) => (
-              <tr key={label}>
-                <td>{label}</td>
+          <div className="ledger-wrap">
+            <table className="ledger">
+            <thead>
+              <tr>
+                <th>Measure</th>
                 {ids.map((p) => (
-                  <td key={p.id} className="num mono">
-                    {read(metrics.pipelines[p.id as PipelineId]) ?? "n/a"}
-                  </td>
+                  <th key={p.id} className="num" style={{ color: p.color }}>
+                    <span className="sm:hidden">{p.short}</span>
+                    <span className="hidden sm:inline">{p.name}</span>
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(
+                [
+                  ["Hit@1", (m) => m.retrieval?.hit_at_1.toFixed(2)],
+                  ["Hit@5", (m) => m.retrieval?.hit_at_5.toFixed(2)],
+                  ["MRR", (m) => m.retrieval?.mrr.toFixed(3)],
+                  ["nDCG@5", (m) => m.retrieval?.ndcg_at_5.toFixed(3)],
+                  ["Precision@5", (m) => m.retrieval?.precision_at_5.toFixed(3)],
+                  ["Context recall", (m) => m.retrieval && percent(m.retrieval.context_recall * 100, 100)],
+                  ["Gold among answers", (m) => m.evidence && `${m.evidence.gold_among_answers}/100`],
+                  ["Grounded in cited articles", (m) => m.evidence && `${m.evidence.grounded}/${m.evidence.grounding_checked}`],
+                  ["Abstained", (m) => m.evidence && `${m.evidence.abstained}`],
+                ] as [string, (m: Metrics["pipelines"][PipelineId]) => string | undefined][]
+              ).map(([label, read]) => (
+                <tr key={label}>
+                  <td>{label}</td>
+                  {ids.map((p) => (
+                    <td key={p.id} className="num mono">
+                      {read(metrics.pipelines[p.id as PipelineId]) ?? "n/a"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
           {palette && (
             <ChartCard title="Retrieval quality" note="Each axis is a share; the agent and GraphRAG overlap.">
               <Legend />
@@ -315,30 +327,32 @@ export function BenchmarkPage({ data, themeKey }: Props) {
 
       <Section id="agent" title="How the agent worked">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1.3fr]">
-          <table className="ledger">
-            <tbody>
-              <tr>
-                <td>LLM calls per question</td>
-                <td className="num mono">{agent.llm_calls_mean.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td>Steps per question (LLM + graph)</td>
-                <td className="num mono">{agent.steps_mean.toFixed(2)}</td>
-              </tr>
-              <tr>
-                <td>Answered after one LLM call</td>
-                <td className="num mono">
-                  {agent.single_call_answers}/{agent.questions}
-                </td>
-              </tr>
-              <tr>
-                <td>Changed strategy mid-question</td>
-                <td className="num mono">
-                  {agent.strategy_changes}/{agent.questions}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="ledger-wrap">
+            <table className="ledger">
+              <tbody>
+                <tr>
+                  <td>LLM calls per question</td>
+                  <td className="num mono">{agent.llm_calls_mean.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Steps per question (LLM + graph)</td>
+                  <td className="num mono">{agent.steps_mean.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td>Answered after one LLM call</td>
+                  <td className="num mono">
+                    {agent.single_call_answers}/{agent.questions}
+                  </td>
+                </tr>
+                <tr>
+                  <td>Changed strategy mid-question</td>
+                  <td className="num mono">
+                    {agent.strategy_changes}/{agent.questions}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           {palette && (
             <ChartCard title="Tools it chose" note="Graph tools cost zero LLM tokens.">
               <ToolMix tools={agent.tools} palette={palette} />
@@ -362,33 +376,35 @@ export function BenchmarkPage({ data, themeKey }: Props) {
       </Section>
 
       <Section id="cost" title="Cost and latency">
-        <table className="ledger">
-          <thead>
-            <tr>
-              <th>Pipeline</th>
-              <th className="num">LLM tokens / q</th>
-              <th className="num">Latency p50</th>
-              <th className="num">Latency p95</th>
-              <th className="num">Cost / 100 q</th>
-              <th className="num">Citations / answer</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ids.map((p) => {
-              const o = metrics.pipelines[p.id as PipelineId].overall;
-              return (
-                <tr key={p.id}>
-                  <td style={{ color: p.color }}>{p.name}</td>
-                  <td className="num mono">{tokens(o.tokens_mean)}</td>
-                  <td className="num mono">{seconds(o.latency_p50_s * 1000)}</td>
-                  <td className="num mono">{seconds(o.latency_p95_s * 1000)}</td>
-                  <td className="num mono">${o.cost_per_100_usd.toFixed(2)}</td>
-                  <td className="num mono">{o.citations_mean.toFixed(1)}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="ledger-wrap">
+          <table className="ledger">
+            <thead>
+              <tr>
+                <th>Pipeline</th>
+                <th className="num">LLM tokens / q</th>
+                <th className="num">Latency p50</th>
+                <th className="num">Latency p95</th>
+                <th className="num">Cost / 100 q</th>
+                <th className="num">Citations / answer</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ids.map((p) => {
+                const o = metrics.pipelines[p.id as PipelineId].overall;
+                return (
+                  <tr key={p.id}>
+                    <td style={{ color: p.color }}>{p.name}</td>
+                    <td className="num mono">{tokens(o.tokens_mean)}</td>
+                    <td className="num mono">{seconds(o.latency_p50_s * 1000)}</td>
+                    <td className="num mono">{seconds(o.latency_p95_s * 1000)}</td>
+                    <td className="num mono">${o.cost_per_100_usd.toFixed(2)}</td>
+                    <td className="num mono">{o.citations_mean.toFixed(1)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
         <p>
           Latency includes client-side pacing for a trial API key; graph queries and retrieval add no LLM tokens and are
           counted as zero.
@@ -422,24 +438,26 @@ export function BenchmarkPage({ data, themeKey }: Props) {
           <li>No pipeline sees a benchmark answer; the hidden-set oracle is evaluation code that no pipeline imports.</li>
         </ul>
         {metrics.provenance && (
-          <table className="ledger">
-            <thead>
-              <tr>
-                <th>Rows</th>
-                <th>Pipelines</th>
-                <th className="num">Commit</th>
-              </tr>
-            </thead>
-            <tbody>
-              {metrics.provenance.map((row, index) => (
-                <tr key={index}>
-                  <td className="mono">{row.rows}</td>
-                  <td>{Array.isArray(row.pipelines) ? row.pipelines.join(", ") : row.pipelines}</td>
-                  <td className="num mono">{row.commit}</td>
+          <div className="ledger-wrap">
+            <table className="ledger">
+              <thead>
+                <tr>
+                  <th>Rows</th>
+                  <th>Pipelines</th>
+                  <th className="num">Commit</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {metrics.provenance.map((row, index) => (
+                  <tr key={index}>
+                    <td className="mono">{row.rows}</td>
+                    <td>{Array.isArray(row.pipelines) ? row.pipelines.join(", ") : row.pipelines}</td>
+                    <td className="num mono">{row.commit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Section>
     </LongPage>

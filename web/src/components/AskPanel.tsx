@@ -52,7 +52,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
           <label htmlFor="ask" className="text-[13.5px] font-semibold">
             Ask the Olympic graph
           </label>
-          <span className="kbd">Ctrl ↵ to send</span>
+          <span className="kbd [@media(pointer:coarse)]:hidden">Ctrl ↵ to send</span>
         </div>
         <div className="ask-field">
           <textarea

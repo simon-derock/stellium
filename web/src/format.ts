@@ -2,10 +2,11 @@
 import type { CompareResult, PipelineId, TraceEvent } from "./api";
 
 // Best first: the agent leads every table, card, chart and answer list; RAG, the baseline, closes.
-export const PIPELINES: { id: PipelineId; name: string; color: string }[] = [
-  { id: "agentic", name: "Agentic GraphRAG", color: "var(--agentic)" },
-  { id: "graphrag", name: "GraphRAG", color: "var(--graphrag)" },
-  { id: "rag", name: "RAG", color: "var(--rag)" },
+// `short` labels table columns on a phone, where the full names would push the numbers off screen.
+export const PIPELINES: { id: PipelineId; name: string; short: string; color: string }[] = [
+  { id: "agentic", name: "Agentic GraphRAG", short: "Agentic", color: "var(--agentic)" },
+  { id: "graphrag", name: "GraphRAG", short: "GraphRAG", color: "var(--graphrag)" },
+  { id: "rag", name: "RAG", short: "RAG", color: "var(--rag)" },
 ];
 
 export function tokens(n: number): string {

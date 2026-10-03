@@ -370,11 +370,15 @@ export function App() {
             </span>
           )}
           <a className="signature" href="https://philipsimonderock.com" target="_blank" rel="noreferrer">
+            {/* One line on a phone: the shorter wording keeps the pill clear of the page above it. */}
             <span>
-              Built by <b>Philip Simon Derock</b>
+              <span className="hidden sm:inline">Built by </span>
+              <b>Philip Simon Derock</b>
             </span>
             <span className="signature-dot" aria-hidden="true" />
-            <span>TigerGraph GraphRAG Hackathon 2026</span>
+            <span>
+              <span className="hidden sm:inline">TigerGraph </span>GraphRAG Hackathon 2026
+            </span>
           </a>
         </div>
       </footer>
