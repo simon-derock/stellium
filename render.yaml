@@ -29,3 +29,5 @@ services:
         sync: false
       - key: COHERE_CHAT_API_KEY
         sync: false
+      - key: STELLIUM_ADMIN_TOKEN
+        sync: false
