@@ -5,18 +5,18 @@
       "overall": {
         "questions": 12,
         "scored": 12,
-        "exact_match": 12.0,
-        "exact_match_strict": 7.0,
+        "exact_match": 11.0,
+        "exact_match_strict": 5.0,
         "exact_match_ci95": [
-          0.7575,
-          1.0
+          0.6461,
+          0.9851
         ],
-        "token_f1": 0.8958333333333334,
-        "tokens_mean": 2708.4166666666665,
-        "latency_mean_s": 9.474350736666869,
-        "latency_p50_s": 9.364358696002455,
-        "latency_p95_s": 10.47092194200377,
-        "cost_per_100_usd": 0.6804166666666666,
+        "token_f1": 0.8055555555555556,
+        "tokens_mean": 2623.3333333333335,
+        "latency_mean_s": 3.7408007113323642,
+        "latency_p50_s": 2.1005126949894475,
+        "latency_p95_s": 5.073666027994477,
+        "cost_per_100_usd": 0.6622083333333333,
         "citations_mean": 5,
         "estimated_token_rows": 0
       },
@@ -24,24 +24,24 @@
         "unanswerable_lookup": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 2698.5
+          "tokens_mean": 2511.75
         },
         "unanswerable_rank": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 2816.25
+          "tokens_mean": 2648.25
         },
         "unanswerable_venue_date": {
           "questions": 4,
-          "exact_match": 4.0,
-          "tokens_mean": 2610.5
+          "exact_match": 3.0,
+          "tokens_mean": 2710
         }
       },
       "evidence": {
         "gold_among_answers": 0,
         "grounded": 0,
-        "grounding_checked": 0,
-        "abstained": 12
+        "grounding_checked": 1,
+        "abstained": 11
       },
       "retrieval": {
         "context_recall_questions": 0
@@ -53,17 +53,17 @@
         "questions": 12,
         "scored": 12,
         "exact_match": 12.0,
-        "exact_match_strict": 11.0,
+        "exact_match_strict": 10.0,
         "exact_match_ci95": [
           0.7575,
           1.0
         ],
-        "token_f1": 0.9791666666666666,
-        "tokens_mean": 1722.8333333333333,
-        "latency_mean_s": 10.07606342750114,
-        "latency_p50_s": 10.176317776997166,
-        "latency_p95_s": 10.795809085000656,
-        "cost_per_100_usd": 0.4772708333333333,
+        "token_f1": 0.9583333333333334,
+        "tokens_mean": 1730,
+        "latency_mean_s": 9.993529797663845,
+        "latency_p50_s": 3.641339195994078,
+        "latency_p95_s": 27.407342313003028,
+        "cost_per_100_usd": 0.4784375,
         "citations_mean": 5,
         "estimated_token_rows": 0
       },
@@ -71,17 +71,17 @@
         "unanswerable_lookup": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 1698.5
+          "tokens_mean": 1695.75
         },
         "unanswerable_rank": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 1681.75
+          "tokens_mean": 1686.5
         },
         "unanswerable_venue_date": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 1788.25
+          "tokens_mean": 1807.75
         }
       },
       "evidence": {
@@ -106,29 +106,29 @@
           1.0
         ],
         "token_f1": 1.0,
-        "tokens_mean": 5100.416666666667,
-        "latency_mean_s": 11.12038028658329,
-        "latency_p50_s": 12.054267774001346,
-        "latency_p95_s": 18.128402307993383,
-        "cost_per_100_usd": 1.5127916666666668,
-        "citations_mean": 2.8333333333333335,
+        "tokens_mean": 6034.333333333333,
+        "latency_mean_s": 9.178060318749582,
+        "latency_p50_s": 10.298415384997497,
+        "latency_p95_s": 13.426622386992676,
+        "cost_per_100_usd": 1.7461458333333333,
+        "citations_mean": 3.5833333333333335,
         "estimated_token_rows": 0
       },
       "by_type": {
         "unanswerable_lookup": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 6693.25
+          "tokens_mean": 8247
         },
         "unanswerable_rank": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 3033.25
+          "tokens_mean": 3609.75
         },
         "unanswerable_venue_date": {
           "questions": 4,
           "exact_match": 4.0,
-          "tokens_mean": 5574.75
+          "tokens_mean": 6246.25
         }
       },
       "evidence": {
@@ -144,30 +144,30 @@
   },
   "agent": {
     "questions": 12,
-    "steps_mean": 7.583333333333333,
+    "steps_mean": 7.666666666666667,
     "steps_median": 7.0,
     "steps_max": 11,
     "llm_calls_mean": 4.333333333333333,
     "single_call_answers": 0,
     "strategy_changes": 10,
     "tools": {
-      "gsql_query": 12,
-      "hybrid_search": 9,
-      "find_events": 8,
+      "hybrid_search": 14,
+      "find_events": 9,
+      "gsql_query": 6,
+      "event_at_venue_date": 5,
       "rank_events": 4,
-      "event_at_venue_date": 4,
       "event_attribute": 2
     },
     "specialists": {
       "OrchestratorAgent": 12,
       "EntityLinkingAgent": 12,
-      "DocumentRetrievalAgent": 6,
+      "DocumentRetrievalAgent": 9,
       "AggregationAgent": 4,
-      "QueryGenerationAgent": 4
+      "QueryGenerationAgent": 3
     },
     "stopping_reasons": {
       "Orchestrator finished with an answer grounded in tool observations": 9,
-      "Iteration budget used; synthesized a grounded answer": 3
+      "Iteration budget used; no grounded answer was available": 3
     }
   },
   "graph_pipeline_misses": [],
@@ -178,18 +178,18 @@
         "graphrag",
         "agentic"
       ],
-      "commit": "db351ea",
+      "commit": "91ec4ef",
       "model": "command-a-03-2025",
       "dataset_sha256": "c6b24e8a6b4c94d16f9ce4dc3fcf842845e3fa837b2b1bed4ad102aa24e5c8d8",
-      "finished_at": "2026-10-03T00:35:10+0530",
+      "finished_at": "2026-10-03T20:08:22+0530",
       "rows": 12
     },
     {
       "pipelines": "agentic",
-      "commit": "ba2db35",
+      "commit": "fc6bfd6",
       "model": "command-a-03-2025",
       "dataset_sha256": "c6b24e8a6b4c94d16f9ce4dc3fcf842845e3fa837b2b1bed4ad102aa24e5c8d8",
-      "finished_at": "2026-10-03T14:57:50+0530",
+      "finished_at": "2026-10-03T20:18:04+0530",
       "rows": 12
     }
   ]

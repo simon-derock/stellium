@@ -11,12 +11,12 @@
           0.1933,
           0.6805
         ],
-        "token_f1": 0.4166666666666667,
-        "tokens_mean": 2199.0833333333335,
-        "latency_mean_s": 4.824856907916607,
-        "latency_p50_s": 4.8692880799990235,
-        "latency_p95_s": 5.830642958999306,
-        "cost_per_100_usd": 0.5520833333333334,
+        "token_f1": 0.5516044307411214,
+        "tokens_mean": 2410.9166666666665,
+        "latency_mean_s": 2.0510503065015655,
+        "latency_p50_s": 1.8854459779977333,
+        "latency_p95_s": 2.1268810299952747,
+        "cost_per_100_usd": 0.6176041666666666,
         "citations_mean": 5,
         "estimated_token_rows": 0
       },
@@ -24,44 +24,44 @@
         "paraphrase_aggregation": {
           "questions": 3,
           "exact_match": 0.0,
-          "tokens_mean": 2513.3333333333335
+          "tokens_mean": 2973.3333333333335
         },
         "paraphrase_lookup": {
           "questions": 1,
           "exact_match": 1.0,
-          "tokens_mean": 2081
+          "tokens_mean": 2276
         },
         "paraphrase_multi_hop": {
           "questions": 3,
-          "exact_match": 2.0,
-          "tokens_mean": 2045
+          "exact_match": 1.0,
+          "tokens_mean": 2107
         },
         "paraphrase_superlative": {
           "questions": 2,
           "exact_match": 0.0,
-          "tokens_mean": 2210
+          "tokens_mean": 2180
         },
         "paraphrase_temporal": {
           "questions": 3,
-          "exact_match": 2.0,
-          "tokens_mean": 2071
+          "exact_match": 3.0,
+          "tokens_mean": 2351.3333333333335
         }
       },
       "evidence": {
         "gold_among_answers": 5,
         "grounded": 6,
-        "grounding_checked": 6,
-        "abstained": 2
+        "grounding_checked": 8,
+        "abstained": 0
       },
       "retrieval": {
-        "hit_at_1": 0.8333333333333334,
-        "hit_at_5": 0.9166666666666666,
-        "mrr": 0.875,
-        "ndcg_at_5": 0.8293594539267458,
-        "recall_at_5": 0.6978052584670231,
-        "precision_at_5": 0.4666666666666667,
-        "context_precision_at_5": 0.7888888888888889,
-        "context_recall": 0.625,
+        "hit_at_1": 1.0,
+        "hit_at_5": 1.0,
+        "mrr": 1.0,
+        "ndcg_at_5": 0.8923530417320028,
+        "recall_at_5": 0.6582219251336898,
+        "precision_at_5": 0.5166666666666667,
+        "context_precision_at_5": 0.8583333333333334,
+        "context_recall": 1.0,
         "context_recall_questions": 8
       }
     },
@@ -239,6 +239,14 @@
       "model": "command-a-03-2025",
       "dataset_sha256": "dbe24ef6924e452f87967f88647e5e46a328a6813ee9712922c340ba2f654873",
       "finished_at": "2026-10-02T14:48:14+0530",
+      "rows": 12
+    },
+    {
+      "pipelines": "rag",
+      "commit": "91ec4ef",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "dbe24ef6924e452f87967f88647e5e46a328a6813ee9712922c340ba2f654873",
+      "finished_at": "2026-10-03T20:08:53+0530",
       "rows": 12
     },
     {

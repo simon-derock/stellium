@@ -5,38 +5,38 @@
       "overall": {
         "questions": 12,
         "scored": 12,
-        "exact_match": 8.0,
-        "exact_match_strict": 8.0,
+        "exact_match": 12.0,
+        "exact_match_strict": 12.0,
         "exact_match_ci95": [
-          0.3906,
-          0.8619
+          0.7575,
+          1.0
         ],
-        "token_f1": 0.6666666666666666,
-        "tokens_mean": 2077,
-        "latency_mean_s": 7.039668330498898,
-        "latency_p50_s": 6.9110160900017945,
-        "latency_p95_s": 8.894977322997875,
-        "cost_per_100_usd": 0.521875,
+        "token_f1": 1.0,
+        "tokens_mean": 2120.5,
+        "latency_mean_s": 3.3458848037504745,
+        "latency_p50_s": 1.7392571380041772,
+        "latency_p95_s": 3.9858632840041537,
+        "cost_per_100_usd": 0.5323749999999999,
         "citations_mean": 5,
         "estimated_token_rows": 0
       },
       "by_type": {
         "offtemplate_film": {
           "questions": 9,
-          "exact_match": 6.0,
-          "tokens_mean": 2074.1111111111113
+          "exact_match": 9.0,
+          "tokens_mean": 2084.222222222222
         },
         "offtemplate_office": {
           "questions": 3,
-          "exact_match": 2.0,
-          "tokens_mean": 2085.6666666666665
+          "exact_match": 3.0,
+          "tokens_mean": 2229.3333333333335
         }
       },
       "evidence": {
-        "gold_among_answers": 8,
-        "grounded": 6,
-        "grounding_checked": 6,
-        "abstained": 4
+        "gold_among_answers": 12,
+        "grounded": 10,
+        "grounding_checked": 10,
+        "abstained": 0
       },
       "retrieval": {
         "hit_at_1": 1.0,
@@ -55,38 +55,38 @@
       "overall": {
         "questions": 12,
         "scored": 12,
-        "exact_match": 7.0,
-        "exact_match_strict": 7.0,
+        "exact_match": 11.0,
+        "exact_match_strict": 11.0,
         "exact_match_ci95": [
-          0.3195,
-          0.8067
+          0.6461,
+          0.9851
         ],
-        "token_f1": 0.5833333333333334,
-        "tokens_mean": 1371.3333333333333,
-        "latency_mean_s": 7.604832905416818,
-        "latency_p50_s": 7.571339321999403,
-        "latency_p95_s": 9.447740342999168,
-        "cost_per_100_usd": 0.35133333333333333,
+        "token_f1": 0.9166666666666666,
+        "tokens_mean": 1373.6666666666667,
+        "latency_mean_s": 2.610472974833101,
+        "latency_p50_s": 2.235368967987597,
+        "latency_p95_s": 4.031160073005594,
+        "cost_per_100_usd": 0.35160416666666666,
         "citations_mean": 5,
         "estimated_token_rows": 0
       },
       "by_type": {
         "offtemplate_film": {
           "questions": 9,
-          "exact_match": 5.0,
-          "tokens_mean": 1351.3333333333333
+          "exact_match": 8.0,
+          "tokens_mean": 1342.2222222222222
         },
         "offtemplate_office": {
           "questions": 3,
-          "exact_match": 2.0,
-          "tokens_mean": 1431.3333333333333
+          "exact_match": 3.0,
+          "tokens_mean": 1468
         }
       },
       "evidence": {
-        "gold_among_answers": 7,
-        "grounded": 6,
-        "grounding_checked": 6,
-        "abstained": 4
+        "gold_among_answers": 11,
+        "grounded": 9,
+        "grounding_checked": 9,
+        "abstained": 1
       },
       "retrieval": {
         "hit_at_1": 1.0,
@@ -105,38 +105,38 @@
       "overall": {
         "questions": 12,
         "scored": 12,
-        "exact_match": 10.0,
-        "exact_match_strict": 10.0,
+        "exact_match": 12.0,
+        "exact_match_strict": 12.0,
         "exact_match_ci95": [
-          0.552,
-          0.953
+          0.7575,
+          1.0
         ],
-        "token_f1": 0.8333333333333334,
-        "tokens_mean": 4833.25,
-        "latency_mean_s": 12.0325184932517,
-        "latency_p50_s": 8.545644646001165,
-        "latency_p95_s": 22.4238850010006,
-        "cost_per_100_usd": 1.3616875000000002,
-        "citations_mean": 4.833333333333333,
+        "token_f1": 1.0,
+        "tokens_mean": 2333.5,
+        "latency_mean_s": 4.2358589000032225,
+        "latency_p50_s": 3.9971946040022885,
+        "latency_p95_s": 5.594093847001204,
+        "cost_per_100_usd": 0.652,
+        "citations_mean": 3.9166666666666665,
         "estimated_token_rows": 0
       },
       "by_type": {
         "offtemplate_film": {
           "questions": 9,
-          "exact_match": 7.0,
-          "tokens_mean": 4968
+          "exact_match": 9.0,
+          "tokens_mean": 2289.777777777778
         },
         "offtemplate_office": {
           "questions": 3,
           "exact_match": 3.0,
-          "tokens_mean": 4429
+          "tokens_mean": 2464.6666666666665
         }
       },
       "evidence": {
-        "gold_among_answers": 10,
+        "gold_among_answers": 12,
         "grounded": 10,
         "grounding_checked": 10,
-        "abstained": 2
+        "abstained": 0
       },
       "retrieval": {
         "hit_at_1": 1.0,
@@ -144,7 +144,7 @@
         "mrr": 1.0,
         "ndcg_at_5": 1.0,
         "recall_at_5": 1.0,
-        "precision_at_5": 0.24444444444444444,
+        "precision_at_5": 0.2569444444444444,
         "context_precision_at_5": 1.0,
         "context_recall": 1.0,
         "context_recall_questions": 10
@@ -153,64 +153,27 @@
   },
   "agent": {
     "questions": 12,
-    "steps_mean": 4.5,
+    "steps_mean": 3,
     "steps_median": 3.0,
-    "steps_max": 7,
-    "llm_calls_mean": 3.0833333333333335,
+    "steps_max": 3,
+    "llm_calls_mean": 2,
     "single_call_answers": 0,
     "strategy_changes": 0,
     "tools": {
-      "hybrid_search": 17
+      "hybrid_search": 12
     },
     "specialists": {
       "OrchestratorAgent": 12,
       "DocumentRetrievalAgent": 12
     },
     "stopping_reasons": {
-      "Orchestrator finished with an answer grounded in tool observations": 10,
-      "Iteration budget used; no grounded answer was available": 2
+      "Orchestrator finished with an answer grounded in tool observations": 12
     }
   },
   "graph_pipeline_misses": [
     {
-      "qid": "off-003",
-      "qtype": "offtemplate_film",
-      "pipeline": "graphrag",
-      "answer": "Not found in corpus."
-    },
-    {
       "qid": "off-005",
       "qtype": "offtemplate_film",
-      "pipeline": "graphrag",
-      "answer": "Not found in corpus"
-    },
-    {
-      "qid": "off-007",
-      "qtype": "offtemplate_film",
-      "pipeline": "graphrag",
-      "answer": "Not found in corpus"
-    },
-    {
-      "qid": "off-008",
-      "qtype": "offtemplate_film",
-      "pipeline": "graphrag",
-      "answer": "2006"
-    },
-    {
-      "qid": "off-008",
-      "qtype": "offtemplate_film",
-      "pipeline": "agentic",
-      "answer": "Not found in corpus"
-    },
-    {
-      "qid": "off-009",
-      "qtype": "offtemplate_film",
-      "pipeline": "agentic",
-      "answer": "Not found in corpus"
-    },
-    {
-      "qid": "off-010",
-      "qtype": "offtemplate_office",
       "pipeline": "graphrag",
       "answer": "Not found in corpus"
     }
@@ -222,18 +185,18 @@
         "graphrag",
         "agentic"
       ],
-      "commit": "281d47d",
+      "commit": "91ec4ef",
       "model": "command-a-03-2025",
       "dataset_sha256": "0bb2155d254c210ffae01e9a6285dd4fb4e5c4f34919cba8285ad1d63e4b72e0",
-      "finished_at": "2026-10-03T00:41:13+0530",
+      "finished_at": "2026-10-03T20:02:10+0530",
       "rows": 12
     },
     {
       "pipelines": "agentic",
-      "commit": "ba2db35",
+      "commit": "fc6bfd6",
       "model": "command-a-03-2025",
       "dataset_sha256": "0bb2155d254c210ffae01e9a6285dd4fb4e5c4f34919cba8285ad1d63e4b72e0",
-      "finished_at": "2026-10-03T15:00:22+0530",
+      "finished_at": "2026-10-03T20:16:08+0530",
       "rows": 12
     }
   ]

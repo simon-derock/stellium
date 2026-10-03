@@ -25,6 +25,14 @@
       "rows": 50
     },
     {
+      "pipelines": "rag",
+      "commit": "91ec4ef",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "a2742f449765bb66c7ccc87a281560de3327894fe656a3b2f415f68d990c7d0a",
+      "finished_at": "2026-10-03T19:59:47+0530",
+      "rows": 50
+    },
+    {
       "pipelines": "graphrag",
       "commit": "291b4fb",
       "model": "command-a-03-2025",
@@ -49,17 +57,17 @@
       "rag": {
         "answer": "Not found in corpus.",
         "llm_tokens": {
-          "input": 2680,
+          "input": 2450,
           "output": 5,
-          "total": 2685
+          "total": 2455
         },
-        "latency_s": 5.222,
+        "latency_s": 1.959,
         "citations": [
           "Q942805",
+          "Q734997",
           "Q1183979",
-          "Q1115025",
-          "Q3879562",
-          "Q734997"
+          "Q752428",
+          "Q757054"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -206,17 +214,17 @@
       "rag": {
         "answer": "29",
         "llm_tokens": {
-          "input": 2733,
+          "input": 2834,
           "output": 2,
-          "total": 2735
+          "total": 2836
         },
-        "latency_s": 4.496,
+        "latency_s": 1.691,
         "citations": [
           "Q5443136",
           "Q5443138",
-          "Q38599",
-          "Q5443137",
-          "Q5443142"
+          "Q5443142",
+          "Q5443140",
+          "Q5443137"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -362,19 +370,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many cycling events at the 2008 Summer Olympics had more than 30 competitors?",
       "rag": {
-        "answer": "4",
+        "answer": "5",
         "llm_tokens": {
-          "input": 2569,
+          "input": 2696,
           "output": 1,
-          "total": 2570
+          "total": 2697
         },
-        "latency_s": 4.628,
+        "latency_s": 2.131,
         "citations": [
-          "Q2445057",
-          "Q1064728",
+          "Q1005614",
+          "Q938833",
+          "Q727488",
           "Q1063589",
-          "Q914969",
-          "Q635304"
+          "Q1005322"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -544,19 +552,19 @@
       "qtype": "multi_hop",
       "question": "Who won the gold medal in the event held at Sydney International Shooting Centre on 22 September 2000?",
       "rag": {
-        "answer": "Not found in corpus.",
+        "answer": "Mariya Grozdeva",
         "llm_tokens": {
-          "input": 2303,
-          "output": 5,
-          "total": 2308
+          "input": 2679,
+          "output": 6,
+          "total": 2685
         },
-        "latency_s": 4.228,
+        "latency_s": 1.702,
         "citations": [
-          "Q4443767",
-          "Q4354069",
-          "Q7500814",
-          "Q4443765",
-          "Q7500813"
+          "Q7500816",
+          "Q7500817",
+          "Q7500807",
+          "Q7500813",
+          "Q4786058"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -701,19 +709,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which sailing event at the 2016 Summer Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Men's 470",
+        "answer": "Sailing at the 2016 Summer Olympics – Men's 470",
         "llm_tokens": {
-          "input": 3261,
-          "output": 6,
-          "total": 3267
+          "input": 3180,
+          "output": 18,
+          "total": 3198
         },
-        "latency_s": 4.374,
+        "latency_s": 2.022,
         "citations": [
-          "Q26265754",
+          "Q26263261",
           "Q26250761",
           "Q26262259",
-          "Q26263261",
-          "Q26262261"
+          "Q26262262",
+          "Q26262295"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -866,17 +874,17 @@
       "rag": {
         "answer": "2",
         "llm_tokens": {
-          "input": 2753,
+          "input": 2789,
           "output": 1,
-          "total": 2754
+          "total": 2790
         },
-        "latency_s": 7.183,
+        "latency_s": 1.968,
         "citations": [
-          "Q843851",
           "Q848689",
-          "Q384953",
+          "Q843851",
           "Q595962",
-          "Q921409"
+          "Q384953",
+          "Q916711"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -1030,19 +1038,19 @@
       "qtype": "temporal",
       "question": "Who won the gold medal in the men's heavyweight boxing event at the Summer Olympics held immediately before 2016?",
       "rag": {
-        "answer": "Not found in corpus",
+        "answer": "Oleksandr Usyk",
         "llm_tokens": {
-          "input": 2744,
-          "output": 4,
-          "total": 2748
+          "input": 2781,
+          "output": 5,
+          "total": 2786
         },
-        "latency_s": 3.906,
+        "latency_s": 2.119,
         "citations": [
-          "Q26212155",
-          "Q26208602",
-          "Q26208513",
-          "Q26212152",
-          "Q26212151"
+          "Q326384",
+          "Q4951840",
+          "Q10706347",
+          "Q10706346",
+          "Q3925462"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -1282,19 +1290,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many sailing events at the 1996 Summer Olympics had more than 46 competitors?",
       "rag": {
-        "answer": "3",
+        "answer": "4",
         "llm_tokens": {
-          "input": 2035,
+          "input": 2108,
           "output": 1,
-          "total": 2036
+          "total": 2109
         },
-        "latency_s": 5.172,
+        "latency_s": 3.244,
         "citations": [
           "Q7400320",
           "Q7400318",
-          "Q7400325",
+          "Q7400323",
           "Q7400319",
-          "Q7400323"
+          "Q7400322"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -1450,16 +1458,16 @@
       "rag": {
         "answer": "Men's 470",
         "llm_tokens": {
-          "input": 2257,
+          "input": 2145,
           "output": 6,
-          "total": 2263
+          "total": 2151
         },
-        "latency_s": 3.605,
+        "latency_s": 2.741,
         "citations": [
+          "Q7400345",
           "Q7400347",
           "Q7400344",
-          "Q7400339",
-          "Q10609400",
+          "Q7400342",
           "Q7400346"
         ],
         "model": "command-a-03-2025",
@@ -1613,17 +1621,17 @@
       "rag": {
         "answer": "32",
         "llm_tokens": {
-          "input": 1889,
+          "input": 1869,
           "output": 2,
-          "total": 1891
+          "total": 1871
         },
-        "latency_s": 4.7,
+        "latency_s": 1.659,
         "citations": [
           "Q10497009",
           "Q4951834",
-          "Q4951829",
-          "Q10572441",
-          "Q10572423"
+          "Q10719575",
+          "Q10572465",
+          "Q16953154"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -1768,19 +1776,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many weightlifting events at the 1992 Summer Olympics had more than 24 competitors?",
       "rag": {
-        "answer": "1",
+        "answer": "3",
         "llm_tokens": {
-          "input": 2157,
+          "input": 2223,
           "output": 1,
-          "total": 2158
+          "total": 2224
         },
-        "latency_s": 5.569,
+        "latency_s": 1.724,
         "citations": [
-          "Q7979969",
-          "Q25239314",
           "Q7979977",
-          "Q7979971",
-          "Q7979982"
+          "Q7979969",
+          "Q7979968",
+          "Q7979975",
+          "Q7979973"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -1936,16 +1944,16 @@
       "rag": {
         "answer": "32",
         "llm_tokens": {
-          "input": 2715,
+          "input": 2446,
           "output": 2,
-          "total": 2717
+          "total": 2448
         },
-        "latency_s": 5.099,
+        "latency_s": 1.78,
         "citations": [
           "Q25991452",
-          "Q26218947",
           "Q25991463",
-          "Q25991447",
+          "Q25927634",
+          "Q25927635",
           "Q25991453"
         ],
         "model": "command-a-03-2025",
@@ -2094,17 +2102,17 @@
       "rag": {
         "answer": "2",
         "llm_tokens": {
-          "input": 2521,
+          "input": 2708,
           "output": 1,
-          "total": 2522
+          "total": 2709
         },
-        "latency_s": 5.641,
+        "latency_s": 1.851,
         "citations": [
-          "Q26262252",
           "Q24760634",
           "Q26259596",
-          "Q24761058",
-          "Q2445057"
+          "Q25476845",
+          "Q26291516",
+          "Q26262252"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -2268,17 +2276,17 @@
       "rag": {
         "answer": "Michaela Dorfmeister",
         "llm_tokens": {
-          "input": 2791,
+          "input": 2586,
           "output": 4,
-          "total": 2795
+          "total": 2590
         },
-        "latency_s": 4.14,
+        "latency_s": 1.739,
         "citations": [
-          "Q846788",
           "Q771123",
-          "Q917760",
           "Q653672",
-          "Q915092"
+          "Q847288",
+          "Q846788",
+          "Q1004924"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -2427,17 +2435,17 @@
       "rag": {
         "answer": "35",
         "llm_tokens": {
-          "input": 2439,
+          "input": 2709,
           "output": 2,
-          "total": 2441
+          "total": 2711
         },
-        "latency_s": 4.28,
+        "latency_s": 2.374,
         "citations": [
           "Q26219858",
-          "Q1636766",
           "Q26233103",
-          "Q3628768",
-          "Q26219839"
+          "Q26086643",
+          "Q1636766",
+          "Q1772012"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -2585,17 +2593,17 @@
       "rag": {
         "answer": "22",
         "llm_tokens": {
-          "input": 2439,
+          "input": 2564,
           "output": 2,
-          "total": 2441
+          "total": 2566
         },
-        "latency_s": 4.158,
+        "latency_s": 1.706,
         "citations": [
           "Q848278",
-          "Q613746",
+          "Q922361",
+          "Q1066390",
           "Q848291",
-          "Q1799251",
-          "Q3628775"
+          "Q1799251"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -2743,17 +2751,17 @@
       "rag": {
         "answer": "Miroslava Knapková",
         "llm_tokens": {
-          "input": 3176,
+          "input": 3504,
           "output": 5,
-          "total": 3181
+          "total": 3509
         },
-        "latency_s": 4.321,
+        "latency_s": 2.031,
         "citations": [
-          "Q1005337",
-          "Q1005508",
-          "Q1188476",
           "Q1222270",
-          "Q767351"
+          "Q1005337",
+          "Q1068773",
+          "Q1005506",
+          "Q1222420"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -2898,19 +2906,19 @@
       "qtype": "multi_hop",
       "question": "Who won the gold medal in the event held at Olympic Stadium on 16–18 August 2016?",
       "rag": {
-        "answer": "Not found in corpus.",
+        "answer": "Sara Kolak",
         "llm_tokens": {
-          "input": 2304,
-          "output": 5,
-          "total": 2309
+          "input": 2270,
+          "output": 3,
+          "total": 2273
         },
-        "latency_s": 4.469,
+        "latency_s": 1.633,
         "citations": [
-          "Q26203840",
-          "Q26234091",
+          "Q26234144",
           "Q26208447",
-          "Q26208457",
-          "Q26212275"
+          "Q26219856",
+          "Q26208755",
+          "Q26234091"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -3057,17 +3065,17 @@
       "rag": {
         "answer": "Not found in corpus.",
         "llm_tokens": {
-          "input": 2513,
+          "input": 2261,
           "output": 5,
-          "total": 2518
+          "total": 2266
         },
-        "latency_s": 4.381,
+        "latency_s": 1.97,
         "citations": [
+          "Q1005749",
           "Q988370",
           "Q870651",
-          "Q1005618",
-          "Q1005047",
-          "Q1222025"
+          "Q988348",
+          "Q1005047"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -3224,17 +3232,17 @@
       "rag": {
         "answer": "Jin Jong-oh",
         "llm_tokens": {
-          "input": 2352,
+          "input": 2579,
           "output": 4,
-          "total": 2356
+          "total": 2583
         },
-        "latency_s": 3.694,
+        "latency_s": 1.914,
         "citations": [
-          "Q681571",
           "Q2353475",
+          "Q681571",
           "Q334901",
           "Q2353523",
-          "Q921100"
+          "Q2254560"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -3379,19 +3387,19 @@
       "qtype": "temporal",
       "question": "Who won the gold medal in the men's 200 metre backstroke swimming event at the Summer Olympics held immediately before 2016?",
       "rag": {
-        "answer": "Not found in corpus",
+        "answer": "Tyler Clary",
         "llm_tokens": {
-          "input": 2785,
-          "output": 4,
-          "total": 2789
+          "input": 2972,
+          "output": 2,
+          "total": 2974
         },
-        "latency_s": 4.151,
+        "latency_s": 1.726,
         "citations": [
-          "Q25991449",
-          "Q25991451",
-          "Q26218947",
-          "Q25991447",
-          "Q25927635"
+          "Q2071160",
+          "Q267771",
+          "Q3879585",
+          "Q769467",
+          "Q3879620"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -3635,17 +3643,17 @@
       "rag": {
         "answer": "40",
         "llm_tokens": {
-          "input": 2725,
+          "input": 2955,
           "output": 2,
-          "total": 2727
+          "total": 2957
         },
-        "latency_s": 6.343,
+        "latency_s": 2.337,
         "citations": [
-          "Q15055034",
           "Q15055036",
-          "Q15055029",
-          "Q15055038",
-          "Q15055035"
+          "Q15055034",
+          "Q14643126",
+          "Q15055025",
+          "Q15056102"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -3791,18 +3799,18 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many shooting events at the 2000 Summer Olympics had more than 42 competitors?",
       "rag": {
-        "answer": "Not found in corpus.",
+        "answer": "2",
         "llm_tokens": {
-          "input": 2515,
-          "output": 5,
-          "total": 2520
+          "input": 2202,
+          "output": 1,
+          "total": 2203
         },
-        "latency_s": 5.462,
+        "latency_s": 1.681,
         "citations": [
-          "Q7500810",
-          "Q4443767",
-          "Q7500809",
-          "Q7500772",
+          "Q7500813",
+          "Q4443765",
+          "Q7500816",
+          "Q7500817",
           "Q7500819"
         ],
         "model": "command-a-03-2025",
@@ -3969,19 +3977,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which cross-country skiing event at the 1998 Winter Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Women's 5 kilometre classical",
+        "answer": "Men's 15 kilometre freestyle pursuit",
         "llm_tokens": {
-          "input": 2229,
-          "output": 6,
-          "total": 2235
+          "input": 2161,
+          "output": 8,
+          "total": 2169
         },
-        "latency_s": 3.766,
+        "latency_s": 1.706,
         "citations": [
           "Q870651",
-          "Q1221939",
           "Q988370",
-          "Q1222171",
-          "Q1221875"
+          "Q1005069",
+          "Q1005214",
+          "Q1004991"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -4132,19 +4140,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which rowing event at the 2016 Summer Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Men's single sculls",
+        "answer": "Women's single sculls",
         "llm_tokens": {
-          "input": 2920,
+          "input": 3296,
           "output": 4,
-          "total": 2924
+          "total": 3300
         },
-        "latency_s": 4.575,
+        "latency_s": 1.84,
         "citations": [
-          "Q22968981",
           "Q22968983",
-          "Q22968985",
-          "Q22968982",
-          "Q22968977"
+          "Q22968984",
+          "Q22968974",
+          "Q22968973",
+          "Q22968976"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -4295,19 +4303,19 @@
       "qtype": "lookup",
       "question": "How many nations competed in Fencing at the 2000 Summer Olympics – Men's foil?",
       "rag": {
-        "answer": "22 nations competed in Fencing at the 2000 Summer Olympics – Men's foil.",
+        "answer": "22",
         "llm_tokens": {
-          "input": 2322,
-          "output": 20,
-          "total": 2342
+          "input": 2453,
+          "output": 2,
+          "total": 2455
         },
-        "latency_s": 4.032,
+        "latency_s": 1.753,
         "citations": [
           "Q632472",
-          "Q3951952",
           "Q647750",
-          "Q5443156",
-          "Q632742"
+          "Q632742",
+          "Q647742",
+          "Q632754"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -4455,17 +4463,17 @@
       "rag": {
         "answer": "Cycling at the 2012 Summer Olympics – Men's individual road race",
         "llm_tokens": {
-          "input": 2556,
+          "input": 2813,
           "output": 17,
-          "total": 2573
+          "total": 2830
         },
-        "latency_s": 4.348,
+        "latency_s": 2.163,
         "citations": [
           "Q754412",
+          "Q580474",
           "Q2036655",
-          "Q2718015",
-          "Q2070832",
-          "Q2269694"
+          "Q2297621",
+          "Q2070832"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -4618,17 +4626,17 @@
       "rag": {
         "answer": "Not found in corpus.",
         "llm_tokens": {
-          "input": 2783,
+          "input": 2791,
           "output": 5,
-          "total": 2788
+          "total": 2796
         },
-        "latency_s": 3.7,
+        "latency_s": 4.417,
         "citations": [
-          "Q767959",
-          "Q2358254",
+          "Q2171151",
           "Q2091137",
-          "Q2048869",
-          "Q2171151"
+          "Q2358214",
+          "Q767959",
+          "Q2048869"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -4779,19 +4787,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many boxing events at the 2012 Summer Olympics had more than 26 competitors?",
       "rag": {
-        "answer": "1",
+        "answer": "2",
         "llm_tokens": {
-          "input": 2905,
+          "input": 2838,
           "output": 1,
-          "total": 2906
+          "total": 2839
         },
-        "latency_s": 3.281,
+        "latency_s": 1.744,
         "citations": [
           "Q332673",
-          "Q2000524",
           "Q31844",
-          "Q348720",
-          "Q31850"
+          "Q31850",
+          "Q2000524",
+          "Q348714"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -4941,19 +4949,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which alpine skiing event at the 1994 Winter Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Not found in corpus.",
+        "answer": "Men's giant slalom",
         "llm_tokens": {
-          "input": 2348,
-          "output": 5,
-          "total": 2353
+          "input": 2340,
+          "output": 4,
+          "total": 2344
         },
-        "latency_s": 3.657,
+        "latency_s": 1.775,
         "citations": [
-          "Q1222098",
-          "Q870649",
-          "Q988372",
-          "Q1004936",
-          "Q1005212"
+          "Q1005044",
+          "Q1005640",
+          "Q1005617",
+          "Q1005808",
+          "Q9663"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -5106,17 +5114,17 @@
       "rag": {
         "answer": "Kim Un-guk",
         "llm_tokens": {
-          "input": 2799,
+          "input": 3747,
           "output": 4,
-          "total": 2803
+          "total": 3751
         },
-        "latency_s": 4.278,
+        "latency_s": 1.949,
         "citations": [
-          "Q26212149",
-          "Q26212147",
           "Q1139399",
-          "Q26212148",
-          "Q26212144"
+          "Q4820134",
+          "Q1750592",
+          "Q26212149",
+          "Q522820"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -5325,19 +5333,19 @@
       "qtype": "multi_hop",
       "question": "Who won the gold medal in the event held at Pacific Coliseum on February 20, 2010?",
       "rag": {
-        "answer": "Lee Jung-su",
+        "answer": "There are multiple events held at Pacific Coliseum on February 20, 2010. \n\n* **Short-track speed skating - Men's 1000 metres:** Lee Jung-su\n* **Short-track speed skating - Women's 1500 metres:** Zhou Yang",
         "llm_tokens": {
-          "input": 2896,
-          "output": 4,
-          "total": 2900
+          "input": 3161,
+          "output": 63,
+          "total": 3224
         },
-        "latency_s": 3.538,
+        "latency_s": 2.511,
         "citations": [
-          "Q769542",
           "Q586832",
-          "Q916735",
           "Q938791",
-          "Q379473"
+          "Q916747",
+          "Q916735",
+          "Q769542"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -5520,19 +5528,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many alpine skiing events at the 1988 Winter Olympics had more than 57 competitors?",
       "rag": {
-        "answer": "Not found in corpus.",
+        "answer": "1",
         "llm_tokens": {
-          "input": 2535,
-          "output": 5,
-          "total": 2540
+          "input": 2140,
+          "output": 1,
+          "total": 2141
         },
-        "latency_s": 4.139,
+        "latency_s": 1.784,
         "citations": [
-          "Q988369",
-          "Q1005211",
-          "Q1005063",
-          "Q1004985",
-          "Q15703663"
+          "Q988359",
+          "Q1222524",
+          "Q1005041",
+          "Q1005744",
+          "Q1005211"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -5688,16 +5696,16 @@
       "rag": {
         "answer": "Bakhtiyar Akhmedov",
         "llm_tokens": {
-          "input": 2822,
+          "input": 2954,
           "output": 6,
-          "total": 2828
+          "total": 2960
         },
-        "latency_s": 3.787,
+        "latency_s": 2.582,
         "citations": [
-          "Q677063",
           "Q581364",
-          "Q2048869",
-          "Q767959",
+          "Q3837505",
+          "Q600157",
+          "Q677063",
           "Q2550697"
         ],
         "model": "command-a-03-2025",
@@ -5920,19 +5928,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which rowing event at the 2012 Summer Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Men's coxless four and Men's lightweight coxless four both had 52 competitors.",
+        "answer": "Men's quadruple sculls and Men's coxless four both had the highest number of competitors, with 52 competitors each.",
         "llm_tokens": {
-          "input": 3234,
-          "output": 19,
-          "total": 3253
+          "input": 3437,
+          "output": 25,
+          "total": 3462
         },
-        "latency_s": 5.827,
+        "latency_s": 2.257,
         "citations": [
           "Q1005337",
-          "Q2460802",
+          "Q1005683",
           "Q1005506",
-          "Q526367",
-          "Q536380"
+          "Q536380",
+          "Q1188476"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -6086,17 +6094,17 @@
       "rag": {
         "answer": "2",
         "llm_tokens": {
-          "input": 3445,
+          "input": 3360,
           "output": 1,
-          "total": 3446
+          "total": 3361
         },
-        "latency_s": 5.631,
+        "latency_s": 1.958,
         "citations": [
-          "Q47309958",
-          "Q47309929",
+          "Q47309900",
           "Q47309990",
-          "Q47310015",
-          "Q47309816"
+          "Q47309816",
+          "Q47309929",
+          "Q47455933"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -6248,16 +6256,16 @@
       "rag": {
         "answer": "Sailing at the 1996 Summer Olympics – Men's 470",
         "llm_tokens": {
-          "input": 2033,
+          "input": 1991,
           "output": 18,
-          "total": 2051
+          "total": 2009
         },
-        "latency_s": 5.697,
+        "latency_s": 1.843,
         "citations": [
           "Q7400318",
-          "Q7400319",
-          "Q7400325",
           "Q7400323",
+          "Q7400324",
+          "Q7400319",
           "Q7400320"
         ],
         "model": "command-a-03-2025",
@@ -6409,19 +6417,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many athletics events at the 2008 Summer Olympics had more than 40 competitors?",
       "rag": {
-        "answer": "Not found in corpus.",
+        "answer": "3",
         "llm_tokens": {
-          "input": 2459,
-          "output": 5,
-          "total": 2464
+          "input": 2639,
+          "output": 1,
+          "total": 2640
         },
-        "latency_s": 5.11,
+        "latency_s": 1.851,
         "citations": [
-          "Q2570149",
-          "Q517035",
-          "Q677027",
-          "Q2201769",
-          "Q1005784"
+          "Q1005784",
+          "Q1066390",
+          "Q247070",
+          "Q288549",
+          "Q922361"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -6645,17 +6653,17 @@
       "rag": {
         "answer": "0",
         "llm_tokens": {
-          "input": 3429,
+          "input": 3589,
           "output": 1,
-          "total": 3430
+          "total": 3590
         },
-        "latency_s": 4.867,
+        "latency_s": 1.79,
         "citations": [
-          "Q58412558",
-          "Q10572439",
-          "Q10572415",
-          "Q10572463",
-          "Q10719576"
+          "Q10495989",
+          "Q10426127",
+          "Q10497008",
+          "Q10719576",
+          "Q10572439"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -6808,17 +6816,17 @@
       "rag": {
         "answer": "Nouria Mérah-Benida",
         "llm_tokens": {
-          "input": 2644,
+          "input": 2774,
           "output": 8,
-          "total": 2652
+          "total": 2782
         },
-        "latency_s": 3.885,
+        "latency_s": 2.125,
         "citations": [
-          "Q3628763",
           "Q3628760",
+          "Q1432289",
           "Q3628765",
-          "Q3628761",
-          "Q3628773"
+          "Q3628763",
+          "Q3628770"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -6963,19 +6971,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many alpine skiing events at the 2006 Winter Olympics had more than 63 competitors?",
       "rag": {
-        "answer": "1",
+        "answer": "2",
         "llm_tokens": {
-          "input": 2399,
+          "input": 2321,
           "output": 1,
-          "total": 2400
+          "total": 2322
         },
-        "latency_s": 4.548,
+        "latency_s": 1.671,
         "citations": [
           "Q585893",
-          "Q917743",
           "Q2574045",
           "Q748648",
-          "Q825731"
+          "Q917743",
+          "Q372925"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -7131,17 +7139,17 @@
       "rag": {
         "answer": "Dmitry Monakov",
         "llm_tokens": {
-          "input": 2489,
+          "input": 2942,
           "output": 4,
-          "total": 2493
+          "total": 2946
         },
-        "latency_s": 4.687,
+        "latency_s": 1.835,
         "citations": [
+          "Q7500750",
+          "Q681571",
           "Q7500772",
           "Q775967",
-          "Q26233478",
-          "Q7500750",
-          "Q4443767"
+          "Q7500796"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -7359,17 +7367,17 @@
       "rag": {
         "answer": "Loredana Dinu, Simona Gherman, Simona Pop, Ana Maria Popescu",
         "llm_tokens": {
-          "input": 2582,
+          "input": 3066,
           "output": 15,
-          "total": 2597
+          "total": 3081
         },
-        "latency_s": 4.942,
+        "latency_s": 3.808,
         "citations": [
-          "Q25386279",
-          "Q25386268",
-          "Q25386262",
-          "Q25386266",
-          "Q25384917"
+          "Q25384917",
+          "Q25384916",
+          "Q26219850",
+          "Q26219852",
+          "Q26219848"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -7518,17 +7526,17 @@
       "rag": {
         "answer": "Lydia Valentín",
         "llm_tokens": {
-          "input": 2791,
+          "input": 2591,
           "output": 3,
-          "total": 2794
+          "total": 2594
         },
-        "latency_s": 3.941,
+        "latency_s": 1.832,
         "citations": [
+          "Q1371783",
           "Q1997032",
-          "Q26212188",
-          "Q26212310",
-          "Q26328066",
-          "Q1371783"
+          "Q12808144",
+          "Q906865",
+          "Q1065640"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -7746,17 +7754,17 @@
       "rag": {
         "answer": "Hannah Kearney",
         "llm_tokens": {
-          "input": 2354,
+          "input": 2920,
           "output": 2,
-          "total": 2356
+          "total": 2922
         },
-        "latency_s": 4.513,
+        "latency_s": 2.054,
         "citations": [
-          "Q15056095",
-          "Q15055028",
-          "Q15056099",
+          "Q1222483",
+          "Q850196",
           "Q905561",
-          "Q850196"
+          "Q1222492",
+          "Q595962"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -7907,19 +7915,19 @@
       "qtype": "temporal",
       "question": "Who won the gold medal in the light flyweight boxing event at the Summer Olympics held immediately before 2004?",
       "rag": {
-        "answer": "Not found in corpus",
+        "answer": "Brahim Asloum",
         "llm_tokens": {
-          "input": 2782,
-          "output": 4,
-          "total": 2786
+          "input": 2370,
+          "output": 6,
+          "total": 2376
         },
-        "latency_s": 3.77,
+        "latency_s": 1.894,
         "citations": [
-          "Q3925468",
-          "Q3925466",
-          "Q3925465",
-          "Q15056263",
-          "Q3925471"
+          "Q10572415",
+          "Q4951841",
+          "Q10572416",
+          "Q4951834",
+          "Q10497009"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -8151,19 +8159,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which cycling event at the 2004 Summer Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Men's individual road race",
+        "answer": "Cycling at the 2004 Summer Olympics – Men's individual road race",
         "llm_tokens": {
-          "input": 2309,
-          "output": 5,
-          "total": 2314
+          "input": 2200,
+          "output": 17,
+          "total": 2217
         },
-        "latency_s": 3.962,
+        "latency_s": 1.876,
         "citations": [
           "Q2445057",
-          "Q1421581",
-          "Q2065523",
-          "Q1415848",
-          "Q2212666"
+          "Q2212666",
+          "Q1421749",
+          "Q1421727",
+          "Q2310230"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -8314,19 +8322,19 @@
       "qtype": "aggregation",
       "question": "According to the provided corpus, how many cycling events at the 2012 Summer Olympics had more than 30 competitors?",
       "rag": {
-        "answer": "2",
+        "answer": "3",
         "llm_tokens": {
-          "input": 2434,
+          "input": 2674,
           "output": 1,
-          "total": 2435
+          "total": 2675
         },
-        "latency_s": 4.334,
+        "latency_s": 1.905,
         "citations": [
           "Q2036655",
-          "Q2718015",
-          "Q754412",
           "Q2070832",
-          "Q2269155"
+          "Q754412",
+          "Q916174",
+          "Q2297621"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -8493,19 +8501,19 @@
       "qtype": "superlative",
       "question": "According to the provided corpus, which shooting event at the 1988 Summer Olympics had the highest number of competitors?",
       "rag": {
-        "answer": "Men's 50 metre rifle prone",
+        "answer": "Shooting at the 1988 Summer Olympics – Mixed skeet",
         "llm_tokens": {
-          "input": 2413,
-          "output": 8,
-          "total": 2421
+          "input": 2332,
+          "output": 14,
+          "total": 2346
         },
-        "latency_s": 4.201,
+        "latency_s": 1.795,
         "citations": [
-          "Q3628695",
           "Q7500750",
+          "Q7500748",
           "Q7500743",
-          "Q7500739",
-          "Q7500747"
+          "Q3628695",
+          "Q7500739"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"
@@ -8658,17 +8666,17 @@
       "rag": {
         "answer": "David Rudisha",
         "llm_tokens": {
-          "input": 2238,
+          "input": 2382,
           "output": 3,
-          "total": 2241
+          "total": 2385
         },
-        "latency_s": 3.971,
+        "latency_s": 1.803,
         "citations": [
           "Q1049551",
-          "Q2071171",
-          "Q1772012",
           "Q2000999",
-          "Q1636766"
+          "Q645932",
+          "Q1649415",
+          "Q2000979"
         ],
         "model": "command-a-03-2025",
         "provider": "cohere"

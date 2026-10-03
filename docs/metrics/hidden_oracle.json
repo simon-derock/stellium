@@ -10,7 +10,7 @@
     ],
     "pipelines": {
       "rag": {
-        "agree": 19,
+        "agree": 28,
         "scored": 49
       },
       "graphrag": {

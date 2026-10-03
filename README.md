@@ -23,9 +23,9 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 
 | | |
 |---|---|
-| **Accuracy** | 99/100 Agentic GraphRAG · 99/100 GraphRAG · 67/100 RAG on the public questions; the one miss is undecidable from the corpus |
+| **Accuracy** | 99/100 Agentic GraphRAG · 99/100 GraphRAG · 71/100 RAG on the public questions; the one miss is undecidable from the corpus |
 | **Hidden 50** | Graph pipelines agree with an independent corpus oracle on 49 of 49 decidable questions |
-| **Robustness** | Agent: 24/24 two-step questions (GraphRAG 19, RAG 15), 12/12 reworded, 12/12 unanswerable declined, 10/12 off-template |
+| **Robustness** | Agent: 24/24 two-step questions (GraphRAG 19, RAG 18), 12/12 reworded, 12/12 unanswerable declined, 12/12 off-template |
 | **Cost** | 908 LLM tokens per agentic answer, about $0.30 per 100 questions |
 | **Evidence** | Every graph-pipeline answer is stated in a source article it cites |
 | **Stack** | TigerGraph Savanna (graph + native vector search) · Cohere Command A · Cohere Rerank 3.5 |
@@ -72,19 +72,19 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 |---|---:|---:|---:|---:|---:|---:|
 | Agentic GraphRAG | **99%** | 94.5–99.8% | **908** | 1.16 | **1.9 s** | **$0.30** |
 | GraphRAG | **99%** | 94.5–99.8% | 1,056 | 2 | 6.5 s | $0.31 |
-| RAG | 67% | 57–75% | 2,581 | 1 | 4.4 s | $0.65 |
+| RAG | 71% | 61–79% | 2,543 | 1 | 1.8 s | $0.64 |
 
-<sub>Agent re-run on commit f75fb5c, GraphRAG on 468fedf, RAG from 4923d3a (its code is unchanged). Latency includes client-side request pacing, which was lighter on the agent's re-run. Wilson 95% intervals.</sub>
+<sub>Agent on commit f75fb5c, GraphRAG on 468fedf, RAG on 2fca5c8 with Cohere Rerank. Neither graph pipeline reranked a single public question, so the reranker change leaves their rows unchanged. Latency includes client-side request pacing. Wilson 95% intervals.</sub>
 
 ### By question type
 
 | Type | n | Agentic | GraphRAG | RAG |
 |---|---:|---:|---:|---:|
-| Count: how many events meet a condition | 21 | 21 | 21 | 2 |
+| Count: how many events meet a condition | 21 | 21 | 21 | 4 |
 | Lookup: one attribute of one event | 19 | 19 | 19 | 19 |
-| Multi-hop: venue and date to winner | 28 | 27 | 27 | 26 |
-| Ranking: event with the most competitors | 10 | 10 | 10 | 3 |
-| Temporal: winner at the previous Games | 22 | 22 | 22 | 17 |
+| Multi-hop: venue and date to winner | 28 | 27 | 27 | 24 |
+| Ranking: event with the most competitors | 10 | 10 | 10 | 2 |
+| Temporal: winner at the previous Games | 22 | 22 | 22 | 22 |
 
 ### Evidence and retrieval
 
@@ -92,7 +92,7 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 |---|---:|---:|---:|---:|---:|---:|
 | Agentic GraphRAG | 100% | 100% | 0.990 | 0.995 | 0.827 | 100% |
 | GraphRAG | 100% | 100% | 0.990 | 0.995 | 0.827 | 100% |
-| RAG | 67% | 94% | 0.800 | 0.869 | 0.843 | 83% |
+| RAG | 71% | 100% | 0.930 | 0.965 | 0.893 | 97% |
 
 | Measure | Meaning |
 |---|---|
@@ -102,7 +102,7 @@ One model, Cohere `command-a-03-2025`, for every LLM call in every pipeline. Tok
 
 The one graph-pipeline miss, `pub-099`, is undecidable: the women's 30 km cross-country and the men's biathlon relay share the venue and the date the question names, and both articles say so. Both pipelines return both winners instead of guessing. A ranking tie that the corpus does settle (one article restates its count in prose) is now broken on that evidence.
 
-Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audits/public-final-20261002.md)
+Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audits/public-final-20261002.md) · [Cohere Rerank re-run](docs/benchmark-audits/cohere-rerank-20261003.md)
 
 ---
 
@@ -110,12 +110,12 @@ Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audit
 
 | Question shape | Best choice | Why |
 |---|---|---|
-| Fact stated in one passage | RAG | Lookups and most venue-and-date questions resolve from the top passages |
+| Fact stated in one passage | RAG | Lookups and previous-Games winners resolve from the top reranked passages (41/41) |
 | Count or ranking across many events | GraphRAG | Five passages hold about a third of the events; one graph query holds all |
-| Two steps chained (rank, then read the winner's attribute) | Agentic | 24/24, against 19/24 for GraphRAG's single fixed operation |
+| Two steps chained (rank, then read the winner's attribute) | Agentic | 24/24, against 19/24 for GraphRAG's single fixed operation and 18/24 for RAG |
 | Ambiguous names or a failed first lookup | Agentic | Re-plans after an error or a tie |
-| Outside the five templates (films, officeholders) | Agentic | 10/12, against 8 for RAG and 7 for GraphRAG; it falls back to passages when no graph tool fits |
-| Nothing in the corpus answers it | Any | All three decline on 12/12; the agent never moves a venue's day to another year to find something |
+| Outside the five templates (films, officeholders) | Agentic or RAG | 12/12 each, against 11 for GraphRAG; the agent falls back to reranked passages when no graph tool fits |
+| Nothing in the corpus answers it | Agentic or GraphRAG | Both decline 12/12 (RAG 11, one decline buried in prose); the agent never moves a venue's day to another year to find something |
 | Any structured question where cost matters | Agentic | Stops on the first verified value of the kind asked for |
 
 > **Finding.** On the five official templates the agent matches a well-built GraphRAG (99/100 each) at 14% fewer tokens. Where a question needs two graph steps, it is the only pipeline at 100%: it recognises the event it found as a step, not the answer, and reads the attribute next.
