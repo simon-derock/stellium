@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import asyncio
+import hmac
 import json
 import logging
 import os
@@ -29,6 +30,7 @@ from pydantic import BaseModel, Field
 from pyTigerGraph.common.exception import TigerGraphException
 
 from src.api.graph_view import project
+from src.api.limits import QuestionBudget, client_id
 from src.coprocessor import Coprocessor
 from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
 from src.guardrails import check_query
@@ -146,13 +148,36 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# The deployed console reaches the API through its own origin's proxy, so browsers need CORS
+# only for local development; any other site calling from a browser is refused.
+_CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        "STELLIUM_CORS_ORIGINS", "http://localhost:5173,http://localhost:4173"
+    ).split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=_CORS_ORIGINS,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+# A question is at most a few kilobytes; anything far larger is refused before it is parsed.
+_MAX_BODY_BYTES = 64 * 1024
+
+
+@app.middleware("http")
+async def guard_requests(request: Request, call_next: Any) -> Any:
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > _MAX_BODY_BYTES:
+        return JSONResponse(status_code=413, content={"detail": "Request body too large"})
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+
 
 # ---------------------------------------------------------------------------
 # Static Files & Dashboard Mount
@@ -179,14 +204,21 @@ def _default_provider() -> str:
     return os.environ.get("STELLIUM_LLM_PROVIDER", "cohere")
 
 
+def _public_providers() -> set[str]:
+    # Visitors use the benchmarked model; other providers open only when listed explicitly.
+    listed = os.environ.get("STELLIUM_ALLOWED_PROVIDERS", "")
+    names = {name.strip() for name in listed.split(",") if name.strip()} or {_default_provider()}
+    return names & _PROVIDERS
+
+
 class QueryRequest(BaseModel):
     query: str
-    qid: str = "custom-001"
+    qid: str = Field(default="custom-001", max_length=100)
     provider: str = Field(default_factory=_default_provider)
 
 
 class BatchEvalRequest(BaseModel):
-    questions: list[EvalQuestion]
+    questions: list[EvalQuestion] = Field(max_length=200)
     pipeline: str = "agentic"  # "rag" | "graphrag" | "agentic" | "all"
     provider: str = Field(default_factory=_default_provider)
 
@@ -213,13 +245,38 @@ async def _admitted(provider: str) -> AsyncIterator[None]:
         yield
     except RuntimeError as exc:
         # Provider quota or outage after bounded retries: report it, never a fabricated answer.
+        # The cause stays in the server log; visitors get no account or key details.
+        logger.warning("language model unavailable: %s", exc)
         raise HTTPException(
             status_code=503,
-            detail=f"Language model unavailable: {exc}",
+            detail="The language model is unavailable right now; retry shortly.",
             headers={"Retry-After": "30"},
         ) from exc
     finally:
         _query_slots.release()
+
+
+_budget = QuestionBudget()
+
+
+def _screen(req: QueryRequest, request: Request) -> None:
+    # Cheap refusals first, so a refused question never spends the daily allowance.
+    if req.provider not in _public_providers():
+        raise HTTPException(status_code=400, detail=f"Unknown provider {req.provider!r}")
+    safe, reason = check_query(req.query, is_batch=False)
+    if not safe:
+        raise HTTPException(status_code=400, detail=reason)
+    _budget.spend(client_id(request))
+
+
+def _require_admin(request: Request) -> None:
+    # Batch evaluation spends the model allowance freely, so it stays hidden without a token.
+    token = os.environ.get("STELLIUM_ADMIN_TOKEN", "")
+    if not token:
+        raise HTTPException(status_code=404, detail="Not Found")
+    supplied = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not hmac.compare_digest(supplied.encode(), token.encode()):
+        raise HTTPException(status_code=401, detail="A valid admin token is required")
 
 
 # ---------------------------------------------------------------------------
@@ -253,10 +310,8 @@ async def graph_unavailable(_request: Request, _exc: Exception) -> JSONResponse:
 
 
 @app.post("/api/v1/query/rag", response_model=PipelineResult)
-async def query_rag(req: QueryRequest) -> PipelineResult:
-    safe, reason = check_query(req.query, is_batch=False)
-    if not safe:
-        raise HTTPException(status_code=400, detail=reason)
+async def query_rag(req: QueryRequest, request: Request) -> PipelineResult:
+    _screen(req, request)
 
     graph = _get_request_graph()
     async with _admitted(req.provider), make_session(req.provider) as session:
@@ -265,10 +320,8 @@ async def query_rag(req: QueryRequest) -> PipelineResult:
 
 
 @app.post("/api/v1/query/graphrag", response_model=PipelineResult)
-async def query_graphrag(req: QueryRequest) -> PipelineResult:
-    safe, reason = check_query(req.query, is_batch=False)
-    if not safe:
-        raise HTTPException(status_code=400, detail=reason)
+async def query_graphrag(req: QueryRequest, request: Request) -> PipelineResult:
+    _screen(req, request)
 
     graph = _get_request_graph()
     async with _admitted(req.provider), make_session(req.provider) as session:
@@ -277,10 +330,8 @@ async def query_graphrag(req: QueryRequest) -> PipelineResult:
 
 
 @app.post("/api/v1/query/agentic", response_model=PipelineResult)
-async def query_agentic(req: QueryRequest) -> PipelineResult:
-    safe, reason = check_query(req.query, is_batch=False)
-    if not safe:
-        raise HTTPException(status_code=400, detail=reason)
+async def query_agentic(req: QueryRequest, request: Request) -> PipelineResult:
+    _screen(req, request)
 
     graph = _get_request_graph()
     coproc = get_coprocessor()
@@ -290,11 +341,9 @@ async def query_agentic(req: QueryRequest) -> PipelineResult:
 
 
 @app.post("/api/v1/query/compare", response_model=CompareResult)
-async def query_compare(req: QueryRequest) -> CompareResult:
+async def query_compare(req: QueryRequest, request: Request) -> CompareResult:
     # Executes all 3 pipelines side-by-side for comparative judging
-    safe, reason = check_query(req.query, is_batch=False)
-    if not safe:
-        raise HTTPException(status_code=400, detail=reason)
+    _screen(req, request)
 
     async with _admitted(req.provider):
         intent = await classify_intent(req.query, req.provider)
@@ -340,8 +389,9 @@ async def query_compare(req: QueryRequest) -> CompareResult:
 
 
 @app.post("/api/v1/evaluate/batch")
-async def evaluate_batch(req: BatchEvalRequest) -> list[dict[str, Any]]:
-    # Batch evaluation: bypasses input guardrails (trusted eval questions)
+async def evaluate_batch(req: BatchEvalRequest, request: Request) -> list[dict[str, Any]]:
+    # Batch evaluation: bypasses input guardrails (trusted eval questions, admin token only)
+    _require_admin(request)
     graph = _get_request_graph()
     coproc = get_coprocessor()
     session = make_session(req.provider)

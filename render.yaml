@@ -13,6 +13,10 @@ services:
         value: cohere
       - key: STELLIUM_MAX_CONCURRENT_QUERIES
         value: "2"
+      - key: STELLIUM_DAILY_QUESTION_CAP
+        value: "100"
+      - key: STELLIUM_CLIENT_HOURLY_CAP
+        value: "20"
       - key: TG_HOST
         sync: false
       - key: TG_GRAPH_NAME

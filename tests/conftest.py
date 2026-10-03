@@ -21,3 +21,6 @@ def _isolated_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     # Mocked embeddings must never land in the real cache that live runs read from.
     monkeypatch.setenv("STELLIUM_QUERY_EMBEDDING_CACHE", "off")
     monkeypatch.setenv("TG_USE_MOCK", "1")
+    # Question allowances are tested on their own; elsewhere they would trip mid-suite.
+    monkeypatch.setenv("STELLIUM_DAILY_QUESTION_CAP", "0")
+    monkeypatch.setenv("STELLIUM_CLIENT_HOURLY_CAP", "0")

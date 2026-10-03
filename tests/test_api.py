@@ -312,7 +312,7 @@ def test_compare_api_runs_all_pipelines_with_context_and_agentic_trace(
     assert [scripted_chat.await_count for scripted_chat in chats] == [1, 2, 1]
 
 
-def test_batch_eval_bypasses_input_guards() -> None:
+def test_batch_eval_bypasses_input_guards(monkeypatch: pytest.MonkeyPatch) -> None:
     # Batch evaluation accepts questions and invokes pipeline without interactive character limits
     from unittest.mock import patch
 
@@ -327,8 +327,10 @@ def test_batch_eval_bypasses_input_guards() -> None:
         latency_ms=10.0,
     )
     with patch.object(LockedLLMSession, "chat", return_value=mock_res):
+        monkeypatch.setenv("STELLIUM_ADMIN_TOKEN", "judge-token")
         resp = client.post(
             "/api/v1/evaluate/batch",
+            headers={"Authorization": "Bearer judge-token"},
             json={
                 "questions": [
                     {
@@ -443,7 +445,9 @@ def test_exhausted_language_model_returns_503_not_a_fabricated_answer(
 
     assert resp.status_code == 503
     assert resp.headers["retry-after"] == "30"
-    assert "monthly call limit" in resp.json()["detail"]
+    # The cause is logged, never shown: no account or key details reach a visitor.
+    assert "monthly" not in resp.json()["detail"]
+    assert "unavailable" in resp.json()["detail"]
 
 
 def test_metrics_endpoint_serves_the_committed_benchmark_document() -> None:
@@ -544,3 +548,48 @@ async def test_keep_alive_reads_the_graph_and_survives_a_failed_beat(
     beat.cancel()
 
     assert graph.ping.call_count >= 3
+
+
+def test_batch_eval_is_hidden_without_a_token_and_refuses_a_wrong_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    body = {"questions": [{"qid": "q1", "question": "Who won?", "qtype": "lookup"}]}
+    monkeypatch.delenv("STELLIUM_ADMIN_TOKEN", raising=False)
+    assert client.post("/api/v1/evaluate/batch", json=body).status_code == 404
+    monkeypatch.setenv("STELLIUM_ADMIN_TOKEN", "judge-token")
+    wrong = client.post(
+        "/api/v1/evaluate/batch", json=body, headers={"Authorization": "Bearer guess"}
+    )
+    assert wrong.status_code == 401
+
+
+def test_visitors_cannot_pick_an_unlisted_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("STELLIUM_ALLOWED_PROVIDERS", raising=False)
+    resp = client.post("/api/v1/query/rag", json={"query": "Who won?", "provider": "offline"})
+    assert resp.status_code == 400
+
+
+def test_daily_cap_stops_live_questions_with_retry_after(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_main, "_budget", api_main.QuestionBudget())
+    monkeypatch.setenv("STELLIUM_DAILY_QUESTION_CAP", "1")
+    monkeypatch.setattr(api_main, "classify_intent", AsyncMock(return_value=Intent("chat", 5, 1.0)))
+    assert client.post("/api/v1/query/compare", json={"query": "hi"}).status_code == 200
+    resp = client.post("/api/v1/query/compare", json={"query": "hi"})
+    assert resp.status_code == 429
+    assert int(resp.headers["retry-after"]) > 0
+    assert "00:00 UTC" in resp.json()["detail"]
+
+
+def test_oversized_bodies_are_refused_before_parsing() -> None:
+    resp = client.post(
+        "/api/v1/query/compare",
+        content=b"x" * (65 * 1024),
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 413
+
+
+def test_browsers_on_other_sites_get_no_cors_grant() -> None:
+    resp = client.get("/health", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in resp.headers
+    assert resp.headers["x-content-type-options"] == "nosniff"
