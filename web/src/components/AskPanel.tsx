@@ -160,7 +160,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
                   {run && <span className="kbd">{seconds(run.latency_ms)}</span>}
                 </div>
                 <div className="lane-answer" style={{ opacity: run ? 1 : 0.4 }}>
-                  {busy ? "Thinking…" : run?.answer}
+                  {busy ? "Thinking…" : run ? run.answer : result ? "No answer this time. Ask again in a moment." : null}
                 </div>
                 {run && (
                   <>

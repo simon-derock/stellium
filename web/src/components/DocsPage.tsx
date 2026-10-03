@@ -87,6 +87,8 @@ export function DocsPage({ stats }: { stats: GraphStats | null }) {
         <pre>
           <code>{`question
   │
+  ├─ intent check ── 1 tiny LLM call (3 output tokens): small talk gets a greeting, no pipeline runs
+  │
   ├─ RAG ─────────── hybrid retrieval ─────────────────────────────▶ 1 LLM call ─▶ answer
   │                  TigerGraph HNSW (top 30) + BM25 → RRF → rerank → 5 articles
   │
@@ -106,6 +108,10 @@ export function DocsPage({ stats }: { stats: GraphStats | null }) {
           <li>
             <strong>One model everywhere.</strong> Cohere <code>command-a-03-2025</code> for every LLM call; Cohere{" "}
             <code>embed-v4.0</code> (1024 dimensions) for passage vectors stored in TigerGraph.
+          </li>
+          <li>
+            <strong>Each lane stands alone.</strong> The three pipelines run in parallel; if one fails, its lane says so and
+            the other two answers still arrive.
           </li>
         </ul>
       </Section>
@@ -376,11 +382,15 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
           <tbody>
             {(
               [
-                ["POST /api/v1/query/compare", "All three pipelines on one question, side by side"],
+                ["POST /api/v1/query/compare", "Intent check, then all three pipelines on one question, side by side"],
                 ["POST /api/v1/query/{rag|graphrag|agentic}", "One pipeline"],
                 ["GET /api/v1/graph/snapshot?view=&focus=", "The canvas payload for a view, optionally around cited events"],
                 ["GET /api/v1/graph/stats", "Live catalog and index sizes"],
-                ["GET /api/v1/metrics/{set}", "Published benchmark documents: public, paraphrase, compositional, hidden_oracle"],
+                ["GET /api/v1/metrics/index", "Which benchmark documents are published"],
+                [
+                  "GET /api/v1/metrics/{set}",
+                  "Published benchmark documents: public, paraphrase, compositional, unanswerable, offtemplate, hidden_oracle",
+                ],
                 ["GET /health?deep=true", "A real graph read, which also wakes a suspended workspace"],
               ] as const
             ).map(([route, what]) => (
@@ -391,6 +401,11 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
             ))}
           </tbody>
         </table>
+        <p className="mt-4">
+          Live questions are shared fairly: 100 a day across the demo and 20 an hour per visitor. Past either limit the API
+          answers 429 with a Retry-After header, and the console says when to try again. Benchmark and docs pages are never
+          limited.
+        </p>
       </Section>
     </LongPage>
   );

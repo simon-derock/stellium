@@ -20,3 +20,9 @@
   to = "https://stellium-api.onrender.com/health"
   status = 200
   force = true
+
+# The operator page is a client route of the same single-page app.
+[[redirects]]
+  from = "/ops"
+  to = "/index.html"
+  status = 200

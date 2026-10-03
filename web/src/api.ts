@@ -192,3 +192,51 @@ export const fetchOracle = () => request<OracleSummary>("/api/v1/metrics/hidden_
 export const fetchStats = () => request<GraphStats>("/api/v1/graph/stats");
 export const fetchHealth = (deep = false) =>
   request<{ status: string; graph?: unknown }>(`/health${deep ? "?deep=true" : ""}`);
+
+export interface KeyRow {
+  tier: number;
+  alias: string;
+  state: "live" | "resting" | "parked";
+  chat?: number;
+  embed?: number;
+  errors?: number;
+  last_status?: number;
+  last_at?: number;
+  minute_remaining?: number;
+  minute_limit?: number;
+  monthly_limit?: number;
+}
+
+export interface RecentQuestion {
+  at: number;
+  question: string;
+  intent: "ask" | "chat";
+  total_ms: number;
+  llm_tokens: number;
+  pipelines: Record<string, { answer: string; latency_ms: number }>;
+}
+
+export interface OpsStatus {
+  service: {
+    started_at: number;
+    uptime_s: number;
+    commit: string | null;
+    memory_mb: number | null;
+    provider: string;
+    max_concurrent_questions: number;
+  };
+  graph: { ok: boolean; venues?: number; latency_ms?: number; error?: string };
+  keepalive: { interval_s: number; last_ok_at: number | null; last_error: string | null; last_error_at: number | null };
+  questions: {
+    day_utc: string;
+    spent_today: number;
+    daily_cap: number;
+    hourly_cap_per_visitor: number;
+    visitors_last_hour: number;
+  };
+  keys: KeyRow[];
+  recent: RecentQuestion[];
+}
+
+export const fetchOpsStatus = (token: string) =>
+  request<OpsStatus>("/api/v1/ops/status", { headers: { Authorization: `Bearer ${token}` } });
