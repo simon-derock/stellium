@@ -108,17 +108,23 @@ Full method, commits, and caveats: [public benchmark audit](docs/benchmark-audit
 
 ## When does a question need an agent?
 
-| Question shape | Best choice | Why |
-|---|---|---|
-| Fact stated in one passage | RAG | Lookups and previous-Games winners resolve from the top reranked passages (41/41) |
-| Count or ranking across many events | GraphRAG | Five passages hold about a third of the events; one graph query holds all |
-| Two steps chained (rank, then read the winner's attribute) | Agentic | 24/24, against 19/24 for GraphRAG's single fixed operation and 18/24 for RAG |
-| Ambiguous names or a failed first lookup | Agentic | Re-plans after an error or a tie |
-| Outside the five templates (films, officeholders) | Agentic or RAG | 12/12 each, against 11 for GraphRAG; the agent falls back to reranked passages when no graph tool fits |
-| Nothing in the corpus answers it | Agentic or GraphRAG | Both decline 12/12 (RAG 11, one decline buried in prose); the agent never moves a venue's day to another year to find something |
-| Any structured question where cost matters | Agentic | Stops on the first verified value of the kind asked for |
+The hackathon's headline question, answered per question shape: the right choice is the **cheapest pipeline among those with the top accuracy**. The same table, computed live from the published results, is on the [Benchmark page](https://stellium.philipsimonderock.com/?tab=benchmark).
 
-> **Finding.** On the five official templates the agent matches a well-built GraphRAG (99/100 each) at 14% fewer tokens. Where a question needs two graph steps, it is the only pipeline at 100%: it recognises the event it found as a step, not the answer, and reads the attribute next.
+| Question shape | Agentic | GraphRAG | RAG | Right choice |
+|---|---:|---:|---:|---|
+| One attribute of one event | 19/19 · 855 tok | 19/19 · 941 | 19/19 · 2,513 | **Agentic**, 9% fewer tokens than GraphRAG |
+| Winner at the previous Games | 22/22 · 1,341 | 22/22 · 1,023 | 22/22 · 2,547 | GraphRAG: one fixed lookup suffices, so the agent is overkill |
+| Venue and date to the winner | 27/28 · 786 | 27/28 · 919 | 24/28 · 2,522 | **Agentic**, 14% fewer tokens |
+| Count events over a threshold | 21/21 · 747 | 21/21 · 1,418 | 4/21 · 2,580 | **Agentic**, 47% fewer tokens |
+| Event with the most competitors | 10/10 · 733 | 10/10 · 968 | 2/10 · 2,572 | **Agentic**, 24% fewer tokens |
+| Any of the above, reworded | 12/12 · 983 | 12/12 · 1,082 | 5/12 · 2,411 | **Agentic**, 9% fewer tokens |
+| Two steps: rank, then read an attribute | **24/24** · 1,737 | 19/24 · 1,170 | 18/24 · 2,657 | **Agentic, decisive**: the only pipeline at 24/24 |
+| Outside the templates (films, officeholders) | 12/12 · 2,334 | 11/12 · 1,374 | 12/12 · 2,120 | RAG: reranked passages are enough, so the agent is overkill |
+| Nothing in the corpus answers it | 12/12 · 6,034 | 12/12 · 1,730 | 11/12 · 2,623 | GraphRAG declines at under a third of the agent's tokens; the agent is overkill |
+
+**Verdict: the agent is the right choice on 6 of 9 question shapes, decisive on one, and overkill on three.** It is decisive where a question chains two graph steps, since it recognises the event it found as a step and reads the attribute next. It is usually cheaper even where it only ties, because it stops on the first verified graph value instead of reading passages. It is overkill where one fixed lookup suffices, where nothing answers, and outside the templates.
+
+> **Finding.** On the five official templates the agent matches a well-built GraphRAG (99/100 each) at 14% fewer tokens, so an agent need not cost more than a fixed pipeline. Where a question needs two graph steps, it is the only pipeline at 100%.
 
 ---
 
