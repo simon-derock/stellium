@@ -7,6 +7,10 @@
         "scored": 12,
         "exact_match": 5.0,
         "exact_match_strict": 5.0,
+        "exact_match_ci95": [
+          0.1933,
+          0.6805
+        ],
         "token_f1": 0.4166666666666667,
         "tokens_mean": 2199.0833333333335,
         "latency_mean_s": 4.824856907916607,
@@ -68,6 +72,10 @@
         "scored": 12,
         "exact_match": 12.0,
         "exact_match_strict": 12.0,
+        "exact_match_ci95": [
+          0.7575,
+          1.0
+        ],
         "token_f1": 1.0,
         "tokens_mean": 1081.5,
         "latency_mean_s": 6.066003483750137,
@@ -129,12 +137,16 @@
         "scored": 12,
         "exact_match": 12.0,
         "exact_match_strict": 12.0,
+        "exact_match_ci95": [
+          0.7575,
+          1.0
+        ],
         "token_f1": 1.0,
-        "tokens_mean": 1197.0833333333333,
-        "latency_mean_s": 5.337964093583196,
-        "latency_p50_s": 4.389673793999464,
-        "latency_p95_s": 7.760001902999647,
-        "cost_per_100_usd": 0.3798333333333333,
+        "tokens_mean": 982.5,
+        "latency_mean_s": 2.376445264248711,
+        "latency_p50_s": 2.2572861529915826,
+        "latency_p95_s": 3.0574968389992137,
+        "cost_per_100_usd": 0.32087499999999997,
         "citations_mean": 2.0833333333333335,
         "estimated_token_rows": 0
       },
@@ -142,27 +154,27 @@
         "paraphrase_aggregation": {
           "questions": 3,
           "exact_match": 3.0,
-          "tokens_mean": 806
+          "tokens_mean": 741
         },
         "paraphrase_lookup": {
           "questions": 1,
           "exact_match": 1.0,
-          "tokens_mean": 1990
+          "tokens_mean": 1846
         },
         "paraphrase_multi_hop": {
           "questions": 3,
           "exact_match": 3.0,
-          "tokens_mean": 812.3333333333334
+          "tokens_mean": 738
         },
         "paraphrase_superlative": {
           "questions": 2,
           "exact_match": 2.0,
-          "tokens_mean": 785.5
+          "tokens_mean": 720.5
         },
         "paraphrase_temporal": {
           "questions": 3,
           "exact_match": 3.0,
-          "tokens_mean": 1983
+          "tokens_mean": 1355.3333333333333
         }
       },
       "evidence": {
@@ -186,19 +198,19 @@
   },
   "agent": {
     "questions": 12,
-    "steps_mean": 2.6666666666666665,
+    "steps_mean": 2.5,
     "steps_median": 2.0,
-    "steps_max": 6,
-    "llm_calls_mean": 1.3333333333333333,
+    "steps_max": 4,
+    "llm_calls_mean": 1.25,
     "single_call_answers": 9,
-    "strategy_changes": 3,
+    "strategy_changes": 1,
     "tools": {
       "count_events": 3,
       "find_events": 3,
-      "event_attribute": 3,
       "event_at_venue_date": 3,
       "rank_events": 2,
-      "previous_edition": 2
+      "previous_edition": 2,
+      "event_attribute": 2
     },
     "specialists": {
       "OrchestratorAgent": 12,
@@ -209,10 +221,10 @@
     },
     "stopping_reasons": {
       "count_events returned one verified graph value": 3,
-      "event_attribute returned one verified graph value": 3,
       "event_at_venue_date returned one verified graph value": 3,
       "rank_events returned one verified graph value": 2,
-      "previous_edition returned one verified graph value": 1
+      "previous_edition returned one verified graph value": 2,
+      "event_attribute returned one verified graph value": 2
     }
   },
   "graph_pipeline_misses": [],
@@ -227,6 +239,14 @@
       "model": "command-a-03-2025",
       "dataset_sha256": "dbe24ef6924e452f87967f88647e5e46a328a6813ee9712922c340ba2f654873",
       "finished_at": "2026-10-02T14:48:14+0530",
+      "rows": 12
+    },
+    {
+      "pipelines": "agentic",
+      "commit": "1ad2759",
+      "model": "command-a-03-2025",
+      "dataset_sha256": "dbe24ef6924e452f87967f88647e5e46a328a6813ee9712922c340ba2f654873",
+      "finished_at": "2026-10-03T14:49:26+0530",
       "rows": 12
     }
   ]

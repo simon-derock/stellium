@@ -7,6 +7,10 @@
         "scored": 24,
         "exact_match": 15.0,
         "exact_match_strict": 15.0,
+        "exact_match_ci95": [
+          0.4271,
+          0.7884
+        ],
         "token_f1": 0.625,
         "tokens_mean": 2588.375,
         "latency_mean_s": 5.015697542708192,
@@ -58,6 +62,10 @@
         "scored": 24,
         "exact_match": 19.0,
         "exact_match_strict": 19.0,
+        "exact_match_ci95": [
+          0.5953,
+          0.9076
+        ],
         "token_f1": 0.7916666666666666,
         "tokens_mean": 1202.8333333333333,
         "latency_mean_s": 7.595262945291779,
@@ -109,12 +117,16 @@
         "scored": 24,
         "exact_match": 24.0,
         "exact_match_strict": 24.0,
+        "exact_match_ci95": [
+          0.862,
+          1.0
+        ],
         "token_f1": 1.0,
-        "tokens_mean": 1693.0833333333333,
-        "latency_mean_s": 8.621889260249722,
-        "latency_p50_s": 6.556096475000231,
-        "latency_p95_s": 22.919812047999585,
-        "cost_per_100_usd": 0.5422708333333334,
+        "tokens_mean": 1736.9583333333333,
+        "latency_mean_s": 4.679542057832805,
+        "latency_p50_s": 3.6586028250021627,
+        "latency_p95_s": 5.952091790997656,
+        "cost_per_100_usd": 0.5523958333333333,
         "citations_mean": 1,
         "estimated_token_rows": 0
       },
@@ -122,17 +134,17 @@
         "compositional_gold": {
           "questions": 8,
           "exact_match": 8.0,
-          "tokens_mean": 1686.875
+          "tokens_mean": 1728.75
         },
         "compositional_nations": {
           "questions": 8,
           "exact_match": 8.0,
-          "tokens_mean": 1698.75
+          "tokens_mean": 1744
         },
         "compositional_venue": {
           "questions": 8,
           "exact_match": 8.0,
-          "tokens_mean": 1693.625
+          "tokens_mean": 1738.125
         }
       },
       "evidence": {
@@ -232,19 +244,11 @@
     },
     {
       "pipelines": "agentic",
-      "commit": "3b3ff72",
+      "commit": "ba2db35",
       "model": "command-a-03-2025",
       "dataset_sha256": "dd16cf52e9ea04817cea364bf17ad884eb8eb92727795e1defaf179d9485b8ad",
-      "finished_at": "2026-10-02T15:59:49+0530",
+      "finished_at": "2026-10-03T14:55:31+0530",
       "rows": 24
-    },
-    {
-      "pipelines": "agentic",
-      "commit": "d267836",
-      "model": "command-a-03-2025",
-      "dataset_sha256": "a2aefc7852ea0e48ed89cbd3f4f2918d3d53259a97bcdef12a25dd4beef5a81a",
-      "finished_at": "2026-10-02T16:05:15+0530",
-      "rows": 14
     }
   ]
 }
