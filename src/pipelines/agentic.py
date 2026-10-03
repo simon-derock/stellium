@@ -5,6 +5,7 @@
 # what the typed tools cannot. The harness stops as soon as a tool returns a verified value.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -364,9 +365,13 @@ class AgenticPipeline:
     ) -> tuple[dict[str, Any], list[EvidenceItem]]:
         # TigerGraph vector hits are one input to the fusion, so a dense-only tool would be a subset.
         query_vector = await self._embed_query(query)
-        dense = self.graph.vector_search(query_vector, top_k=30)
-        hybrid = self.coprocessor.hybrid_search(
-            query=query, dense_results=dense, candidate_k=30, final_top_k=_PASSAGES_SHOWN
+        dense = await asyncio.to_thread(self.graph.vector_search, query_vector, top_k=30)
+        hybrid = await asyncio.to_thread(
+            self.coprocessor.hybrid_search,
+            query=query,
+            dense_results=dense,
+            candidate_k=30,
+            final_top_k=_PASSAGES_SHOWN,
         )
         log.retrieval_stages.append(
             {

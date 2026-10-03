@@ -5,6 +5,7 @@
 # that adaptivity is what the agentic pipeline is measured against.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -74,9 +75,13 @@ class GraphRAGPipeline:
         if self.coprocessor is None:
             return [], {}
         embeddings = await self.llm.embed([question])
-        dense = self.graph.vector_search(embeddings[0], top_k=30)
-        hybrid = self.coprocessor.hybrid_search(
-            query=question, dense_results=dense, candidate_k=30, final_top_k=5
+        dense = await asyncio.to_thread(self.graph.vector_search, embeddings[0], top_k=30)
+        hybrid = await asyncio.to_thread(
+            self.coprocessor.hybrid_search,
+            query=question,
+            dense_results=dense,
+            candidate_k=30,
+            final_top_k=5,
         )
         passages = [(chunk.doc_id, chunk.text[:_SUPPORT_CHARS]) for chunk, _ in hybrid.chunks]
         metadata = {

@@ -1,6 +1,7 @@
 # Pipeline 1: Hybrid RAG control. Dense + BM25 → RRF → local reranker → answer.
 from __future__ import annotations
 
+import asyncio
 import time
 from dataclasses import dataclass
 
@@ -37,8 +38,11 @@ class RAGPipeline:
         # Step 1: Dense and sparse candidates → RRF → mandatory local reranking.
         embeddings = await self.llm.embed([question])
         query_vector = embeddings[0]
-        dense_results = self.graph.vector_search(query_vector, top_k=30)
-        retrieval = self.coprocessor.hybrid_search(
+        # Search and reranking block for a while on a small CPU; worker threads keep the server
+        # answering health checks and other visitors meanwhile.
+        dense_results = await asyncio.to_thread(self.graph.vector_search, query_vector, top_k=30)
+        retrieval = await asyncio.to_thread(
+            self.coprocessor.hybrid_search,
             query=question,
             dense_results=dense_results,
             candidate_k=30,
