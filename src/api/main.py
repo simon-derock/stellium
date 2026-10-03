@@ -15,12 +15,13 @@ import json
 import logging
 import os
 import time
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Literal
 
+import httpx
 import requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +33,7 @@ from pyTigerGraph.common.exception import TigerGraphException
 from src.api.graph_view import project
 from src.api.limits import QuestionBudget, client_id
 from src.coprocessor import Coprocessor
+from src.credentials import key_report, live_key_count
 from src.graph import GraphClient, connect, create_mock_graph_client, wait_for_graph_ready
 from src.guardrails import check_query
 from src.ingest import load_all_chunks
@@ -115,14 +117,23 @@ logger = logging.getLogger(__name__)
 _KEEPALIVE_S = float(os.environ.get("STELLIUM_GRAPH_KEEPALIVE_S", "300"))
 
 
+# What the operator status page reports: when the process started, the last keep-alive beats,
+# and the most recent live questions with their timings.
+_STARTED_AT = time.time()
+_beat: dict[str, Any] = {"last_ok_at": None, "last_error": None, "last_error_at": None}
+_recent_questions: deque[dict[str, Any]] = deque(maxlen=25)
+
+
 async def _keep_graph_awake(interval_s: float) -> None:
     while True:
         await asyncio.sleep(interval_s)
         try:
             venues = await asyncio.to_thread(get_graph().ping)
+            _beat["last_ok_at"] = time.time()
             logger.info("graph keep-alive: %s venues", venues)
         except Exception as exc:
             # One missed beat is not an outage; the next one tries again.
+            _beat.update(last_error=str(exc)[:200], last_error_at=time.time())
             logger.warning("graph keep-alive failed: %s", exc)
 
 
@@ -243,7 +254,7 @@ async def _admitted(provider: str) -> AsyncIterator[None]:
         ) from exc
     try:
         yield
-    except RuntimeError as exc:
+    except (RuntimeError, httpx.HTTPStatusError) as exc:
         # Provider quota or outage after bounded retries: report it, never a fabricated answer.
         # The cause stays in the server log; visitors get no account or key details.
         logger.warning("language model unavailable: %s", exc)
@@ -298,6 +309,70 @@ async def health_check(deep: bool = False) -> dict[str, Any]:
     return status
 
 
+def _memory_mb() -> float | None:
+    try:
+        for line in Path("/proc/self/status").read_text().splitlines():
+            if line.startswith("VmRSS:"):
+                return round(int(line.split()[1]) / 1024, 1)
+    except OSError:
+        pass
+    return None
+
+
+def _graph_probe() -> dict[str, Any]:
+    started = time.perf_counter()
+    try:
+        venues = _get_request_graph().ping()
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)[:200]}
+    return {
+        "ok": True,
+        "venues": venues,
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+    }
+
+
+@app.get("/api/v1/ops/status", include_in_schema=False)
+async def operator_status(request: Request) -> dict[str, Any]:
+    # The owner's private page: allowances, key health, graph reachability and recent questions.
+    # Cohere and Savanna publish no balance API, so key counts are this process's own calls.
+    _require_admin(request)
+    keys = key_report()
+    return {
+        "service": {
+            "started_at": _STARTED_AT,
+            "uptime_s": round(time.time() - _STARTED_AT),
+            "commit": os.environ.get("RENDER_GIT_COMMIT", "")[:7] or None,
+            "memory_mb": _memory_mb(),
+            "provider": _default_provider(),
+            "max_concurrent_questions": int(os.environ.get("STELLIUM_MAX_CONCURRENT_QUERIES", "4")),
+        },
+        "graph": await asyncio.to_thread(_graph_probe),
+        "keepalive": {"interval_s": _KEEPALIVE_S, **_beat},
+        "questions": _budget.snapshot(),
+        "keys": keys,
+        "recent": list(_recent_questions),
+    }
+
+
+@app.get("/api/v1/ops/alerts", include_in_schema=False)
+async def operator_alerts(request: Request) -> JSONResponse:
+    # For an external monitor: 503 names what needs attention, so the monitor's failure email is
+    # the alert. Kept apart from the keep-alive so a daily-cap alert never pauses the keep-alive.
+    _require_admin(request)
+    issues = []
+    if not (await asyncio.to_thread(_graph_probe))["ok"]:
+        issues.append("graph unreachable")
+    if _default_provider() == "cohere" and live_key_count() == 0:
+        issues.append("no model key has calls left this month")
+    allowance = _budget.snapshot()
+    if allowance["daily_cap"] and allowance["spent_today"] >= allowance["daily_cap"]:
+        issues.append("daily question cap reached")
+    return JSONResponse(
+        status_code=503 if issues else 200, content={"ok": not issues, "issues": issues}
+    )
+
+
 @app.exception_handler(TigerGraphException)
 @app.exception_handler(requests.RequestException)
 async def graph_unavailable(_request: Request, _exc: Exception) -> JSONResponse:
@@ -340,14 +415,50 @@ async def query_agentic(req: QueryRequest, request: Request) -> PipelineResult:
         return await pipe.run(req.qid, req.query)
 
 
+def _note_question(
+    query: str,
+    intent: str,
+    started: float,
+    tokens: int,
+    results: dict[str, PipelineResult] | None = None,
+) -> None:
+    _recent_questions.appendleft(
+        {
+            "at": time.time(),
+            "question": query[:120],
+            "intent": intent,
+            "total_ms": round((time.perf_counter() - started) * 1000),
+            "llm_tokens": tokens,
+            "pipelines": {
+                name: {"answer": r.answer[:80], "latency_ms": round(r.latency_ms)}
+                for name, r in (results or {}).items()
+            },
+        }
+    )
+
+
+_LANE_NAMES = ("rag", "graphrag", "agentic")
+
+
+def _lane(name: str, outcome: PipelineResult | BaseException) -> PipelineResult | None:
+    if isinstance(outcome, asyncio.CancelledError):
+        raise outcome
+    if isinstance(outcome, BaseException):
+        logger.warning("%s pipeline failed in compare: %r", name, outcome)
+        return None
+    return outcome
+
+
 @app.post("/api/v1/query/compare", response_model=CompareResult)
 async def query_compare(req: QueryRequest, request: Request) -> CompareResult:
     # Executes all 3 pipelines side-by-side for comparative judging
     _screen(req, request)
 
+    started = time.perf_counter()
     async with _admitted(req.provider):
         intent = await classify_intent(req.query, req.provider)
     if intent.label == "chat":
+        _note_question(req.query, "chat", started, intent.tokens)
         return CompareResult(
             qid=req.qid,
             question=req.query,
@@ -364,8 +475,9 @@ async def query_compare(req: QueryRequest, request: Request) -> CompareResult:
         make_session(req.provider) as graphrag_llm,
         make_session(req.provider) as agentic_llm,
     ):
-        # Same model in every pipeline; separate sessions let the three run side by side.
-        rag_res, graphrag_res, agentic_res = await asyncio.gather(
+        # Same model in every pipeline; separate sessions let the three run side by side. One
+        # pipeline's failure blanks its own lane only; the other answers still go out.
+        outcomes = await asyncio.gather(
             RAGPipeline(graph=graph, llm=rag_llm, coprocessor=coproc).run(req.qid, req.query),
             GraphRAGPipeline(graph=graph, llm=graphrag_llm, coprocessor=coproc).run(
                 req.qid, req.query
@@ -373,13 +485,26 @@ async def query_compare(req: QueryRequest, request: Request) -> CompareResult:
             AgenticPipeline(graph=graph, coprocessor=coproc, llm=agentic_llm).run(
                 req.qid, req.query
             ),
+            return_exceptions=True,
         )
+        lanes = [_lane(name, outcome) for name, outcome in zip(_LANE_NAMES, outcomes, strict=True)]
+        if not any(lanes):
+            # Nothing to show: the first failure decides the status (graph waking, model down).
+            raise next(o for o in outcomes if isinstance(o, BaseException))
+    rag_res, graphrag_res, agentic_res = lanes
 
+    _note_question(
+        req.query,
+        "ask",
+        started,
+        intent.tokens + sum(r.total_llm_tokens for r in lanes if r),
+        {name: r for name, r in zip(_LANE_NAMES, lanes, strict=True) if r},
+    )
     return CompareResult(
         qid=req.qid,
         question=req.query,
         qtype=agentic_res.agentic_trace.get("qtype", "general")
-        if agentic_res.agentic_trace
+        if agentic_res and agentic_res.agentic_trace
         else "general",
         intent_tokens=intent.tokens,
         rag=rag_res,

@@ -11,6 +11,8 @@ import os
 import re
 import threading
 import time
+from collections.abc import Mapping
+from typing import Any
 
 _NAMED_ALIASES = ("COHERE_CHAT_API_KEY", "COHERE", "COHERE_BACKUP", "COHERE_KEY")
 _NUMBERED_ALIAS = re.compile(r"COHERE_KEY_[A-Z0-9_]+")
@@ -18,6 +20,7 @@ _MONTHLY_CAP = re.compile(r"calls\s*/\s*month|per month|monthly", re.IGNORECASE)
 
 _exhausted: set[str] = set()
 _resting: dict[str, float] = {}
+_usage: dict[str, dict[str, Any]] = {}
 _lock = threading.Lock()
 
 
@@ -114,8 +117,52 @@ def parked_keys(keys: list[str]) -> set[str]:
         return {key for key in keys if key in _exhausted}
 
 
+def record_key_call(key: str, kind: str, status: int, headers: Mapping[str, str]) -> None:
+    # What the operator status page shows per key: calls this process made, the last answer, and
+    # the per-minute allowance Cohere reports back on trial keys.
+    try:
+        status = int(status)
+        with _lock:
+            usage = _usage.setdefault(key, {"chat": 0, "embed": 0, "errors": 0})
+            usage[kind] = usage.get(kind, 0) + 1
+            usage["errors"] += status >= 400
+            usage["last_status"] = status
+            usage["last_at"] = time.time()
+            for header, field in (
+                ("x-trial-endpoint-call-remaining", "minute_remaining"),
+                ("x-trial-endpoint-call-limit", "minute_limit"),
+                ("x-endpoint-monthly-call-limit", "monthly_limit"),
+            ):
+                if header in headers:
+                    usage[field] = int(headers[header])
+    except (TypeError, ValueError):
+        # Bookkeeping never fails the call it describes.
+        pass
+
+
+def key_report() -> list[dict[str, Any]]:
+    # Aliases and counters only; a key value never leaves this module.
+    now = time.monotonic()
+    with _lock:
+        rows = []
+        for tier_index, tier in enumerate(cohere_key_tiers()):
+            for alias, key in tier:
+                state = (
+                    "parked"
+                    if key in _exhausted
+                    else "resting"
+                    if _resting.get(key, 0.0) > now
+                    else "live"
+                )
+                rows.append(
+                    {"tier": tier_index + 1, "alias": alias, "state": state, **_usage.get(key, {})}
+                )
+        return rows
+
+
 def reset_exhausted_keys() -> None:
     # Tests and long-lived servers can clear parked keys after the monthly window resets.
     with _lock:
         _exhausted.clear()
         _resting.clear()
+        _usage.clear()

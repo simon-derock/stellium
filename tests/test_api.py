@@ -14,7 +14,7 @@ from src.api.main import app
 from src.coprocessor import Coprocessor
 from src.linking import EventCatalog, EventRecord
 from src.llm import LLMCallResult, LockedLLMSession
-from src.models import Chunk
+from src.models import Chunk, PipelineResult
 from src.pipelines.intent import Intent
 from tests.asgi_client import InProcessASGIClient
 from tests.graph_fixtures import seeded_graph
@@ -594,3 +594,71 @@ def test_browsers_on_other_sites_get_no_cors_grant() -> None:
     resp = client.get("/health", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in resp.headers
     assert resp.headers["x-content-type-options"] == "nosniff"
+
+
+def test_operator_status_needs_the_admin_token_and_shows_no_key_values(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("STELLIUM_ADMIN_TOKEN", raising=False)
+    assert client.get("/api/v1/ops/status").status_code == 404
+    monkeypatch.setenv("STELLIUM_ADMIN_TOKEN", "owner")
+    assert client.get("/api/v1/ops/status").status_code == 401
+    monkeypatch.setenv("COHERE_KEY", "secret-value")
+    graph = MagicMock()
+    graph.ping.return_value = 316
+    monkeypatch.setattr(api_main, "_get_request_graph", lambda: graph)
+
+    resp = client.get("/api/v1/ops/status", headers={"Authorization": "Bearer owner"})
+
+    body = resp.json()
+    assert resp.status_code == 200
+    assert body["graph"]["venues"] == 316
+    assert body["questions"]["daily_cap"] == 0
+    assert [row["alias"] for row in body["keys"]] == ["COHERE_KEY"]
+    assert "secret-value" not in resp.text
+
+
+def test_alerts_turn_503_when_the_graph_is_unreachable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("STELLIUM_ADMIN_TOKEN", "owner")
+    monkeypatch.setenv("STELLIUM_LLM_PROVIDER", "offline")
+    graph = MagicMock()
+    graph.ping.side_effect = [316, RuntimeError("suspended")]
+    monkeypatch.setattr(api_main, "_get_request_graph", lambda: graph)
+    owner = {"Authorization": "Bearer owner"}
+
+    healthy = client.get("/api/v1/ops/alerts", headers=owner)
+    broken = client.get("/api/v1/ops/alerts", headers=owner)
+
+    assert healthy.status_code == 200 and healthy.json() == {"ok": True, "issues": []}
+    assert broken.status_code == 503
+    assert broken.json()["issues"] == ["graph unreachable"]
+
+
+def test_compare_still_answers_when_one_pipeline_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(api_main, "classify_intent", AsyncMock(return_value=Intent("ask", 5, 1.0)))
+    answer = PipelineResult(
+        qid="custom-001", question="q", pipeline="agentic", answer="Samuel Wanjiru"
+    )
+    monkeypatch.setattr(api_main, "_get_request_graph", MagicMock)
+    session = MagicMock()
+    session.__aenter__ = AsyncMock(return_value=session)
+    session.__aexit__ = AsyncMock(return_value=False)
+    monkeypatch.setattr(api_main, "make_session", lambda provider: session)
+    for name, outcome in (
+        ("RAGPipeline", RuntimeError("model hiccup")),
+        ("GraphRAGPipeline", answer.model_copy(update={"pipeline": "graphrag"})),
+        ("AgenticPipeline", answer),
+    ):
+        pipeline = MagicMock()
+        if isinstance(outcome, Exception):
+            pipeline.return_value.run = AsyncMock(side_effect=outcome)
+        else:
+            pipeline.return_value.run = AsyncMock(return_value=outcome)
+        monkeypatch.setattr(api_main, name, pipeline)
+
+    resp = client.post("/api/v1/query/compare", json={"query": "Who won the 2008 marathon?"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["rag"] is None
+    assert body["agentic"]["answer"] == body["graphrag"]["answer"] == "Samuel Wanjiru"

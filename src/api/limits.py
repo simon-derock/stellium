@@ -7,6 +7,7 @@ import threading
 import time
 from collections import deque
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import HTTPException, Request
 
@@ -73,3 +74,19 @@ class QuestionBudget:
                 )
             stamps.append(now)
             self._spent += 1
+
+    def snapshot(self, now: float | None = None) -> dict[str, Any]:
+        now = time.time() if now is None else now
+        today = datetime.fromtimestamp(now, UTC).date().isoformat()
+        with self._lock:
+            spent = self._spent if self._day == today else 0
+            active = sum(
+                1 for stamps in self._recent.values() if stamps and stamps[-1] > now - _HOUR_S
+            )
+        return {
+            "day_utc": today,
+            "spent_today": spent,
+            "daily_cap": _cap("STELLIUM_DAILY_QUESTION_CAP", 100),
+            "hourly_cap_per_visitor": _cap("STELLIUM_CLIENT_HOURLY_CAP", 20),
+            "visitors_last_hour": active,
+        }

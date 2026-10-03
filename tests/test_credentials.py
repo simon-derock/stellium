@@ -152,3 +152,54 @@ async def test_chat_hands_a_throttled_or_rejected_call_to_another_key(
     assert "bad-key" not in [
         key for _, key in credentials.cohere_keys() if key not in credentials.parked_keys([key])
     ]
+
+
+def test_key_report_counts_calls_by_alias_and_never_returns_a_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("COHERE_KEY_TIERS", "COHERE_KEY")
+    monkeypatch.setenv("COHERE_KEY", "secret-one")
+    monkeypatch.setenv("COHERE_BACKUP", "secret-two")
+    credentials.record_key_call(
+        "secret-one", "chat", 200, {"x-trial-endpoint-call-remaining": "38"}
+    )
+    credentials.record_key_call("secret-one", "embed", 429, {})
+    credentials.park_exhausted_key("secret-two")
+
+    rows = credentials.key_report()
+
+    assert [(r["tier"], r["alias"], r["state"]) for r in rows] == [
+        (1, "COHERE_KEY", "live"),
+        (2, "COHERE_BACKUP", "parked"),
+    ]
+    assert (rows[0]["chat"], rows[0]["embed"], rows[0]["errors"]) == (1, 1, 1)
+    assert rows[0]["minute_remaining"] == 38
+    assert "secret" not in repr(rows)
+
+
+async def test_chat_retries_a_stray_unprocessable_reply_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import httpx
+
+    monkeypatch.setenv("COHERE_KEY", "only-key")
+    monkeypatch.setattr("src.llm.COHERE_CHAT_REQUEST_INTERVAL_S", 0.0)
+    monkeypatch.setattr("src.llm.asyncio.sleep", AsyncMock())
+    request = httpx.Request("POST", "https://api.cohere.com/v2/chat")
+    stray = httpx.Response(422, text='{"message":"unknown"}', request=request)
+    ok = httpx.Response(
+        200,
+        json={
+            "message": {"content": [{"type": "text", "text": "Steve Guerdat"}]},
+            "usage": {"tokens": {"input_tokens": 9, "output_tokens": 2}},
+        },
+        request=request,
+    )
+    client = MagicMock(post=AsyncMock(side_effect=[stray, ok, stray, stray]), aclose=AsyncMock())
+    monkeypatch.setattr("httpx.AsyncClient", lambda **_: client)
+
+    result = await make_session("cohere").chat([{"role": "user", "content": "q"}])
+    assert result.content == "Steve Guerdat"
+    # A second 422 in one call is a real rejection, not a stray one.
+    with pytest.raises(httpx.HTTPStatusError):
+        await make_session("cohere").chat([{"role": "user", "content": "q"}])

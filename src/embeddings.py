@@ -25,6 +25,7 @@ from src.credentials import (
     live_key_count,
     park_exhausted_key,
     parked_keys,
+    record_key_call,
     rest_key,
 )
 
@@ -501,6 +502,7 @@ class CohereEmbeddingClient:
                             },
                             json=payload,
                         )
+                    record_key_call(api_key, "embed", response.status_code, response.headers)
                     if is_monthly_cap(response.status_code, response.text):
                         # This key is spent for the month; the batch moves to the next key.
                         park_exhausted_key(api_key)

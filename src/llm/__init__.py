@@ -20,6 +20,7 @@ from src.credentials import (
     is_monthly_cap,
     live_key_count,
     park_exhausted_key,
+    record_key_call,
     rest_key,
 )
 
@@ -513,6 +514,7 @@ async def _call_cohere(
                 rest_key(api_key, 20.0)
                 handoffs += 1
                 continue
+            record_key_call(api_key, "chat", resp.status_code, resp.headers)
             if is_monthly_cap(resp.status_code, resp.text) or resp.status_code in (401, 403):
                 # Spent or rejected: this key cannot answer again in this process.
                 park_exhausted_key(api_key)
@@ -628,6 +630,9 @@ class LockedLLMSession:
 
         last_exc: Exception | None = None
         attempt_limit = max_retries
+        # Cohere now and then answers a valid request with 422 "unknown"; the same call succeeds
+        # on a second try, so it gets exactly one.
+        retried_unprocessable = False
         attempt = 0
         tried_mistral_aliases: set[str] = set()
         while attempt < attempt_limit:
@@ -700,6 +705,16 @@ class LockedLLMSession:
                         else float(2**attempt)
                     )
                     await asyncio.sleep(min(wait, 30.0))
+                    last_exc = e
+                    attempt += 1
+                    continue
+                if (
+                    self.provider == "cohere"
+                    and e.response.status_code == 422
+                    and not retried_unprocessable
+                ):
+                    retried_unprocessable = True
+                    await asyncio.sleep(1.0)
                     last_exc = e
                     attempt += 1
                     continue
