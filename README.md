@@ -151,6 +151,7 @@ flowchart LR
 | Reproducibility | Each run writes a manifest: commit, model, dataset and corpus SHA-256, settings |
 | Quality gate | pytest, ruff, mypy strict, vulture, bandit, and pip-audit on every push; 85%+ coverage |
 | Cost control | Query-embedding cache, batched prefetch, local reranker, early-stopping agent |
+| Public safety | Daily and per-visitor question caps, admin-only batch endpoint, allowlisted read-only GSQL, same-origin API with a strict CSP, no internal errors shown |
 
 ### What the data taught us
 
@@ -219,7 +220,8 @@ Links: `?tab=benchmark` and `?tab=docs` open those pages; `?q=<question>` asks a
 |---|---|---|
 | API | Render (free web service) | `render.yaml` + `Dockerfile`; set TigerGraph and Cohere secrets in the dashboard |
 | Console | Netlify | Base directory `web`; `web/netlify.toml` builds it and proxies `/api` to the API, so there is no CORS |
-| Keep-alive | API + GitHub Actions | The API reads the graph every 5 minutes while it runs (`STELLIUM_GRAPH_KEEPALIVE_S`); `.github/workflows/keepalive.yml` calls `/health?deep=true` every 10 minutes once `STELLIUM_API_URL` is set, so a sleeping API wakes too |
+| Keep-alive | API + external cron | The API reads the graph every 5 minutes while it runs (`STELLIUM_GRAPH_KEEPALIVE_S`); an external cron (for example cron-job.org) calls `/health?deep=true` every 10 minutes so the API itself never sleeps |
+| Limits | API | Live questions capped per day (`STELLIUM_DAILY_QUESTION_CAP`) and per visitor per hour (`STELLIUM_CLIENT_HOURLY_CAP`); batch evaluation needs `STELLIUM_ADMIN_TOKEN` |
 
 ---
 
