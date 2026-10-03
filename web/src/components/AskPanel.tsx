@@ -47,8 +47,8 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
 
   return (
     <section className="plate pointer-events-auto flex max-h-full w-full flex-col overflow-hidden">
-      <div className="px-4 pt-4 pb-4">
-        <div className="mb-2.5 flex items-baseline justify-between px-0.5">
+      <div className="px-4 pt-3 pb-3 md:pt-4 md:pb-4">
+        <div className="mb-2 flex items-baseline justify-between px-0.5 md:mb-2.5">
           <label htmlFor="ask" className="text-[13.5px] font-semibold">
             Ask the Olympic graph
           </label>
@@ -83,7 +83,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
           </button>
         )}
         {types.length > 0 && showExamples && (
-          <div className="mt-3.5">
+          <div className="mt-3 md:mt-3.5">
             <div className="segmented no-scrollbar max-w-full overflow-x-auto">
               {types.map((type) => (
                 <button key={type} aria-pressed={type === qtype} onClick={() => setQtype(type)}>
@@ -91,7 +91,7 @@ export function AskPanel({ initialQuestion, presets, result, busy, error, onAsk,
                 </button>
               ))}
             </div>
-            <ul className="mt-2 grid grid-cols-[minmax(0,1fr)] px-0.5">
+            <ul className="samples mt-2 grid grid-cols-[minmax(0,1fr)] px-0.5">
               {samples.map((preset) => (
                 <li key={preset.qid}>
                   <button

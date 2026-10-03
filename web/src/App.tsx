@@ -119,6 +119,7 @@ export function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [health, setHealth] = useState<Health>("checking");
+  const [controlsOpen, setControlsOpen] = useState(false);
 
   const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0]!;
   // On wide screens the ask panel (left) and the agent trace (right) sit over the canvas; the
@@ -297,10 +298,28 @@ export function App() {
       <div className="hdr pointer-events-none absolute inset-0" />
       <div className="grain pointer-events-none absolute inset-0" />
 
-      <header ref={headerRef} className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-3 px-4 pt-4 md:px-5 md:pt-5">
-        <div className="pointer-events-auto py-2 pl-1">
+      <header
+        ref={headerRef}
+        data-controls={controlsOpen ? "open" : "closed"}
+        className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 pt-3 md:gap-3 md:px-5 md:pt-5"
+      >
+        <div className="pointer-events-auto py-1 pl-1 md:py-2">
           <Wordmark />
         </div>
+        {/* Phones fold the graph display controls behind one button, so the graph keeps the screen. */}
+        <button
+          className="display-toggle pointer-events-auto md:hidden"
+          aria-expanded={controlsOpen}
+          aria-label="Graph display settings"
+          onClick={() => setControlsOpen((open) => !open)}
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M2 4.5h7M12 4.5h2M2 11.5h2M7 11.5h7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            <circle cx="10.5" cy="4.5" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="5.5" cy="11.5" r="1.6" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          Display
+        </button>
         <div className="pointer-events-auto w-full md:w-auto">
           <Pill label="Navigation and graph display" activeKey={mode}>
             {MODES.map((m) => (

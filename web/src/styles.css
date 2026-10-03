@@ -539,9 +539,33 @@ main[data-scheme="dark"] { color-scheme: dark; }
     .control-swatches, .control-tag { display: none; }
     .nav-item { padding: 0 11px; }
     .menu-popover { position: fixed; }
-    .wordmark { font-size: 21px; }
+    .wordmark { font-size: 18px; }
     .strip-cell { padding: 9px 13px 10px; }
+    /* Phones: display controls stay folded until asked for, and the ask box keeps to two lines. */
+    header[data-controls="closed"] .pill-divider,
+    header[data-controls="closed"] .pill > .relative { display: none; }
+    .nav-item, .nav-cta { height: 30px; }
+    .ask-input { height: 62px; padding: 10px 12px 2px; font-size: 16px; }
+    .samples li:nth-child(n + 3) { display: none; }
   }
+  .display-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border: 1px solid var(--hair);
+    background: color-mix(in oklab, var(--ink) 92%, transparent);
+    backdrop-filter: var(--glass);
+    -webkit-backdrop-filter: var(--glass);
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: color 200ms ease, border-color 200ms ease;
+  }
+  .display-toggle[aria-expanded="true"] { color: var(--foreground); border-color: color-mix(in oklab, var(--foreground) 24%, transparent); }
+  .display-toggle svg { width: 14px; height: 14px; }
 }
 
 /* ---------------- theme atmospheres (Lunarbit) ---------------- */
