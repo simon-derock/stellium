@@ -217,10 +217,17 @@ class GraphToolkit:
     # ------------------------------------------------------------------
 
     def _constraints(
-        self, sport: str = "", season: str = "", gender: str = ""
+        self, sport: str = "", season: str = "", gender: str = "", year: int = 0
     ) -> tuple[str | None, str | None, str | None, list[str]]:
         # Resolve free-text constraints to catalog values, reporting anything that did not link.
         problems = []
+        years = {record.year for record in self.catalog.records if record.year}
+        if year and years and year not in years:
+            # A count of 0 would read as a fact about those Games; the corpus simply lacks them.
+            problems.append(
+                f"year {year} has no Olympic events in the corpus, which covers "
+                f"{min(years)}-{max(years)}"
+            )
         resolved_sport = self.catalog.resolve_sport(sport) if sport else None
         if sport and resolved_sport is None:
             problems.append(f"sport {sport!r} matches no graph sport")
@@ -352,7 +359,7 @@ class GraphToolkit:
         started = time.perf_counter()
         tool = "count_events"
         resolved_sport, resolved_season, resolved_gender, problems = self._constraints(
-            sport, season, gender
+            sport, season, gender, year
         )
         if problems:
             return self._unlinked(tool, started, problems)
@@ -424,7 +431,7 @@ class GraphToolkit:
         started = time.perf_counter()
         tool = "rank_events"
         resolved_sport, resolved_season, resolved_gender, problems = self._constraints(
-            sport, season, gender
+            sport, season, gender, year
         )
         if attribute != "competitor_count":
             problems.append("only competitor_count rankings are supported")
@@ -515,7 +522,7 @@ class GraphToolkit:
                 started,
             )
         resolved_sport, resolved_season, resolved_gender, problems = self._constraints(
-            sport, season, gender
+            sport, season, gender, year
         )
         if problems:
             return self._unlinked(tool, started, problems)
@@ -680,7 +687,7 @@ class GraphToolkit:
         started = time.perf_counter()
         tool = "find_events"
         resolved_sport, resolved_season, resolved_gender, problems = self._constraints(
-            sport, season, gender
+            sport, season, gender, year
         )
         if problems:
             return self._unlinked(tool, started, problems)

@@ -48,6 +48,15 @@ def test_count_events_reports_unknown_sport_with_graph_vocabulary() -> None:
     assert outcome.observation["graph_sports"] == ["Rowing"]
 
 
+def test_a_year_outside_the_corpus_is_reported_not_counted_as_zero() -> None:
+    # "How many events in 1912?" has no answer here; 0 would read as a fact about those Games.
+    toolkit = seeded_toolkit()
+    outcome = toolkit.count_events("rowing", 1912, threshold=1)
+    assert outcome.answer is None
+    assert "1912 has no Olympic events in the corpus" in outcome.observation["error"]
+    assert toolkit.find_events(sport="rowing", year=1912).answer is None
+
+
 def test_rank_events_reports_ties_and_ignores_missing_counts() -> None:
     toolkit = seeded_toolkit()
     tie = toolkit.rank_events("rowing", 2008, "summer")
