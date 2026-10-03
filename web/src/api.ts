@@ -216,6 +216,7 @@ export interface KeyRow {
   state: "live" | "resting" | "parked";
   chat?: number;
   embed?: number;
+  rerank?: number;
   errors?: number;
   last_status?: number;
   last_at?: number;

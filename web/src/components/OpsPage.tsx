@@ -243,10 +243,10 @@ export function OpsPage() {
               Cohere publishes no remaining balance, so check its dashboard for the month's total.
             </p>
             <div className="mt-3 overflow-x-auto rounded-2xl border border-[color:var(--hair)]">
-              <table className="w-full min-w-[640px] text-left text-[14px] tabular-nums">
+              <table className="w-full min-w-[700px] text-left text-[14px] tabular-nums">
                 <thead className="text-[12px] uppercase tracking-[0.1em] text-[color:var(--faint)]">
                   <tr>
-                    {["Tier", "Key", "State", "Chat", "Embed", "Errors", "Last status", "This minute", "Last used"].map((h) => (
+                    {["Tier", "Key", "State", "Chat", "Embed", "Rerank", "Errors", "Last status", "This minute", "Last used"].map((h) => (
                       <th key={h} className="px-4 py-3 font-normal">
                         {h}
                       </th>
@@ -266,6 +266,7 @@ export function OpsPage() {
                       </td>
                       <td className="px-4 py-2.5">{row.chat ?? 0}</td>
                       <td className="px-4 py-2.5">{row.embed ?? 0}</td>
+                      <td className="px-4 py-2.5">{row.rerank ?? 0}</td>
                       <td className="px-4 py-2.5">{row.errors ?? 0}</td>
                       <td className="px-4 py-2.5">{row.last_status ?? "–"}</td>
                       <td className="px-4 py-2.5">

@@ -268,8 +268,9 @@ ALTER VERTEX Chunk ADD VECTOR ATTRIBUTE embedding (DIMENSION = 1024, METRIC = "C
             returns its own ranking.
           </li>
           <li>
-            <strong>Fusion and reranking.</strong> Reciprocal rank fusion merges the two lists, a local int8 MiniLM cross-encoder
-            reranks them, and the top passages from five distinct articles become the context.
+            <strong>Fusion and reranking.</strong> Reciprocal rank fusion merges the two lists, Cohere{" "}
+            <code>rerank-v3.5</code> reranks them in one call, and the top passages from five distinct articles become the
+            context. If reranking is unavailable the fused order stands and the trace says so.
           </li>
           <li>
             <strong>Answer.</strong> One LLM call returns only the value, or "Not found in corpus".

@@ -28,7 +28,7 @@ TigerGraph Agentic GraphRAG Hackathon 2026 · Built by Philip Simon Derock
 | **Robustness** | Agent: 24/24 two-step questions (GraphRAG 19, RAG 15), 12/12 reworded, 12/12 unanswerable declined, 10/12 off-template |
 | **Cost** | 908 LLM tokens per agentic answer, about $0.30 per 100 questions |
 | **Evidence** | Every graph-pipeline answer is stated in a source article it cites |
-| **Stack** | TigerGraph Savanna (graph + native vector search) · Cohere Command A · local int8 reranker |
+| **Stack** | TigerGraph Savanna (graph + native vector search) · Cohere Command A · Cohere Rerank 3.5 |
 
 ---
 
@@ -53,7 +53,7 @@ Hidden-set outputs for all three pipelines (answers, tokens, latency, citations,
 | | |
 |---|---|
 | **Model** | Cohere `command-a-03-2025`, temperature 0, for every LLM call in every pipeline, the planner included |
-| **Embeddings** | Cohere `embed-v4.0`, 1024 dimensions |
+| **Embeddings and reranking** | Cohere `embed-v4.0` (1024 dimensions) and Cohere `rerank-v3.5`, one call per search; neither counts as LLM tokens |
 | **Vector database** | TigerGraph native vector search (HNSW) in the same Savanna workspace as the graph; no external vector store |
 | **Graph backend** | TigerGraph Savanna 4.2.5, graph `OlympicsGraph`: 2,210 events, 2,951 articles, 22,016 passages |
 | **Pipelines** | RAG (hybrid retrieval, 1 LLM call) · GraphRAG (one typed graph operation, 2 calls) · Agentic GraphRAG (ReAct over seven specialists) |
@@ -179,7 +179,7 @@ flowchart LR
 | Same-model rule | One locked model per run, with no silent provider fallback |
 | Reproducibility | Each run writes a manifest: commit, model, dataset and corpus SHA-256, settings |
 | Quality gate | pytest, ruff, mypy strict, vulture, bandit, and pip-audit on every push; 85%+ coverage |
-| Cost control | Query-embedding cache, batched prefetch, local reranker, early-stopping agent |
+| Cost control | Query-embedding cache, batched prefetch, one rerank call per search, early-stopping agent |
 | Public safety | Daily and per-visitor question caps, admin-only batch endpoint, allowlisted read-only GSQL, same-origin API with a strict CSP, no internal errors shown |
 
 ### What the data taught us
@@ -233,7 +233,7 @@ Links: `?tab=benchmark` and `?tab=docs` open those pages; `?q=<question>` asks a
 | `src/pipelines/` | `rag.py`, `graphrag.py`, `agentic.py`, `toolkit.py` |
 | `src/linking/` | Graph-loaded entity linker |
 | `src/graph/` | TigerGraph client, schema, compiled queries |
-| `src/coprocessor/` | BM25, rank fusion, int8 reranker |
+| `src/coprocessor/` | BM25, rank fusion, Cohere Rerank client |
 | `src/evaluate.py` | Benchmark runner and metrics |
 | `src/api/` | FastAPI service, graph-view projections for the canvas |
 | `web/` | React console: graph canvas, three-way answers, agent trace, benchmark and docs pages |
