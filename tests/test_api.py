@@ -9,6 +9,7 @@ import pytest
 import src.api.main as api_main
 import src.pipelines.agentic as agentic_module
 import src.pipelines.graphrag as graphrag_module
+from src.api.limits import QuestionBudget
 from src.api.main import app
 from src.coprocessor import Coprocessor
 from src.linking import EventCatalog, EventRecord
@@ -570,7 +571,7 @@ def test_visitors_cannot_pick_an_unlisted_provider(monkeypatch: pytest.MonkeyPat
 
 
 def test_daily_cap_stops_live_questions_with_retry_after(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(api_main, "_budget", api_main.QuestionBudget())
+    monkeypatch.setattr(api_main, "_budget", QuestionBudget())
     monkeypatch.setenv("STELLIUM_DAILY_QUESTION_CAP", "1")
     monkeypatch.setattr(api_main, "classify_intent", AsyncMock(return_value=Intent("chat", 5, 1.0)))
     assert client.post("/api/v1/query/compare", json={"query": "hi"}).status_code == 200
